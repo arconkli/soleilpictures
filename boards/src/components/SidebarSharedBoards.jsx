@@ -4,19 +4,23 @@
 // (sidebarSharedRoots); finding the rest, files shared with you and what you
 // shared are the Shared page's ("All shared", the row under the list).
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { COVER_TINTS } from './primitives.jsx';
 import { Icon } from './Icon.jsx';
 import { PersonFace } from './PersonFace.jsx';
-import { ChevronRight, MoreHorizontal, Search, Link, X, ArrowSquareOut, Users } from '../lib/icons.js';
+import { ChevronRight, MoreHorizontal, Search, Users } from '../lib/icons.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import { t, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { sidebarSharedRoots, isNewShare, SIDEBAR_SHARED_CAP } from '../lib/sharedList.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { INDENT } from '../lib/sidebarRows.js';
-import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { clusterMenu } from '../lib/menus/clusterMenu.js';
+import { useClusterActions } from '../hooks/useClusterActions.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import './sidebar/sharedWithYou.css';
 
 const OPEN_KEY = 'soleil.boards.sb.sharedWithYou.open';   // '0' = folded; open by default
@@ -50,82 +54,15 @@ const roleTitle = (row) => (row.role === 'viewer'
   ? t`${ph({ name: row.board_name })} · view only`
   : t`${ph({ name: row.board_name })} · editor`);
 
-// The ⋯ menu: portaled (the sidebar clips overflow), placed from the button.
-function RowMenu({ row, onOpen, onCopyLink, onRemove }) {
-  const btnRef = useRef(null);
-  const menuRef = useRef(null);
-  const [pos, setPos] = useState(null);
-  const refs = useMemo(() => [btnRef, menuRef], []);
-  const close = (refocus) => { setPos(null); if (refocus) btnRef.current?.focus(); };
-  useDismissOnOutside(refs, !!pos, () => close(true));
-  useLayoutEffect(() => {
-    if (pos) menuRef.current?.querySelector('[role="menuitem"]')?.focus();
-  }, [pos]);
-  useEffect(() => {
-    if (!pos) return undefined;
-    const shut = () => setPos(null);
-    window.addEventListener('resize', shut);
-    window.addEventListener('scroll', shut, true);
-    return () => { window.removeEventListener('resize', shut); window.removeEventListener('scroll', shut, true); };
-  }, [pos]);
-  const toggle = (e) => {
-    e.stopPropagation();
-    if (pos) { close(false); return; }
-    const r = btnRef.current?.getBoundingClientRect();
-    if (!r) return;
-    const width = 200;
-    setPos({ top: r.bottom + 4, left: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)), width });
-  };
-  // Open navigates away. Copy link keeps the row, so focus returns to the ⋯
-  // button. Remove drops the row (and its button): focus moves to the section.
-  const pick = (fn, how) => (e) => {
-    e.stopPropagation();
-    const host = btnRef.current?.closest('.swy');
-    close(how === 'copy');
-    fn?.(row.board_id);
-    if (how === 'remove') {
-      requestAnimationFrame(() => {
-        const a = document.activeElement;
-        if (a && a !== document.body) return;
-        (host?.querySelector('.swy-head-toggle') || host?.querySelector('.swy-all'))?.focus();
-      });
-    }
-  };
-  const onMenuKey = (e) => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    const items = [...menuRef.current.querySelectorAll('[role="menuitem"]')];
-    const i = items.indexOf(document.activeElement);
-    items[(e.key === 'ArrowDown' ? i + 1 : i - 1 + items.length) % items.length]?.focus();
-    e.preventDefault();
-  };
+// The ⋯ button of a row: opens the cluster menu under it.
+function MoreButton({ row, onOpen }) {
   return (
-    <>
-      <button type="button" ref={btnRef} className={`swy-more${pos ? ' is-open' : ''}`}
-              aria-haspopup="menu" aria-expanded={!!pos}
-              aria-label={t`More for ${ph({ name: row.board_name })}`} title={t`More`}
-              onClick={toggle} onKeyDown={(e) => e.stopPropagation()}>
-        <Icon as={MoreHorizontal} size={14} weight="regular" />
-      </button>
-      {pos && createPortal(
-        <div className="sbf-upmenu swy-menu" role="menu" ref={menuRef} onKeyDown={onMenuKey}
-             style={{ top: pos.top, left: pos.left, width: pos.width }}
-             onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="sbf-upitem" role="menuitem" onClick={pick(onOpen)}>
-            <Icon as={ArrowSquareOut} size={16} weight="regular" />
-            <span className="sbf-upitem-l"><b><Trans>Open</Trans></b></span>
-          </button>
-          <button type="button" className="sbf-upitem" role="menuitem" onClick={pick(onCopyLink, 'copy')}>
-            <Icon as={Link} size={16} weight="regular" />
-            <span className="sbf-upitem-l"><b><Trans>Copy link</Trans></b></span>
-          </button>
-          <button type="button" className="sbf-upitem" role="menuitem" onClick={pick(onRemove, 'remove')}>
-            <Icon as={X} size={16} weight="regular" />
-            <span className="sbf-upitem-l"><b><Trans>Remove from my list</Trans></b></span>
-          </button>
-        </div>,
-        document.body,
-      )}
-    </>
+    <button type="button" className="swy-more" aria-haspopup="menu"
+            aria-label={t`More for ${ph({ name: row.board_name })}`} title={t`More`}
+            onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); onOpen(r.right - 8, r.bottom + 4, e.detail === 0); }}
+            onKeyDown={(e) => e.stopPropagation()}>
+      <Icon as={MoreHorizontal} size={14} weight="regular" />
+    </button>
   );
 }
 
@@ -143,6 +80,21 @@ export function SidebarSharedBoards({
 }) {
   const [open, setOpen] = useState(loadOpen);
   const [expanded, setExpanded] = useState(() => new Set());
+  const cc = useClusterActions();
+  const [menu, setMenu] = useState(null);          // { x, y, row, isRoot, byKey }
+  // The rows mount and unmount with the section; the hold follows the element.
+  const [rowsEl, setRowsEl] = useState(null);
+  const rowsRef = useMemo(() => ({ current: rowsEl }), [rowsEl]);
+  const hostRef = useRef(null);
+  const seen = useRef(new Map());                    // id -> { row, isRoot }, as last drawn
+  const openMenu = (row, isRoot, x, y, byKey) => setMenu({ x, y, row, isRoot, byKey: !!byKey });
+  // A hold on a row asks for its menu; the tap that ends it is eaten.
+  useLongPress(rowsRef, (x, y, e) => {
+    const hit = seen.current.get(e.target.closest?.('[data-swy-id]')?.getAttribute('data-swy-id'));
+    if (!hit) return false;
+    openMenu(hit.row, hit.isRoot, x, y);
+    swallowNextClick({ held: true });
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
 
   const { rows, total } = useMemo(
     () => sidebarSharedRoots(roots, meta, { activeRootId }),
@@ -184,10 +136,15 @@ export function SidebarSharedBoards({
     const isRoot = depth === 0;
     const who = isRoot && typeof row.shared_by_name === 'string' && row.shared_by_name.trim() ? row.shared_by_name.trim() : null;
     const fresh = isRoot && isNewShare(meta?.get?.(id));
+    seen.current.set(id, { row, isRoot });
     const onKey = (e) => {
       if (isComposingKey(e) || e.target !== e.currentTarget) return;
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenBoard?.(id); }
-      else if (e.key === 'ArrowRight' && kids.length && !isOpen) { e.preventDefault(); toggleNode(id); }
+      else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+        e.preventDefault();
+        const r = e.currentTarget.getBoundingClientRect();
+        openMenu(row, isRoot, r.left + 32, r.bottom - 4, true);
+      } else if (e.key === 'ArrowRight' && kids.length && !isOpen) { e.preventDefault(); toggleNode(id); }
       else if (e.key === 'ArrowLeft' && kids.length && isOpen) { e.preventDefault(); toggleNode(id); }
     };
     return (
@@ -203,7 +160,9 @@ export function SidebarSharedBoards({
              data-drop-ws-name={row.source_workspace_name || ''}
              data-drop-name={row.board_name || ''}
              onMouseEnter={() => prefetchBoard(id)}
+             data-swy-id={id}
              onClick={() => onOpenBoard?.(id)}
+             onContextMenu={(e) => { e.preventDefault(); openMenu(row, isRoot, e.clientX, e.clientY); }}
              onKeyDown={onKey}
              title={who ? t`Shared by ${ph({ name: who })}` : roleTitle(row)}>
           <button type="button" className={`sb-tree-chev${isOpen ? ' is-open' : ''}`}
@@ -223,9 +182,7 @@ export function SidebarSharedBoards({
           {row.role === 'viewer' && (
             <span className="sb-shared-ro" title={t`View only`}><Trans context="permission">View</Trans></span>
           )}
-          {isRoot && (
-            <RowMenu row={row} onOpen={onOpenBoard} onCopyLink={onCopyLink} onRemove={onRemove} />
-          )}
+          <MoreButton row={row} onOpen={(x, y, byKey) => openMenu(row, isRoot, x, y, byKey)} />
         </div>
         {kids.length > 0 && isOpen && (
           <div role="group">{kids.map((c) => renderRow(c, depth + 1))}</div>
@@ -235,7 +192,7 @@ export function SidebarSharedBoards({
   };
 
   return (
-    <div className="sb-shared swy">
+    <div className="sb-shared swy" ref={hostRef}>
       {total > 0 && (
         <div className="sb-eyebrow sb-shared-head swy-head"
              onClick={() => setOpenSaved(!open)}>
@@ -255,7 +212,7 @@ export function SidebarSharedBoards({
         </div>
       )}
       {total > 0 && open && (
-        <div className="swy-rows" role="tree" aria-label={t`Shared with you`}>
+        <div className="swy-rows" role="tree" ref={setRowsEl} aria-label={t`Shared with you`}>
           {rows.map((r) => renderRow(r, 0))}
         </div>
       )}
@@ -272,6 +229,27 @@ export function SidebarSharedBoards({
           <span className="sb-row-label"><Trans>All shared</Trans></span>
           {allShared.count > 0 && <span className="swy-all-count" aria-hidden="true">{allShared.count}</span>}
         </div>
+      )}
+      {menu && createPortal(
+        <CardContextMenu open x={menu.x} y={menu.y} byKey={!!menu.byKey} onClose={() => setMenu(null)} root="cluster"
+                         {...clusterMenu({ name: menu.row.board_name },
+                           { edit: false, canRemoveFromList: menu.isRoot },
+                           {
+                             open: () => onOpenBoard?.(menu.row.board_id),
+                             send: cc?.canSend?.() ? () => cc.send(menu.row.board_id, 'shared_sidebar_menu') : null,
+                             'copy-link': () => onCopyLink?.(menu.row.board_id),
+                             'remove-from-list': () => {
+                               onRemove?.(menu.row.board_id);
+                               // The row and its ⋯ unmount: keep focus off <body>, where canvas shortcuts listen.
+                               requestAnimationFrame(() => {
+                                 const a = document.activeElement;
+                                 if (a && a !== document.body && a.isConnected) return;
+                                 const host = hostRef.current;
+                                 (host?.querySelector('.swy-head-toggle') || host?.querySelector('.swy-all'))?.focus();
+                               });
+                             },
+                           })} />,
+        document.body,
       )}
     </div>
   );

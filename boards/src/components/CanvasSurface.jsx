@@ -43,10 +43,12 @@ import { anyModalOpen, registerModalOpen } from '../lib/modalGuard.js';
 // all of them register with lib/modalGuard yet, and a focused button inside
 // one is not an "editable target", so Backspace there deleted the selected
 // cards behind it. Checked from the DOM as a backstop to the registry.
+// An open right-click menu (.ctx-menu) counts: when the focus falls out of it
+// onto <body>, d, the arrows and Backspace must not reach the canvas.
 // Deliberately NOT viewSwitch's broad role="dialog": the upgrade banner, the
 // share prompt and the onboarding tour carry it too and must not freeze the
 // canvas shortcuts while they sit in a corner.
-const BLOCKING_OVERLAY_SELECTOR = '.settings-bg, .upgrade-backdrop, .pdfv, .lightbox, .iem, .cmdk-bg, [aria-modal="true"]';
+const BLOCKING_OVERLAY_SELECTOR = '.settings-bg, .upgrade-backdrop, .pdfv, .lightbox, .iem, .cmdk-bg, .ctx-menu, .ctx-sheet-root, [aria-modal="true"]';
 function boardKeysBlocked() {
   if (anyModalOpen()) return true;
   try { return !!document.querySelector(BLOCKING_OVERLAY_SELECTOR); } catch (_) { return false; }
@@ -146,7 +148,7 @@ import { dragSession } from '../lib/springLoad.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
 import { unlinkGridForCopy, gridLinkOf, relinkGrid, readGridModel, setGridCell } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
-import { wouldCreateCycle } from '../lib/boardTree.js';
+import { wouldCreateCycle, ancestorPath } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
@@ -165,7 +167,7 @@ import { notePointerType, pointerCanDraw } from '../lib/pointerPolicy.js';
 import { toPathD, polylinePathD, isFilledPath, strokeOpacity, strokeLineCap } from '../lib/strokeRender.js';
 import { DEFAULT_BRUSH } from '../lib/strokeModel.js';
 import { findTouchScrollable, driveTouchScroll, startTouchScrollGesture } from '../lib/touchScroll.js';
-import { resolveSrc } from '../lib/r2.js';
+import { resolveSrc, cachedUrl } from '../lib/r2.js';
 import { scheduleBoardPreviewBackfill, drainVariantQueue } from '../lib/previewBackfill.js';
 import { loadCorsCleanImage } from '../lib/corsImage.js';
 import { R2Image } from './R2Image.jsx';
@@ -181,7 +183,12 @@ import { uploadContext } from '../lib/uploadContext.js';
 import { probeFile } from '../lib/mediaProbe.js';
 import { openPlayer, takeCardPlayer } from '../lib/playerBus.js';
 import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } from '../lib/infoBus.js';
-import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
+import { readRecents } from '../hooks/useRecents.js';
+import { copyClusterLink, copyCardLink } from '../lib/cardLink.js';
+import { useClusterActions } from '../hooks/useClusterActions.js';
+import {
+  cardMenu, multiMenu, groupMenu, arrowMenu, canvasMenu, moveToClusterRows, radioRows, kindName,
+} from '../lib/menus/index.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce, noteSessionCounter } from '../lib/analytics.js';
 import { logCanvasTool } from '../lib/canvasToolEvents.js';
@@ -765,11 +772,10 @@ function latticeOf(tree) {
 
 // A note with comments on its words lists them from its menu: "Comments (n)"
 // (the list is comments/NoteCommentsLayer.jsx's).
-function noteWordComments(ydoc, c, items) {
+function noteWordCommentCount(ydoc, c) {
   let n = 0;
   if (c.kind === 'note') ydoc?.getMap('cards').get(c.id)?.get('docComments')?.forEach?.((v, k) => { if (!k.includes('~')) n += 1; });
-  if (n) items.push({ id: 'note-comments', label: plural(n, { one: 'Comments (#)', other: 'Comments (#)' }),
-    run: () => document.dispatchEvent(new CustomEvent('soleil-note-comments', { detail: { cardId: c.id, list: true } })) });
+  return n;
 }
 
 export function CanvasSurface({
@@ -2463,6 +2469,7 @@ export function CanvasSurface({
   // sits still; converting this at paste time lands under the cursor.
   const lastMouseClientRef = useRef(null);
   const feedback = useFeedback();
+  const clusterAct = useClusterActions();
   // The wheel effect binds once with [] deps on purpose (re-binding it fired
   // the cleanup mid-pan and nulled the peer cursor — see that effect), so it
   // cannot capture `feedback` or hold gesture state in a closure. Both go
@@ -6341,7 +6348,7 @@ export function CanvasSurface({
   useEffect(() => {
     const onDown = (e) => {
       if (e.code !== 'Space') return;
-      if (isEditorTarget(e) || inCommentSurface(e.target)) return;   // Space presses a comment's own button
+      if (isEditorTarget(e) || inCommentSurface(e.target) || e.target?.closest?.('.ctx-menu')) return;   // Space presses a comment's own button, and runs a menu's focused row
       e.preventDefault();
       setSpaceDown(true);
     };
@@ -6543,7 +6550,7 @@ export function CanvasSurface({
     };
     const startGlide = () => { if (!glideRaf) glideRaf = requestAnimationFrame(glideFrame); };
     const onWheel = (e) => {
-      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
+      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .ctx-sheet-root, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
       // The full-screen PDF viewer and image lightbox render inside this wrap:
       // without this every wheel over a PDF's pages panned the board behind it
       // instead of scrolling them. A ctrl/⌘-wheel is still kept from the
@@ -6913,7 +6920,7 @@ export function CanvasSurface({
   useEffect(() => {
     const t = touchCamRef.current;
     // Controls that float over the board keep their own touches.
-    const SKIP = '.cnv-tools, .cnv-tool, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .modal-bg, .tob, .sel-menu, .cnv-comments-eye, .cmt-list, .cmt-canvas-card';
+    const SKIP = '.cnv-tools, .cnv-tool, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .ctx-sheet-root, .modal-bg, .tob, .sel-menu, .cnv-comments-eye, .cmt-list, .cmt-canvas-card';
     const pairAnchor = () => {
       const r = t.rect || { left: 0, top: 0 };
       const pts = [];
@@ -7933,6 +7940,41 @@ export function CanvasSurface({
       // e.code is layout-independent (Shift+1 reports e.key '!').
       if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit1') { e.preventDefault(); fitToContent(); return; }
       if (e.shiftKey && !cmd && !e.altKey && e.code === 'Digit2') { e.preventDefault(); zoomToSelection(); return; }
+      // ⇧F10 / the Menu key: the context menu from the keyboard. At the picked
+      // picked cards (at their box's left and bottom), else on the canvas at the view's
+      // centre. Opens with its first row focused (byKey).
+      if (!isPublic && ((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu') && !cmd && !e.altKey) {
+        e.preventDefault();
+        // The picked cards' bounding box (screen coordinates): the menu opens at its
+        // left and bottom edges, as the card menu a right-click on a selected card opens.
+        const picked = [...selected];
+        let box = null;
+        for (const id of picked) {
+          const cel = wrapRef.current?.querySelector(`[data-card-id="${CSS.escape(String(id))}"]`);
+          if (!cel) continue;
+          const cr = cel.getBoundingClientRect();
+          box = box
+            ? { left: Math.min(box.left, cr.left), bottom: Math.max(box.bottom, cr.bottom) }
+            : { left: cr.left, bottom: cr.bottom };
+        }
+        const only = box ? picked.find((id) => wrapRef.current?.querySelector(`[data-card-id="${CSS.escape(String(id))}"]`)) : null;
+        if (box) {
+          setBgCtx((b) => ({ ...b, open: false }));
+          setCtx({
+            open: true,
+            x: Math.max(8, Math.min(box.left, window.innerWidth - 8)),
+            y: Math.max(8, Math.min(box.bottom, window.innerHeight - 8)),
+            cardId: only, byKey: true,
+          });
+        } else {
+          const r = wrapRef.current?.getBoundingClientRect();
+          const x = r ? r.left + r.width / 2 : 200;
+          const y = r ? r.top + r.height / 2 : 200;
+          setCtx((c) => ({ ...c, open: false }));
+          setBgCtx({ open: true, x, y, canvasPos: lastMouseCanvasRef.current, byKey: true });
+        }
+        return;
+      }
 
       // While W A S D movement is on, its six keys (W A S D, Q E) are the
       // movement listener's (lib/wasdPan.js): A and D must not also pick Arrow
@@ -10024,6 +10066,8 @@ export function CanvasSurface({
   const onArrowContextMenu = (e, idx) => {
     e.preventDefault();
     e.stopPropagation();
+    // Viewers have no arrow menu (and nothing to select by it).
+    if (!canEdit) return;
     setSelectedArrows(new Set([idx]));
     setSelected(new Set());
     const a = (arrows || [])[idx];
@@ -10095,7 +10139,7 @@ export function CanvasSurface({
     mutators.breakUndo?.();
     setSelected(new Set());
     undoToast(feedback, {
-      message: plural(list.length, { 1: 'Removed from board — it\u2019s still in Files', other: '# removed from board — still in Files' }),
+      message: plural(list.length, { one: 'Taken off the canvas. It\u2019s still in Files.', other: '# taken off the canvas. They\u2019re still in Files.' }),
       undoManager: um, stackItem: item,
       onUndo: () => mutators.undo?.(),
     });
@@ -10132,45 +10176,191 @@ export function CanvasSurface({
       { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: OPEN_FIT_MAX_ZOOM }));
   };
 
+  // ── The card menus ────────────────────────────────────────────────────────
+  // buildMenu gathers what is POSSIBLE for the card (or the selection) as acts,
+  // each doing what its row always did, and lib/menus/cardMenu.js decides which
+  // rows show, in what order, with which words and icons. A row shows only when
+  // its act is here, so the permission rules live in this function and nowhere
+  // in the builder.
+
   // Send to…: a card, the selection, or (on a cluster card) the cluster it
   // stands for. Offered only where the signed-in shell mounted SendHost, so
   // never on a public view. Viewers can send too.
-  const pushSendItem = (list, c, multi) => {
-    if (isPublic || !sendAvailable()) return;
+  const sendAct = (c, multi) => {
+    if (isPublic || !sendAvailable()) return null;
     const surface = isTouch ? 'card_menu_touch' : 'canvas_menu';
     if (multi) {
       const picked = [...selected].map((id) => cardById[id]).filter(Boolean);
-      if (!picked.length) return;
+      if (!picked.length) return null;
       if (picked.length > SEND_MAX_CARDS) {
-        list.push({ id: 'send-to', disabled: true,
-          label: plural(SEND_MAX_CARDS, { one: 'Send to… (up to # card)', other: 'Send to… (up to # cards)' }) });
-        return;
+        return { disabled: true,
+          label: plural(SEND_MAX_CARDS, { one: 'Send to… (up to # card)', other: 'Send to… (up to # cards)' }) };
       }
-      list.push({ id: 'send-to',
-        label: plural(picked.length, { one: 'Send to…', other: 'Send # cards to…' }),
-        run: () => openSend({ boardId: board.id, boardTitle: board.name, cards: picked, surface }) });
-      return;
+      return { label: plural(picked.length, { one: 'Send to…', other: 'Send # cards to…' }),
+        run: () => openSend({ boardId: board.id, boardTitle: board.name, cards: picked, surface }) };
     }
     if (c.kind === 'board' || c.kind === 'boardlink') {
       const target = c.kind === 'board' ? c.id : c.target;
-      if (!target) return;
-      list.push({ id: 'send-to', label: tr`Send to…`,
-        run: () => openSend({ boardId: target, boardTitle: boards[target]?.name || c.title || c.name || '', surface }) });
-      return;
+      if (!target) return null;
+      return () => openSend({ boardId: target, boardTitle: boards[target]?.name || c.title || c.name || '', surface });
     }
-    if (!c.id) return;
-    list.push({ id: 'send-to', label: tr`Send to…`,
-      run: () => openSend({ boardId: board.id, boardTitle: board.name, cards: [c], surface }) });
+    if (!c.id) return null;
+    return () => openSend({ boardId: board.id, boardTitle: board.name, cards: [c], surface });
+  };
+
+  // A cluster as a Move to / Copy to row: its name, the parent path the old
+  // labels carried ("Studio / Night exteriors", without the workspace root) as
+  // an aside, and its tint when it has one.
+  const moveTarget = (id) => {
+    const b = boards[id];
+    const path = ancestorPath(boards, id);
+    return {
+      id,
+      name: b?.name || tr`Untitled`,
+      tint: b?.cover && b.cover !== 'neutral' ? (COVER_TINTS[b.cover] || null) : null,
+      parents: path.slice(1, -1).map((pid) => boards[pid]?.name || tr`Untitled`),
+    };
+  };
+  const recentTargets = (all) => {
+    const byId = new Map(all.map((a) => [a.id, a]));
+    return readRecents(workspaceId).map((id) => byId.get(id)).filter(Boolean);
+  };
+
+  // A group's rows, for the group label's right-click and for Group "Name" ›
+  // on a card of the group (member = the card ids Remove from group acts on).
+  const groupActs = (g, { gid = g?.id, at, member = null } = {}) => {
+    const acts = {};
+    if (canComment && gid) acts['group-comment'] = () => promptComment({ kind: 'group', id: gid });
+    if (!g) return acts;
+    acts['group-info'] = () => openInfo({ boardId: board.id, groupId: g.id });
+    // someone who can only view gets the comment and the group's info
+    if (!canEdit) return acts;
+    acts['rename-group'] = async () => {
+      const name = await feedback.prompt({
+        title: tr`Rename group`,
+        label: tr`Name`,
+        defaultValue: g.name || '',
+        confirmLabel: tr`Rename`,
+      });
+      if (name == null) return;
+      mutators.renameGroup?.(g.id, name);
+    };
+    acts['tag-group'] = () => {
+      const r = { left: at?.x ?? 0, top: at?.y ?? 0, bottom: (at?.y ?? 0) + 4, right: (at?.x ?? 0) + 4 };
+      setTagPicker({ kind: 'group', id: g.id, anchorRect: r });
+    };
+    acts.outline = { checked: !!g.outline, run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) };
+    acts['group-label'] = { checked: !g.options?.hideLabel,
+      run: () => mutators.setGroupOutline?.(g.id, { options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel } }) };
+    acts['outline-box'] = { checked: (g.shape || 'box') === 'box', radio: true,
+      run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) };
+    acts['outline-hug'] = { checked: g.shape === 'hug', radio: true,
+      run: () => mutators.setGroupOutline?.(g.id, { shape: 'hug', outline: true }) };
+    acts['outline-color'] = () => {
+      setPicker({
+        value: g.color || 'var(--soleil)',
+        onChange: (col) => mutators.setGroupOutline?.(g.id, { color: col, outline: true }),
+        x: at?.x ?? 0, y: at?.y ?? 0, allowTransparent: false,
+      });
+    };
+    // A group that has become a project gets a place of its own: the group
+    // moves in whole and keeps its name (clusterFromSelection).
+    if (clusterNudgesAllowed()) {
+      acts['turn-into-cluster'] = () => createClusterFrom((cardsByGroup.get(g.id) || []).map((m) => m.id), { via: 'from_group' });
+    }
+    if (member) acts['remove-from-group'] = () => mutators.removeFromGroup?.(member);
+    acts.ungroup = () => { mutators.ungroup?.(g.id); logCanvasTool('section_remove', { boardId: board?.id }); };
+    return acts;
+  };
+
+  // An arrow's rows (right-click on it, or on its bend dot).
+  const arrowActs = (idx, arrow) => ({
+    'arrow-label': { has: !!arrow.label, run: async () => {
+      const v = await feedback.prompt({
+        title: tr`Arrow label`,
+        label: tr`Label`,
+        defaultValue: arrow.label || '',
+        placeholder: tr`leads to, blocks, related…`,
+        confirmLabel: tr`Save`,
+      });
+      if (v == null) return;
+      mutators.updateArrow?.(idx, { label: v.trim() || null });
+    } },
+    curved: { checked: !arrow.straight, run: () => mutators.updateArrow?.(idx, { straight: !arrow.straight }) },
+    'two-way': { checked: !!arrow.bidir, run: () => mutators.updateArrow?.(idx, { bidir: !arrow.bidir }) },
+    dashed: { checked: !!arrow.dashed, run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
+    ...(arrow.bend ? { 'reset-curve': () => mutators.updateArrow?.(idx, { bend: null }) } : {}),
+    // Right-click selected this index. Left behind, it would select
+    // whichever arrow slides into the slot — with handles, popover and
+    // a Backspace aimed at it.
+    'delete-arrow': () => { deleteSingleArrow(idx); setSelectedArrows(new Set()); },
+  });
+
+  // Tidy up / Align / Distribute, shared by the card menu (the selection) and
+  // the canvas menu (the whole cluster when fewer than two are selected).
+  // Every one goes through mutators.updateCards, so a whole rearrangement is a
+  // single undo step rather than forty.
+  const spatialRuns = () => {
+    const geometryOf = (id) => cardByIdRef.current[id];
+    const applyMoves = (moved, withSize) => {
+      if (!moved.length) return;
+      mutators.updateCards?.(moved.map((c) => ({
+        id: c.id,
+        patch: withSize ? { x: c.x, y: c.y, w: c.w, h: c.h } : { x: c.x, y: c.y },
+      })));
+    };
+    // Nothing selected means the whole board — "tidy this up" is the request,
+    // and making someone select everything first to express it is friction.
+    const tidyRun = (layoutName) => {
+      const all = Object.values(cardByIdRef.current || {});
+      const ids = selected.size >= 2 ? [...selected] : all.map((c) => String(c.id));
+      // justified is the only layout that resizes, so it is the only one whose
+      // patch may carry w/h.
+      applyMoves(rearrange(all, ids, { layout: layoutName }), layoutName === 'justified');
+      logCanvasTool('tidy', { how: layoutName, n: ids.length, boardId: board?.id });
+    };
+    const alignRun = (edge) => {
+      applyMoves(alignCards([...selected].map(geometryOf).filter(Boolean), edge), false);
+      logCanvasTool('align', { how: edge, n: selected.size, boardId: board?.id });
+    };
+    const distributeRun = (axis) => {
+      applyMoves(distributeCards([...selected].map(geometryOf).filter(Boolean), axis), false);
+      logCanvasTool('distribute', { how: axis, n: selected.size, boardId: board?.id });
+    };
+    return { tidyRun, alignRun, distributeRun };
   };
 
   const buildMenu = (c) => {
-    // Buckets → composeMenuSections keeps every card's menu grouped + ordered
-    // the same: primary (open) · EDIT · ANNOTATE · ARRANGE · CLIPBOARD · meta
-    // (info / backlinks / delete). Empty buckets drop out (no stray headers).
-    // `items` is the EDIT bucket — the big per-kind block below fills it.
-    const items = [];
-    const openItems = [], annotateItems = [], arrangeItems = [], clipboardItems = [], metaItems = [];
     const multi = selected.size > 1 && selected.has(c.id);
+    const ids = multi ? [...selected] : [c.id];
+    const anchor = { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 };
+    const acts = {};
+    const kindLabel = kindName(c.kind);
+    const nameOf = (cc) => String((cc.kind === 'board' ? boards[cc.id]?.name : null) || cc.title || cc.name || '').trim();
+    const name = nameOf(c);
+    // The phone sheet's header: the card's small picture and name, or the
+    // first few pictures of a selection.
+    const thumbOf = (cc) => (cc.kind === 'image' && cc.src ? cachedUrl(cc.src) : null);
+    const preview = multi
+      ? { thumbs: ids.map((id) => cardById[id]).filter(Boolean).map(thumbOf).filter(Boolean).slice(0, 3),
+          name: plural(ids.length, { one: '# card', other: '# cards' }), kind: board?.name || '' }
+      : { name: name || kindLabel, kind: name && name !== kindLabel ? kindLabel : '',
+          ...(thumbOf(c) ? { thumb: thumbOf(c) } : {}),
+          ...(c.kind === 'board' && COVER_TINTS[boards[c.id]?.cover] ? { tint: COVER_TINTS[boards[c.id].cover] } : {}) };
+    const finish = (m) => ({ ...m, title: m.title || name || kindLabel, preview });
+
+    const send = sendAct(c, multi);
+    if (send) acts.send = send;
+    const noteN = multi || isPublic ? 0 : noteWordCommentCount(ydoc, c);
+    if (noteN) acts['note-comments'] = { count: noteN,
+      run: () => document.dispatchEvent(new CustomEvent('soleil-note-comments', { detail: { cardId: c.id, list: true } })) };
+    acts.info = () => openInfo({ boardId: board.id, cardIds: ids, follow: infoFollow });
+    if (!multi) {
+      acts.backlinks = true;
+      acts['copy-link'] = () => (c.kind === 'board' ? copyClusterLink(c.id, feedback)
+        : c.kind === 'boardlink' ? copyClusterLink(c.target, feedback)
+        : copyCardLink(c.id, board.id, feedback));
+    }
 
     // View-only board: strip every mutating action (Edit/Replace/Cover/
     // Shape/Stroke/Fit/Tag — all RLS-blocked). Keep navigation, Info, and the
@@ -10179,166 +10369,149 @@ export function CanvasSurface({
     if (!canEdit) {
       if (!multi) {
         if (c.kind === 'board') {
-          openItems.push({ id: 'open', label: tr`Open cluster`, run: () => onOpenBoard(c.id) });
+          acts['open-cluster'] = () => onOpenBoard(c.id);
         } else if (c.kind === 'boardlink') {
-          openItems.push({ id: 'open', label: tr`Open linked cluster`,
-            run: () => boards[c.target] && onOpenBoard(c.target) });
+          acts['open-linked'] = () => boards[c.target] && onOpenBoard(c.target);
         } else if (c.kind === 'link' && (c.source || c.link)) {
-          openItems.push({ id: 'open', label: tr`Open link`, run: () => {
+          acts['open-link'] = () => {
             const href = openableUrl(c.link || c.source);
             if (href) window.open(href, '_blank', 'noopener');
             else feedback.toast({ type: 'error', code: 'link_open_failed', message: tr`That link can't be opened.` });
-          }});
+          };
         } else if (c.kind === 'shortcut' && c.shareToken && !isPublic) {
-          openItems.push({ id: 'open', label: tr`Open`, run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
+          acts.open = () => openSharedFile({ token: c.shareToken, via: 'shortcut' });
         }
-        metaItems.push({ id: 'info', label: tr`Info`, shortcut: modShortcut('I'),
-          run: () => openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }) });
-        metaItems.push({ backlinks: true });
-      } else {
-        metaItems.push({ id: 'info', label: tr`Info (${ph({ size: selected.size })})`, shortcut: modShortcut('I'),
-          run: () => openInfo({ boardId: board.id, cardIds: [...selected], follow: infoFollow }) });
+        // People who can only view may still comment.
+        if (canComment) acts.comment = () => promptComment({ kind: 'card', id: c.id });
       }
       // The drop rules: out of a cluster you can only view, files can still be
       // copied — into this workspace's clusters, by the route.
-      const copyItems = [];
       if (onMoveFilesRef.current && !isPublic && (!board.workspace_id || board.workspace_id === workspaceId)) {
-        const copying = (multi ? [...selected] : [c.id])
+        const copying = ids
           .map((id) => (cards || []).find((x) => x.id === id))
           .filter((cc) => cc && cc.kind !== 'board' && cc.kind !== 'boardlink');
         const targets = copying.length ? cardMoveTargets(boards, { workspaceId, fromId: board.id }) : [];
         if (targets.length) {
-          const ids = copying.map((cc) => cc.id);
-          copyItems.push({
-            id: 'copy-cards-to-board',
-            label: plural(ids.length, { 0: 'Copy to cluster…', 1: 'Copy to cluster…', other: 'Copy # cards to…' }),
-            submenu: targets.map((t) => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, copying, true) })),
-          });
+          const all = targets.map((t) => moveTarget(t.id));
+          const copyIds = copying.map((cc) => cc.id);
+          acts['copy-to'] = { submenu: moveToClusterRows({
+            recent: recentTargets(all), all, currentId: board.id,
+            acts: { pick: (tg) => sendCardsByRoute(copyIds, tg.id, copying, true) },
+          }) };
         }
       }
-      pushSendItem(openItems, c, multi);
-      // People who can only view may still comment.
-      if (!multi && canComment) {
-        annotateItems.push({ id: 'comment', label: tr`Add comment`,
-          run: () => promptComment({ kind: 'card', id: c.id }) });
-      }
-      if (!multi && !isPublic) noteWordComments(ydoc, c, annotateItems);
-      return composeMenuSections([
-        { items: openItems },
-        { header: SECTION.ANNOTATE, items: annotateItems },
-        { items: copyItems },
-        { items: metaItems },
-      ]);
+      return finish(multi
+        ? multiMenu(selected.size, { canEdit: false }, acts)
+        : cardMenu(c, { canEdit: false, title: name }, acts));
     }
 
-    // "Move to board…" non-drag fallback for board references (works for a
-    // single board card or a multi-select of board cards). Routes to the same
-    // shared reparent handler the drag surfaces use.
+    // The quick row.
+    acts.cut = doCut;
+    acts.copy = doCopy;
+    acts.duplicate = doDuplicate;
+    acts.delete = () => doDeleteIds(ids);
+
+    // Move to cluster › / Copy to cluster ›: the non-drag fallback, through the
+    // same handlers the drag surfaces use.
     {
-      const actingCards = (multi ? [...selected] : [c.id])
-        .map(id => (cards || []).find(x => x.id === id))
-        .filter(Boolean);
+      const actingCards = ids.map((id) => (cards || []).find((x) => x.id === id)).filter(Boolean);
       const actingBoardIds = actingCards
-        .map(cc => cc.kind === 'board' ? cc.id : (cc.kind === 'boardlink' ? cc.target : null))
+        .map((cc) => (cc.kind === 'board' ? cc.id : (cc.kind === 'boardlink' ? cc.target : null)))
         .filter(Boolean);
       const allBoards = actingCards.length > 0 && actingBoardIds.length === actingCards.length;
+      // Off the board, still in the cluster: the file waits in Files
+      // (lib/placement.js). Offered only when every card in the selection can go.
+      const offIds = ids.filter((id) => canUnplace(cardById[id]));
+      const keepInFiles = !mutators.captureGuarded && offIds.length && offIds.length === ids.length
+        ? () => removeFromBoard(offIds) : undefined;
       if (allBoards) {
         const targets = Object.values(boards)
-          .filter(b => b && b.workspace_id === workspaceId
+          .filter((b) => b && b.workspace_id === workspaceId
             && !actingBoardIds.includes(b.id)
-            && !actingBoardIds.some(cid => wouldCreateCycle(boards, cid, b.id)))
+            && !actingBoardIds.some((cid) => wouldCreateCycle(boards, cid, b.id)))
           .sort((a, b2) => (a.name || '').localeCompare(b2.name || ''))
           .slice(0, 50);
         const dispatchMove = (targetId) => document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
           detail: { childIds: actingBoardIds, targetId, sourceSurface: 'menu' },
         }));
-        const submenu = [
-          { id: 'mtb-root', label: tr`Top level`, run: () => dispatchMove(null) },
-          ...(targets.length ? [{ divider: true }] : []),
-          ...targets.map(b => ({ id: 'mtb-' + b.id, label: b.name || tr`Untitled`, run: () => dispatchMove(b.id) })),
-        ];
-        arrangeItems.push({
-          id: 'move-to-board',
-          label: plural(actingBoardIds.length, { 0: 'Move to cluster…', 1: 'Move to cluster…', other: 'Move # clusters to…' }),
-          submenu,
-        });
-      }
-      // The same entry for everything that is NOT a cluster: the menu half of
-      // dropping cards on a cluster card, for when that cluster isn't on this
-      // canvas — a first project gathered on the root, filed into its own
-      // cluster later. A selection that mixes clusters with other cards offers
-      // neither, because nesting a cluster and moving a card are different
-      // operations.
-      // A group travels whole, the way it does when dragged.
-      const moving = [...expandWithGroupmates(actingCards.map(cc => cc.id))]
-        .map(id => cardById[id])
-        .filter(Boolean);
-      const anyClusterRef = moving.some(cc => cc.kind === 'board' || cc.kind === 'boardlink');
-      if (moving.length > 0 && !anyClusterRef) {
-        const targets = cardMoveTargets(boards, { workspaceId, fromId: board.id });
-        const ids = moving.map(cc => cc.id);
-        // "New cluster…" heads the list, and stays when there is no other
-        // cluster to offer — a first project gathered on Studio is exactly
-        // the pile that has nowhere to go yet. A multi-selection with no
-        // targets already has "New cluster from N cards" beside Group.
-        const toNew = clusterNudgesAllowed()
-          ? { id: 'mcb-new', label: tr`New cluster…`, run: () => createClusterFrom(ids, { via: 'move_to_new' }) }
-          : null;
-        if (targets.length) {
+        const all = targets.map((b) => moveTarget(b.id));
+        acts.move = { submenu: moveToClusterRows({
+          recent: recentTargets(all), all, currentId: board.id,
+          acts: { topLevel: () => dispatchMove(null), pick: (tg) => dispatchMove(tg.id), keepInFiles },
+        }) };
+      } else {
+        // The same entry for everything that is NOT a cluster: the menu half of
+        // dropping cards on a cluster card, for when that cluster isn't on this
+        // canvas — a first project gathered on the root, filed into its own
+        // cluster later. A selection that mixes clusters with other cards offers
+        // neither, because nesting a cluster and moving a card are different
+        // operations. A group travels whole, the way it does when dragged.
+        const moving = [...expandWithGroupmates(actingCards.map((cc) => cc.id))]
+          .map((id) => cardById[id])
+          .filter(Boolean);
+        const anyClusterRef = moving.some((cc) => cc.kind === 'board' || cc.kind === 'boardlink');
+        if (moving.length > 0 && !anyClusterRef) {
+          const targets = cardMoveTargets(boards, { workspaceId, fromId: board.id });
+          const movingIds = moving.map((cc) => cc.id);
+          const all = targets.map((t) => moveTarget(t.id));
+          // "New cluster…" heads the list, and stays when there is no other
+          // cluster to offer — a first project gathered on Studio is exactly
+          // the pile that has nowhere to go yet.
+          const newCluster = clusterNudgesAllowed()
+            ? () => createClusterFrom(movingIds, { via: 'move_to_new' })
+            : undefined;
           // With the drop rules, by the route, and Copy to… beside Move to….
           const byRoute = !!onMoveFilesRef.current;
-          arrangeItems.push({
-            id: 'move-cards-to-board',
-            label: plural(ids.length, { 0: 'Move to cluster…', 1: 'Move to cluster…', other: 'Move # cards to…' }),
-            submenu: [
-              ...(toNew ? [toNew, { divider: true }] : []),
-              ...targets.map(t => ({
-                id: 'mcb-' + t.id,
-                label: t.label,
-                run: () => (byRoute ? sendCardsByRoute(ids, t.id, moving, false) : moveCardsIntoBoard(ids, t.id, moving, { via: 'menu' })),
-              })),
-            ],
+          const rows = moveToClusterRows({
+            recent: recentTargets(all), all, currentId: board.id,
+            acts: {
+              newCluster,
+              keepInFiles,
+              pick: (tg) => (byRoute ? sendCardsByRoute(movingIds, tg.id, moving, false) : moveCardsIntoBoard(movingIds, tg.id, moving, { via: 'menu' })),
+            },
           });
-          if (byRoute) {
-            arrangeItems.push({
-              id: 'copy-cards-to-board',
-              label: plural(ids.length, { 0: 'Copy to cluster…', 1: 'Copy to cluster…', other: 'Copy # cards to…' }),
-              submenu: targets.map(t => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, moving, true) })),
-            });
+          if (rows.length) acts.move = { submenu: rows };
+          if (byRoute && all.length) {
+            acts['copy-to'] = { submenu: moveToClusterRows({
+              recent: recentTargets(all), all, currentId: board.id,
+              acts: { pick: (tg) => sendCardsByRoute(movingIds, tg.id, moving, true) },
+            }) };
           }
-        } else if (toNew && !multi) {
-          arrangeItems.push({ id: 'move-cards-to-new', label: tr`Move to a new cluster…`, run: toNew.run });
         }
+        // Move isn't built (groupmates pulled in a cluster card, say): Keep in Files
+        // only still stands alone, where Move would sit.
+        if (!acts.move && keepInFiles) acts['keep-in-files'] = keepInFiles;
       }
     }
 
     if (!multi) {
       // The review player: frame steps, J/K/L, in/out, guides, versions side by side.
       if (c.kind === 'video' && c.src && !c.pending && !isPublic) {
-        items.push({ id: 'player', label: tr`Open in player`, run: () => openPlayer({ boardId: board.id, cardId: c.id, ...(takeCardPlayer(c.id) || {}) }) });
+        acts['open-player'] = () => openPlayer({ boardId: board.id, cardId: c.id, ...(takeCardPlayer(c.id) || {}) });
       }
       // A new version of a video, audio, PDF or file (an image's is in its Edit menu).
       if (canVersion(c) && c.kind !== 'image') {
-        items.push({ id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), c.id) });
+        acts['upload-version'] = () => pickVersionFile(versionEnv(), c.id);
       }
+      const rename = () => triggerInlineEdit(c.id, 'title');
       if (c.kind === 'image') {
-        items.push({ id: 'image-edit', label: tr`Edit`, submenu: [
-          { id: 'title', label: c.title ? tr`Edit title` : tr`Add title`, run: () => triggerInlineEdit(c.id, 'title') },
-          { id: 'caption', label: c.caption ? tr`Edit caption` : tr`Add caption`, run: () => triggerInlineEdit(c.id, 'caption') },
-          { id: 'link', label: c.link ? tr`Edit hyperlink` : tr`Add hyperlink`, run: async () => {
-            const v = await feedback.prompt({
-              title: c.link ? tr`Edit image hyperlink` : tr`Add image hyperlink`,
-              label: tr`URL`,
-              placeholder: tr`https://...`,
-              defaultValue: c.link || '',
-              confirmLabel: tr`Save link`,
-            });
-            if (v == null) return;
-            mutators.updateCard?.(c.id, { link: v.trim() || null });
-          }},
-          // A new version keeps the old file (Info → Versions). A card stuck
-          // "Uploading…" has no file to keep: Replace image… gives it one.
-          c.pending ? { id: 'replace', label: tr`Replace image…`, run: () => {
+        acts.rename = rename;
+        acts.caption = () => triggerInlineEdit(c.id, 'caption');
+        acts.hyperlink = async () => {
+          const v = await feedback.prompt({
+            title: c.link ? tr`Edit image hyperlink` : tr`Add image hyperlink`,
+            label: tr`URL`,
+            placeholder: tr`https://...`,
+            defaultValue: c.link || '',
+            confirmLabel: tr`Save link`,
+          });
+          if (v == null) return;
+          mutators.updateCard?.(c.id, { link: v.trim() || null });
+        };
+        // A new version keeps the old file (Info → Versions). A card stuck
+        // "Uploading…" has no file to keep: Replace image… gives it one.
+        if (c.pending) {
+          acts['replace-image'] = () => {
             const input = document.createElement('input');
             input.type = 'file'; input.accept = 'image/*';
             input.onchange = async () => {
@@ -10356,101 +10529,69 @@ export function CanvasSurface({
               }
             };
             input.click();
-          }} : { id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), c.id) },
-        ]});
+          };
+        } else {
+          acts['upload-version'] = () => pickVersionFile(versionEnv(), c.id);
+        }
         // The corner Expand button shrinks with the zoom (a few px on a phone):
         // this is the way in that a finger can always hit.
-        if (c.src) {
-          openItems.push({ id: 'image-view', label: tr`View full size`,
-            run: () => openImageLightbox(c) });
-        }
-        if (canEdit && c.src) {
-          items.push({ id: 'image-edit-photo', label: tr`Edit photo…`,
-            run: () => setImageEditFull({ cardId: c.id }) });
-        }
-        if (c.src) {
-          items.push({ id: 'image-download', label: tr`Download`,
-            run: () => runDownload(c, 'image') });
-        }
+        if (c.src) acts['view-full'] = () => openImageLightbox(c);
+        if (c.src) acts['edit-photo'] = () => setImageEditFull({ cardId: c.id });
+        if (c.src) acts.download = () => runDownload(c, 'image');
       } else if (c.kind === 'shortcut') {
         // A shortcut to a file shared with you: opens in the in-app viewer.
-        if (c.shareToken) openItems.push({ id: 'open', label: tr`Open`, run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
+        if (c.shareToken) acts.open = () => openSharedFile({ token: c.shareToken, via: 'shortcut' });
       } else if (c.kind === 'pdf') {
-        openItems.push({ id: 'pdf-open', label: tr`Open`,
-          run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id }); } });
-        items.push({ id: 'pdf-title', label: c.title ? tr`Edit title` : tr`Add title`,
-          run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'pdf-download', label: tr`Download`, run: () => runDownload(c, 'pdf') });
+        acts.open = () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id }); };
+        acts.rename = rename;
+        acts.download = () => runDownload(c, 'pdf');
       } else if (c.kind === 'file') {
-        items.push({ id: 'file-title', label: c.title ? tr`Edit title` : tr`Add title`,
-          run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'file-download', label: tr`Download`, run: () => runDownload(c, 'file') });
+        acts.rename = rename;
+        acts.download = () => runDownload(c, 'file');
       } else if (c.kind === 'shape') {
-        items.push({ id: 'shape-kind', label: tr`Shape`, submenu: [
-          { id: 'sk-rect', label: tr`Rectangle`, run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
-          { id: 'sk-ellipse', label: tr`Ellipse`, run: () => mutators.updateCard?.(c.id, { shape: 'ellipse' }) },
-          { id: 'sk-line', label: tr`Line`, run: () => mutators.updateCard?.(c.id, { shape: 'line' }) },
-          { id: 'sk-arrow', label: tr`Arrow`, run: () => mutators.updateCard?.(c.id, { shape: 'arrow' }) },
-          { id: 'sk-diamond', label: tr`Diamond`, run: () => mutators.updateCard?.(c.id, { shape: 'diamond' }) },
-          { id: 'sk-triangle', label: tr`Triangle`, run: () => mutators.updateCard?.(c.id, { shape: 'triangle' }) },
-          { id: 'sk-hex', label: tr`Hexagon`, run: () => mutators.updateCard?.(c.id, { shape: 'hexagon' }) },
-          { id: 'sk-star', label: tr({ message: 'Star', context: 'shape' }), run: () => mutators.updateCard?.(c.id, { shape: 'star' }) },
-        ]});
-        items.push({ id: 'shape-style', label: tr`Stroke`, submenu: [
-          { id: 'shape-stroke-col', label: tr`Stroke color…`, run: () => {
-            setPicker({
-              value: c.stroke || '#f5f5f6',
-              onChange: (col) => mutators.updateCard?.(c.id, { stroke: col }),
-              x: ctx.x, y: ctx.y, allowTransparent: false,
-            });
-          }},
-          { id: 'shape-fill', label: tr`Fill color…`, run: () => {
-            setPicker({
-              value: c.fill && c.fill !== 'transparent' ? c.fill : '#1c1c1f',
-              onChange: (col) => mutators.updateCard?.(c.id, { fill: col }),
-              x: ctx.x, y: ctx.y, allowTransparent: true,
-            });
-          }},
-          { divider: true },
-          { id: 'sw-1', label: '1 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 1 }) },
-          { id: 'sw-2', label: '2 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 2 }) },
-          { id: 'sw-4', label: '4 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 4 }) },
-          { id: 'sw-8', label: '8 px', run: () => mutators.updateCard?.(c.id, { strokeWidth: 8 }) },
-        ]});
+        const SHAPES = [
+          ['rect', tr`Rectangle`], ['ellipse', tr`Ellipse`], ['line', tr`Line`], ['arrow', tr`Arrow`],
+          ['diamond', tr`Diamond`], ['triangle', tr`Triangle`], ['hexagon', tr`Hexagon`],
+          ['star', tr({ message: 'Star', context: 'shape' })],
+        ];
+        acts.shape = { submenu: radioRows(SHAPES.map(([id, label]) => ({ id: `sk-${id}`, label })), `sk-${c.shape || 'rect'}`,
+          (pick) => mutators.updateCard?.(c.id, { shape: pick.slice(3) })) };
+        acts['stroke-color'] = () => {
+          setPicker({
+            value: c.stroke || '#f5f5f6',
+            onChange: (col) => mutators.updateCard?.(c.id, { stroke: col }),
+            x: ctx.x, y: ctx.y, allowTransparent: false,
+          });
+        };
+        acts['fill-color'] = () => {
+          setPicker({
+            value: c.fill && c.fill !== 'transparent' ? c.fill : '#1c1c1f',
+            onChange: (col) => mutators.updateCard?.(c.id, { fill: col }),
+            x: ctx.x, y: ctx.y, allowTransparent: true,
+          });
+        };
+        [1, 2, 4, 8].forEach((px) => {
+          acts[`stroke-${px}`] = { checked: c.strokeWidth === px, radio: true, run: () => mutators.updateCard?.(c.id, { strokeWidth: px }) };
+        });
       } else if (c.kind === 'grid') {
         const linked = !!c.templateId;
         // Spacing: flush (the default contact-sheet look) or the gallery look —
         // boxes apart on the frame with rounded corners. A linked family
         // changes together (setGridSpacing writes every member).
         const gapNow = gridGapOf(c);
-        items.push({ id: 'grid-spacing', label: tr`Spacing`, submenu: GRID_SPACING.map((s) => ({
-          id: 'gsp-' + s.id, label: `${s.label}${gapNow === s.gap ? ' ✓' : ''}`, run: () => mutators.setGridSpacing?.(c.id, s.gap),
-        })) });
+        acts.spacing = { submenu: radioRows(GRID_SPACING.map((s) => ({ id: `gsp-${s.id}`, label: s.label })),
+          `gsp-${(GRID_SPACING.find((s) => s.gap === gapNow) || {}).id}`,
+          (pick) => mutators.setGridSpacing?.(c.id, GRID_SPACING.find((s) => `gsp-${s.id}` === pick)?.gap)) };
         // Opens the Templates panel with this grid as the target. Selecting it
         // first is what makes the panel apply rather than place — the same rule
         // the panel's header states, reached from the card instead of the rail.
-        if (templatesEnabled) {
-          items.push({
-            id: 'grid-save-template',
-            label: tr`Save as template…`,
-            run: () => openSaveTemplate(c.id),
-          });
-        }
-        if (templateStoreOpen) {
-          items.push({
-            id: 'grid-apply-template',
-            label: tr`Apply template…`,
-            run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
-          });
-        }
-        items.push({
-          id: 'grid-link',
-          // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
-          // not the Templates library above it. Different things, adjacent menu.
-          label: linked ? tr`Unlink layout` : tr`Share layout`,
-          run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
-        });
-        items.push({ id: 'grid-matrix', label: tr`Generate matrix…`, run: async () => {
+        if (templatesEnabled) acts['save-template'] = () => openSaveTemplate(c.id);
+        if (templateStoreOpen) acts['apply-template'] = () => { setSelected(new Set([c.id])); setTplPanelOpen(true); };
+        // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
+        // not the Templates library above it. Different things, adjacent menu.
+        acts['share-layout'] = { label: linked ? tr`Unlink layout` : tr`Share layout`,
+          run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); } };
+        acts['generate-matrix'] = async () => {
           const v = await feedback.prompt({ title: tr`Generate a matrix`, label: tr`Columns × Rows`, placeholder: '6 x 3', defaultValue: '3 x 2', confirmLabel: tr`Generate` });
           if (!v) return;
           const mt = String(v).match(/(\d+)\s*[x×,]\s*(\d+)/i);
@@ -10461,87 +10602,77 @@ export function CanvasSurface({
             if (!ok) return;
           }
           mutators.bulkGenerateGrids?.(c.id, mc, mr);
-        }});
+        };
         if (c.seqId) {
-          const seq = gridSequences[c.seqId];
-          const pat = seq?.pattern || 'z';
-          const snakeTick = tickIf(pat === 'snake');
-          items.push({ id: 'grid-order', label: tr`Reading order`, submenu: [
-            { id: 'ord-z', label: tr`Z — rows, left→right${ph({ value: tickIf(pat === 'z') })}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'z') },
-            { id: 'ord-n', label: tr`N — columns, top→bottom${ph({ value: tickIf(pat === 'n') })}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'n') },
-            { id: 'ord-snake', label: tr`Snake — alternating rows${ph({ value: snakeTick })}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
-          ]});
+          const pat = gridSequences[c.seqId]?.pattern || 'z';
+          acts['reading-order'] = { submenu: radioRows([
+            { id: 'ord-z', label: tr`Z — rows, left→right` },
+            { id: 'ord-n', label: tr`N — columns, top→bottom` },
+            { id: 'ord-snake', label: tr`Snake — alternating rows` },
+          ], `ord-${pat}`, (pick) => mutators.setGridSequencePattern?.(c.seqId, pick.slice(4))) };
         }
-      } else if (c.kind === 'schedule' && c.schedView) {
-        const setView = (v) => mutators.updateCard?.(c.id, { schedView: v });
-        const monthTick = tickIf(c.schedView === 'month');
-        const weekTick = tickIf(c.schedView === 'week');
-        const dayTick = tickIf(c.schedView === 'day' || c.schedView === 'hour');
-        items.push({ id: 'sched-view', label: tr`View`, submenu: [
-          { id: 'sv-month', label: tr`Month${ph({ value: monthTick })}`, run: () => setView('month') },
-          { id: 'sv-week', label: tr`Week${ph({ value: weekTick })}`, run: () => setView('week') },
+      } else if (c.kind === 'schedule') {
+        acts.rename = rename;
+        if (c.schedView) {
           // 'hour' rows exist in stored data and readSchedModel folds them into
-          // 'day', so the Day entry ticks for both — a card that came from the
-          // removed view must not show every option unchecked.
-          { id: 'sv-day', label: tr`Day${ph({ value: dayTick })}`, run: () => setView('day') },
-        ]});
-        items.push({ id: 'sched-today', label: tr`Go to today`, run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
-        // "Break into hours/minutes" is gone with the hour buckets it made. A
-        // day's resolution is its running order now, and that lives in Day
-        // view rather than as a mode a month cell can be put into.
+          // 'day', so Day is the checked one for both — a card that came from
+          // the removed view must not show every option unchecked.
+          acts['schedule-view'] = { submenu: radioRows([
+            { id: 'month', label: tr`Month` },
+            { id: 'week', label: tr`Week` },
+            { id: 'day', label: tr`Day` },
+          ], c.schedView === 'hour' ? 'day' : c.schedView, (v) => mutators.updateCard?.(c.id, { schedView: v })) };
+          acts['go-today'] = () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() });
+          // "Break into hours/minutes" is gone with the hour buckets it made. A
+          // day's resolution is its running order now, and that lives in Day
+          // view rather than as a mode a month cell can be put into.
+        }
       } else if (c.kind === 'board') {
-        openItems.push({ id: 'open', label: tr`Open cluster`, run: () => onOpenBoard(c.id) });
+        acts['open-cluster'] = () => onOpenBoard(c.id);
         const target = boards[c.id];
-        const currentCover = target?.cover || 'neutral';
-        items.push({ id: 'cover', label: tr`Cover color`, submenu: [
-          ...Object.keys(COVER_TINTS).map(k => ({
-            id: `cover-${k}`,
-            swatch: COVER_TINTS[k],
-            label: k.charAt(0).toUpperCase() + k.slice(1),
-            checked: currentCover === k,
-            run: () => mutators.setBoardCover?.(c.id, k === 'neutral' ? null : k),
-          })),
-        ]});
-        items.push({ id: 'custom-thumb', label: tr`Upload custom thumbnail…`,
-          run: () => triggerThumbPick(c.id) });
-        if (target?.thumb_custom) {
-          items.push({ id: 'reset-thumb', label: 'Reset to auto thumbnail',
-            run: () => mutators.resetBoardThumb?.(c.id) });
+        acts['color-cover'] = {
+          tints: Object.keys(COVER_TINTS).map((k) => ({ key: k, swatch: COVER_TINTS[k] })),
+          current: target?.cover || 'neutral',
+          setTint: (k) => mutators.setBoardCover?.(c.id, k === 'neutral' ? null : k),
+          ...(clusterAct?.pickColor ? { custom: () => clusterAct.pickColor(c.id, { x: ctx.x, y: ctx.y }) } : {}),
+          upload: () => triggerThumbPick(c.id),
+          ...(target?.thumb_custom ? { reset: () => mutators.resetBoardThumb?.(c.id) } : {}),
+        };
+        if (clusterAct?.share && target && clusterAct.can?.(target)?.edit !== false) {
+          acts['share-cluster'] = () => clusterAct.share(c.id, 'canvas_menu');
+        }
+        if (clusterAct?.toggleStar && clusterAct.isStarred) {
+          acts.star = { starred: !!clusterAct.isStarred(c.id), run: () => clusterAct.toggleStar(c.id) };
         }
         if (target && personalWorkspaceId && target.workspace_id !== personalWorkspaceId) {
-          items.push({ id: 'clone', label: tr`Copy to my workspace`, run: () => mutators.cloneBoardToPersonal?.(c.id) });
+          acts['copy-to-workspace'] = () => mutators.cloneBoardToPersonal?.(c.id);
         }
       } else if (c.kind === 'boardlink') {
-        openItems.push({ id: 'open', label: tr`Open linked cluster`, run: () => boards[c.target] && onOpenBoard(c.target) });
+        acts['open-linked'] = () => boards[c.target] && onOpenBoard(c.target);
       } else if (c.kind === 'palette') {
-        items.push({ id: 'palette-edit', label: tr`Edit`, submenu: [
-          { id: 'pc-pure',
-            label: c.chipsOnly ? tr`Show labels` : tr`Hide labels (pure color)`,
-            run: () => mutators.updateCard?.(c.id, { chipsOnly: !c.chipsOnly }) },
-          { divider: true },
-          { id: 'pc-eyedrop', label: tr`Eyedrop color (anywhere on screen)…`, run: async () => {
-            // Browser EyeDropper API. Falls back to a friendly toast where
-            // unsupported (Firefox, Safari < 17.4 currently).
-            if (typeof window === 'undefined' || !window.EyeDropper) {
-              feedback.toast({ type: 'error', code: 'eyedrop_unsupported', message: tr`Eyedropper not supported in this browser yet.` });
-              return;
-            }
-            try {
-              const ed = new window.EyeDropper();
-              const result = await ed.open();
-              const hex = (result?.sRGBHex || '').toUpperCase();
-              if (!hex) return;
-              const next = [...(c.swatches || []), { name: tr({ message: 'Color', context: 'default name' }), hex }];
-              mutators.updateCard?.(c.id, { swatches: next });
-            } catch (_) { /* user cancelled */ }
-          }},
-          { id: 'pc-pick-image', label: tr`Pick from cluster image…`, run: () => {
-            setEyedropFor(c.id);
-            feedback.toast({ type: 'info', message: coarsePointer() ? tr`Tap an image to sample a color.` : tr`Click an image to sample a color. Esc to cancel.` });
-          }},
-        ]});
+        acts.labels = { checked: !c.chipsOnly, run: () => mutators.updateCard?.(c.id, { chipsOnly: !c.chipsOnly }) };
+        acts.eyedrop = async () => {
+          // Browser EyeDropper API. Falls back to a friendly toast where
+          // unsupported (Firefox, Safari < 17.4 currently).
+          if (typeof window === 'undefined' || !window.EyeDropper) {
+            feedback.toast({ type: 'error', code: 'eyedrop_unsupported', message: tr`Eyedropper not supported in this browser yet.` });
+            return;
+          }
+          try {
+            const ed = new window.EyeDropper();
+            const result = await ed.open();
+            const hex = (result?.sRGBHex || '').toUpperCase();
+            if (!hex) return;
+            const next = [...(c.swatches || []), { name: tr({ message: 'Color', context: 'default name' }), hex }];
+            mutators.updateCard?.(c.id, { swatches: next });
+          } catch (_) { /* user cancelled */ }
+        };
+        acts['pick-from-image'] = () => {
+          setEyedropFor(c.id);
+          feedback.toast({ type: 'info', message: coarsePointer() ? tr`Tap an image to sample a color.` : tr`Click an image to sample a color. Esc to cancel.` });
+        };
       } else if (c.kind === 'note') {
-        items.push({ id: 'fit', label: tr`Fit to content`, run: () => {
+        acts['fit-content'] = () => {
           // Snap the note to the natural size of its rendered content so
           // there's no padding to the right of titles or short lines, and
           // no empty space below. The shared measurer gives the unwrapped
@@ -10555,49 +10686,35 @@ export function CanvasSurface({
           const newH = measurer.cardHeightAt(newW);
           measurer.destroy();
           mutators.updateCard?.(c.id, { w: newW, h: newH, manuallyResized: false });
-        }});
+        };
       } else if (c.kind === 'link') {
-        items.push({ id: 'edit-title', label: c.title ? tr`Edit title` : tr`Add title`, run: () => {
-          triggerInlineEdit(c.id, 'title');
-        }});
+        acts.rename = rename;
         if (c.source || c.link) {
-          openItems.push({ id: 'open', label: tr`Open link`, run: () => {
+          acts['open-link'] = () => {
             const href = openableUrl(c.link || c.source);
             if (href) window.open(href, '_blank', 'noopener');
             else feedback.toast({ type: 'error', code: 'link_open_failed', message: tr`That link can't be opened.` });
-          }});
+          };
         }
+      } else if (c.kind === 'doc') {
+        acts['open-doc'] = () => document.dispatchEvent(new CustomEvent('soleil-open-doc-card', { detail: { cardId: c.id } }));
+      } else if (c.kind === 'art') {
+        acts['open-sketch'] = () => { setSketchpadEditId(c.id); setSketchpadOpen(true); };
       } else if (c.kind === 'audio') {
-        items.push({ id: 'audio-title', label: c.title ? tr`Edit title` : tr`Add title`,
-                     run: () => triggerInlineEdit(c.id, 'title') });
-        if (c.cover) {
-          items.push({ id: 'audio-cover-replace', label: tr`Replace cover image…`,
-                       run: () => triggerInlineEdit(c.id, 'audioCover') });
-          items.push({ id: 'audio-cover-remove', label: tr`Remove cover image`,
-                       run: () => mutators.updateCard?.(c.id, { cover: null }) });
-        } else {
-          items.push({ id: 'audio-cover-set', label: tr`Set cover image…`,
-                       run: () => triggerInlineEdit(c.id, 'audioCover') });
-        }
+        acts.rename = rename;
+        acts.cover = { has: !!c.cover, run: () => triggerInlineEdit(c.id, 'audioCover') };
+        if (c.cover) acts['remove-cover'] = () => mutators.updateCard?.(c.id, { cover: null });
         // Looping a bar of audio is how you decide whether it fits, so it is
-        // the one transport option worth a menu entry. Label states the action,
-        // matching the video branch below — these menus have no checkmarks.
-        items.push({ id: 'audio-loop', label: c.loop ? tr`Turn off looping` : tr`Loop`,
-                     run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
-        if (c.src) {
-          items.push({ id: 'audio-download', label: tr`Download`, run: () => runDownload(c, 'audio') });
-        }
+        // the one transport option worth a menu entry.
+        acts.loop = { checked: !!c.loop, run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) };
+        if (c.src) acts.download = () => runDownload(c, 'audio');
       } else if (c.kind === 'video') {
-        items.push({ id: 'video-title', label: c.title ? tr`Edit title` : tr`Add title`,
-                     run: () => triggerInlineEdit(c.id, 'title') });
-        // Labels state the action, matching the group outline/label pair — there
-        // is no checkmark affordance in these menus. "(muted)" is on the label
-        // because an unmuted autoplay is blocked by every browser, and a silent
-        // clip nobody was warned about reads as broken audio.
-        items.push({ id: 'video-autoplay', label: c.autoplay ? tr`Turn off autoplay` : tr`Autoplay (muted)`,
-                     run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) });
-        items.push({ id: 'video-loop', label: c.loop ? tr`Turn off looping` : tr`Loop`,
-                     run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
+        acts.rename = rename;
+        // "Muted" is on the row because an unmuted autoplay is blocked by every
+        // browser, and a silent clip nobody was warned about reads as broken audio.
+        acts.autoplay = { checked: !!c.autoplay, hint: tr`Plays muted`,
+          run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) };
+        acts.loop = { checked: !!c.loop, run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) };
         // Start points (lib/videoSync.js): the frame an autoplay clip shows when
         // the board starts, so clips can be lined up against each other. Stored
         // on the card, so everyone on the board sees the same alignment.
@@ -10608,9 +10725,9 @@ export function CanvasSurface({
           const here = vid && Number.isFinite(vid.currentTime) ? vid.currentTime : null;   // the frame showing as the menu opens
           const setStart = (s) => mutators.updateCard?.(c.id, { syncStart: Number.isFinite(s) && s > 0.05 ? Math.round(s * 100) / 100 : null });
           if (here != null) {
-            items.push({ id: 'video-start-here', label: tr`Start here (${ph({ clipTime: formatClipTime(here) })})`, run: () => setStart(here) });
+            acts['start-here'] = { label: tr`Start here (${ph({ clipTime: formatClipTime(here) })})`, run: () => setStart(here) };
           }
-          items.push({ id: 'video-start-at', label: tr`Start at…`, run: async () => {
+          acts['start-at'] = async () => {
             const typed = await feedback.prompt({
               title: tr`Start this clip at`,
               label: tr`Time (m:ss)`,
@@ -10623,54 +10740,31 @@ export function CanvasSurface({
             if (s == null) { feedback.toast({ type: 'info', message: tr`Type a time like 0:12 or 1:05.5.`, ttl: 3500 }); return; }
             const dur = Number.isFinite(vid?.duration) && vid.duration > 0 ? vid.duration : Number(c.media?.dur);
             setStart(Number.isFinite(dur) && dur > 0 ? Math.min(s, dur) : s);
-          } });
+          };
           if (cur > 0) {
-            items.push({ id: 'video-start-clear', label: tr`Clear start point (${ph({ clipTime: formatClipTime(cur) })})`, run: () => setStart(0) });
+            acts['clear-start'] = { label: tr`Clear start point (${ph({ clipTime: formatClipTime(cur) })})`, run: () => setStart(0) };
           }
         }
-        if (c.src) {
-          items.push({ id: 'video-download', label: tr`Download`, run: () => runDownload(c, 'video') });
-        }
-      } else if (c.kind === 'schedule') {
-        items.push({ id: 'schedule-title', label: c.title ? tr`Edit title` : tr`Add title`,
-                     run: () => triggerInlineEdit(c.id, 'title') });
-      } else if (c.kind === 'palette') {
-        items.push({ id: 'palette-title', label: c.title ? tr`Edit title` : tr`Add title`,
-                     run: () => triggerInlineEdit(c.id, 'title') });
-      } else if (c.kind === 'shape' && c.shape !== 'line' && c.shape !== 'arrow') {
-        items.push({ id: 'shape-label', label: c.label ? tr`Edit label` : tr`Add label`,
-                     run: () => triggerInlineEdit(c.id, 'shapeLabel') });
+        if (c.src) acts.download = () => runDownload(c, 'video');
       }
-    }
-
-    if (multi && canEdit && !isPublic) {
+      if (!isPublic && fileSharesAllowed() && isShareableCard(c)) {
+        acts['share-file'] = () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' });
+      }
+      // A doc, to read or edit together (held: docSharesAllowed).
+      if (!isPublic && docShareLabel(c)) {
+        acts['share-doc'] = () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' });
+      }
+      acts.comment = () => promptComment({ kind: 'card', id: c.id });
+      acts.vote = () => addVoteCardAt({ kind: 'card', id: c.id });
+      // Open the picker anchored near the right-click coord. The ctx state
+      // holds the click position from onCardContextMenu.
+      acts.tag = () => openTagPicker(c.id, anchor);
+    } else if (!isPublic) {
       // The selection bar's Tag runs this with its own rect; the menu, with
       // the right-click point.
-      annotateItems.push({ id: 'tag-many', label: tr`Tag ${ph({ size: selected.size })} cards…`,
-        run: (rect) => openTagMany(rect || { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 }) });
+      acts.tag = (rect) => openTagMany(rect || anchor);
     }
-    if (!multi) {
-      annotateItems.push({ id: 'comment', label: tr`Add comment`,
-        run: () => promptComment({ kind: 'card', id: c.id }) });
-      if (!isPublic) noteWordComments(ydoc, c, annotateItems);
-      annotateItems.push({ id: 'vote', label: tr`Add vote to card`,
-        run: () => addVoteCardAt({ kind: 'card', id: c.id }) });
-      annotateItems.push({ id: 'tag', label: tr`Tag…`,
-        run: () => {
-          // Open the picker anchored near the right-click coord. The
-          // ctx state holds the click position from onCardContextMenu.
-          const anchorRect = { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 };
-          openTagPicker(c.id, anchorRect);
-        }});
-    }
-    // Info lives in the bottom meta group (added here so it's the first meta
-    // row, above the backlinks + delete pushed at the very end). It opens the
-    // app's Info drawer (lib/infoBus.js), which then follows the selection.
-    metaItems.push({ id: 'info', label: multi ? tr`Info (${ph({ size: selected.size })})` : tr`Info`, shortcut: modShortcut('I'),
-      run: () => openInfo({ boardId: board.id, cardIds: multi ? [...selected] : [c.id], follow: infoFollow }) });
-    clipboardItems.push({ id: 'cut', label: multi ? tr`Cut (${ph({ size: selected.size })})` : tr`Cut`, shortcut: modShortcut('X'), run: doCut });
-    clipboardItems.push({ id: 'copy', label: multi ? tr`Copy (${ph({ size: selected.size })})` : tr`Copy`, shortcut: modShortcut('C'), run: doCopy });
-    clipboardItems.push({ id: 'duplicate', label: multi ? tr`Duplicate (${ph({ size: selected.size })})` : tr`Duplicate`, shortcut: modShortcut('D'), run: doDuplicate });
+
     // Arrange (z-order): mutators are singular, so for multi-select we
     // iterate in an order that preserves relative stacking:
     //   front:    low-z first  → top-most selected ends up top-most
@@ -10678,7 +10772,6 @@ export function CanvasSurface({
     //   forward:  high-z first → no leap-frog among selected
     //   backward: low-z first  → same, mirrored
     const arrangeRun = (op) => {
-      const ids = multi ? [...selected] : [c.id];
       const zOf = (id) => (cardById[id]?.z || 0);
       const order =
         op === 'front'    ? ids.slice().sort((a, b) => zOf(a) - zOf(b)) :
@@ -10690,209 +10783,64 @@ export function CanvasSurface({
         op === 'back'     ? mutators.sendToBack :
         op === 'forward'  ? mutators.bringForward :
         /* backward */      mutators.sendBackward;
-      order.forEach(id => fn?.(id));
+      order.forEach((id) => fn?.(id));
       logCanvasTool('zorder', { how: op, boardId: board?.id });
     };
-    arrangeItems.push({ id: 'arrange', label: tr`Arrange`, submenu: [
-      { id: 'front',    label: tr`Bring to front`, run: () => arrangeRun('front') },
-      { id: 'forward',  label: tr`Bring forward`,  run: () => arrangeRun('forward') },
-      { id: 'backward', label: tr`Send backward`,  run: () => arrangeRun('backward') },
-      { id: 'back',     label: tr`Send to back`,   run: () => arrangeRun('back') },
-    ]});
+    acts['arrange-front'] = () => arrangeRun('front');
+    acts['arrange-forward'] = () => arrangeRun('forward');
+    acts['arrange-backward'] = () => arrangeRun('backward');
+    acts['arrange-back'] = () => arrangeRun('back');
 
-    // Spatial arrangement. Until now this menu was z-order ONLY — there was no
-    // way to line four cards up by hand short of dragging each and trusting the
-    // snap guides, and no way to tidy a board that had become a mess.
-    //
-    // Every one of these goes through mutators.updateCards, so a whole
-    // rearrangement is a single undo step rather than forty.
-    const geometryOf = (id) => cardByIdRef.current[id];
-    const applyMoves = (moved, withSize) => {
-      if (!moved.length) return;
-      mutators.updateCards?.(moved.map((c) => ({
-        id: c.id,
-        patch: withSize ? { x: c.x, y: c.y, w: c.w, h: c.h } : { x: c.x, y: c.y },
-      })));
-    };
-    // Nothing selected means the whole board — "tidy this up" is the request,
-    // and making someone select everything first to express it is friction.
-    const tidyRun = (name) => {
-      const all = Object.values(cardByIdRef.current || {});
-      const ids = selected.size >= 2 ? [...selected] : all.map((c) => String(c.id));
-      // justified is the only layout that resizes, so it is the only one whose
-      // patch may carry w/h.
-      applyMoves(rearrange(all, ids, { layout: name }), name === 'justified');
-      logCanvasTool('tidy', { how: name, n: ids.length, boardId: board?.id });
-    };
-    const alignRun = (edge) => {
-      applyMoves(alignCards([...selected].map(geometryOf).filter(Boolean), edge), false);
-      logCanvasTool('align', { how: edge, n: selected.size, boardId: board?.id });
-    };
-    const distributeRun = (axis) => {
-      applyMoves(distributeCards([...selected].map(geometryOf).filter(Boolean), axis), false);
-      logCanvasTool('distribute', { how: axis, n: selected.size, boardId: board?.id });
-    };
-
-    arrangeItems.push({
-      id: 'tidy',
-      label: selected.size >= 2 ? tr`Tidy up (${ph({ size: selected.size })})` : tr`Tidy up board`,
-      submenu: [
-        { id: 'justified', label: tr`Justified rows`,  run: () => tidyRun('justified') },
-        { id: 'masonry',   label: tr`Masonry columns`, run: () => tidyRun('masonry') },
-        { id: 'grid',      label: tr`Grid`,            run: () => tidyRun('grid') },
-        { id: 'row',       label: tr`Single row`,      run: () => tidyRun('row') },
-        { id: 'column',    label: tr`Single column`,   run: () => tidyRun('column') },
-      ],
-    });
-
-    if (multi && selected.size >= 2) {
-      arrangeItems.push({ id: 'align', label: tr`Align`, submenu: [
-        { id: 'left',     label: tr`Left`,   run: () => alignRun('left') },
-        { id: 'center-x', label: tr`Center`, run: () => alignRun('center-x') },
-        { id: 'right',    label: tr`Right`,  run: () => alignRun('right') },
-        { id: 'top',      label: tr`Top`,    run: () => alignRun('top') },
-        { id: 'middle',   label: tr`Middle`, run: () => alignRun('middle') },
-        { id: 'bottom',   label: tr`Bottom`, run: () => alignRun('bottom') },
-      ]});
-    }
-    if (multi && selected.size >= 3) {
-      // Three is the minimum that HAS a gap to even out.
-      arrangeItems.push({ id: 'distribute', label: tr`Distribute`, submenu: [
-        { id: 'horizontal', label: tr`Horizontally`, run: () => distributeRun('horizontal') },
-        { id: 'vertical',   label: tr`Vertically`,   run: () => distributeRun('vertical') },
-      ]});
-    }
-
-    // A cluster from the selection sits beside Group: both gather cards, and
-    // only one of them gives the gathering a place of its own.
-    if (multi && selected.size >= 2 && clusterNudgesAllowed()) {
-      const plan = planClusterFromSelection({ cards, ids: [...selected] });
-      if (!plan.refused && plan.ids.length) {
-        arrangeItems.push({ id: 'new-cluster-from', label: plural(plan.ids.length, { other: 'New cluster from # cards' }),
-          run: () => createClusterFrom([...selected], { via: 'from_selection' }) });
+    if (multi) {
+      const { tidyRun, alignRun, distributeRun } = spatialRuns();
+      ['justified', 'masonry', 'grid', 'row', 'column'].forEach((k) => { acts[`tidy-${k}`] = () => tidyRun(k); });
+      [['left', 'left'], ['center', 'center-x'], ['right', 'right'], ['top', 'top'], ['middle', 'middle'], ['bottom', 'bottom']]
+        .forEach(([id, edge]) => { acts[`align-${id}`] = () => alignRun(edge); });
+      if (selected.size >= 3) {
+        // Three is the minimum that HAS a gap to even out.
+        acts['distribute-h'] = () => distributeRun('horizontal');
+        acts['distribute-v'] = () => distributeRun('vertical');
       }
-    }
-    // Grouping (stays in the ARRANGE group) ──
-    if (multi && selected.size >= 2) {
+      // A cluster from the selection sits beside Group: both gather cards, and
+      // only one of them gives the gathering a place of its own.
+      if (clusterNudgesAllowed()) {
+        const plan = planClusterFromSelection({ cards, ids: [...selected] });
+        if (!plan.refused && plan.ids.length) acts['new-cluster-from'] = () => createClusterFrom([...selected], { via: 'from_selection' });
+      }
       // Selection of 2+ → "Group together"
-      arrangeItems.push({ id: 'group', label: tr`Group (${ph({ size: selected.size })})`, run: async () => {
-        const name = await feedback.prompt({
+      acts['group-these'] = async () => {
+        const gname = await feedback.prompt({
           title: tr`Group these cards`,
           label: tr`Name`,
           placeholder: tr`e.g. Mood board`,
           defaultValue: '',
           confirmLabel: tr({ message: 'Group', context: 'verb' }),
         });
-        if (name == null) return;
-        mutators.createGroup?.({ name: name || 'Group', cardIds: [...selected] });
+        if (gname == null) return;
+        mutators.createGroup?.({ name: gname || 'Group', cardIds: [...selected] });
         logCanvasTool('section_add', { n: selected.size, boardId: board?.id });
-      }});
+      };
     }
-    // Always offer "Add to group…" when at least one existing group is on
-    // the board, regardless of selection size. Adds the right-clicked card
-    // (or all selected cards) into the chosen group.
+    // "Add to group" when at least one existing group is on the board,
+    // whatever the selection's size: the right-clicked card (or all selected
+    // cards) go into the chosen group.
     if (!c.groupId && groups && groups.length > 0) {
-      const targets = multi ? [...selected] : [c.id];
-      arrangeItems.push({ id: 'add-to-group', label: tr`Add to group`, submenu:
-        groups.map(g => ({
-          id: `atg-${g.id}`,
-          label: g.name || tr`Untitled group`,
-          run: () => mutators.addToGroup?.(g.id, targets),
-        })),
-      });
+      acts['add-to-group'] = { submenu: groups.map((g) => ({
+        id: `atg-${g.id}`,
+        label: g.name || tr`Untitled group`,
+        icon: 'BoundingBox',
+        run: () => mutators.addToGroup?.(g.id, ids),
+      })) };
     }
     if (c.groupId && groupById[c.groupId]) {
       const g = groupById[c.groupId];
-      // Quick "Remove from group" stays at top — most common action.
-      arrangeItems.push({ id: 'group-remove', label: multi ? tr`Remove from group (${ph({ size: selected.size })})` : tr`Remove from group`,
-        run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
-      // Everything else — rename / outline / shape / color / info / ungroup —
-      // tucked into a single Group submenu so the top level stays scannable.
-      const groupTitle = g.name || tr`Untitled`;
-      const boxTick = tickIf((g.shape || 'box') === 'box', 2);
-      const hugTick = tickIf(g.shape === 'hug', 2);
-      arrangeItems.push({ id: 'group', label: tr`Group "${groupTitle}"`, submenu: [
-        { id: 'group-rename', label: tr`Rename group…`, run: async () => {
-          const name = await feedback.prompt({
-            title: tr`Rename group`,
-            label: tr`Name`,
-            defaultValue: g.name || '',
-            confirmLabel: tr`Rename`,
-          });
-          if (name == null) return;
-          mutators.renameGroup?.(g.id, name);
-        }},
-        { id: 'group-outline', label: g.outline ? tr`Hide outline` : tr`Show outline`,
-          run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) },
-        { id: 'group-hide-label',
-          label: g.options?.hideLabel ? tr`Show label` : tr`Hide label`,
-          run: () => mutators.setGroupOutline?.(g.id, {
-            options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
-          }) },
-        { id: 'group-shape', label: tr`Outline shape`, submenu: [
-          { id: 'gs-box', label: tr`Box${ph({ value: boxTick })}`,
-            run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) },
-          { id: 'gs-hug', label: tr`Hug${ph({ value: hugTick })}`,
-            run: () => mutators.setGroupOutline?.(g.id, { shape: 'hug', outline: true }) },
-        ]},
-        { id: 'group-color', label: tr`Outline color…`, run: () => {
-          setPicker({
-            value: g.color || 'var(--soleil)',
-            onChange: (col) => mutators.setGroupOutline?.(g.id, { color: col, outline: true }),
-            x: ctx.x, y: ctx.y, allowTransparent: false,
-          });
-        }},
-        { id: 'group-info', label: tr`Group info`, run: () => openInfo({ boardId: board.id, groupId: g.id }) },
-        // A group that has become a project gets a place of its own: the
-        // group moves in whole and keeps its name (clusterFromSelection).
-        ...(clusterNudgesAllowed() ? [{ id: 'group-to-cluster', label: tr`Turn into cluster…`,
-          run: () => createClusterFrom((cardsByGroup.get(g.id) || []).map(m => m.id), { via: 'from_group' }) }] : []),
-        { divider: true },
-        { id: 'ungroup', label: tr`Ungroup`, danger: true, run: () => { mutators.ungroup?.(g.id); logCanvasTool('section_remove', { boardId: board?.id }); } },
-      ]});
+      if (multi) acts['remove-from-group'] = () => mutators.removeFromGroup?.(ids);
+      else acts['group-menu'] = { name: g.name || tr`Untitled`, acts: groupActs(g, { at: { x: ctx.x, y: ctx.y }, member: ids }) };
     }
 
-    // Info is the one row already in metaItems; the old audit-toast duplicate
-    // was removed here so the menu never shows two "Info" rows.
-
-    // Off the board, still in the cluster: the file waits in Files
-    // (lib/placement.js). Offered only when every card in the selection can go.
-    const offIds = (multi ? [...selected] : [c.id]).filter((id) => canUnplace(cardById[id]));
-    if (!mutators.captureGuarded && offIds.length && offIds.length === (multi ? selected.size : 1)) {
-      metaItems.push({ id: 'unplace', label: plural(offIds.length, { 0: 'Remove from board', 1: 'Remove from board', other: 'Remove # from board' }),
-        run: () => removeFromBoard(offIds) });
-    }
-    if (!multi && canEdit && !isPublic && fileSharesAllowed() && isShareableCard(c)) {
-      items.push({ id: 'share-file', label: tr`Share file…`,
-        run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
-    }
-    // A doc, to read or edit together (held: docSharesAllowed).
-    const shareDoc = !multi && canEdit && !isPublic ? docShareLabel(c) : null;
-    if (shareDoc) {
-      items.push({ id: 'share-doc', label: shareDoc,
-        run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
-    }
-    metaItems.push({ backlinks: true });
-    // Last, to a mouse. To a finger the menu is taller than a phone, and
-    // Delete at its foot was below the fold: there it follows Duplicate, in
-    // a Clipboard group moved up under Edit (below).
-    (isTouch ? clipboardItems : metaItems).push({ id: 'delete', label: multi ? tr`Delete (${ph({ size: selected.size })})` : tr`Delete`,
-      shortcut: '⌫', danger: true,
-      run: () => doDeleteIds(multi ? [...selected] : [c.id]) });
-
-    // To a finger the Clipboard group (Delete in it) follows Edit, ahead of
-    // Annotate and Arrange: on a photo those two alone fill a phone's screen.
-    const clipboard = { header: SECTION.CLIPBOARD, items: clipboardItems };
-    pushSendItem(openItems, c, multi);
-    return composeMenuSections([
-      { items: openItems },
-      { header: SECTION.EDIT,      items },
-      ...(isTouch ? [clipboard] : []),
-      { header: SECTION.ANNOTATE,  items: annotateItems },
-      { header: SECTION.ARRANGE,   items: arrangeItems },
-      ...(isTouch ? [] : [clipboard]),
-      { items: metaItems },
-    ]);
+    return finish(multi
+      ? multiMenu(selected.size, { canEdit: true }, acts)
+      : cardMenu(c, { canEdit: true, title: name }, acts));
   };
 
   // The selection's bar, on a desktop (components/toolbar/SelectionBarA.jsx;
@@ -10902,13 +10850,13 @@ export function CanvasSurface({
   // the menu itself over the bar, and Delete is ⌫'s.
   const selBarOn = !isTouch;
   const selFirst = selBarOn && selected.size >= 2 ? selected.values().next().value : null;
-  const selBarItems = useMemo(() => (selFirst && cardById[selFirst] ? buildMenu(cardById[selFirst]) : EMPTY_ITEMS),
+  const selBarItems = useMemo(() => (selFirst && cardById[selFirst] ? buildMenu(cardById[selFirst]).items : EMPTY_ITEMS),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selFirst, selected, groups, boards, canEdit]);
   const selBarNow = useRef(null);
   useLayoutEffect(() => {
     selBarNow.current = {
-      items: () => (selFirst && cardByIdRef.current[selFirst] ? buildMenu(cardByIdRef.current[selFirst]) : EMPTY_ITEMS),
+      items: () => (selFirst && cardByIdRef.current[selFirst] ? buildMenu(cardByIdRef.current[selFirst]).items : EMPTY_ITEMS),
       more: (r) => setCtx({ open: true, x: r.left, y: r.top - 6, above: true, cardId: selFirst }),
       del: () => doDeleteSelected(),
     };
@@ -10968,7 +10916,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .cmt-pin, .cmt-canvas-card, .cmt-list, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .ctx-sheet-root, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .cmt-pin, .cmt-canvas-card, .cmt-list, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -11243,7 +11191,7 @@ export function CanvasSurface({
   const onBackgroundPointerDown = (e) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
-    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .modal-bg, .tob')) return;
+    if (e.target.closest('.cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .ctx-sheet-root, .cnv-hint, .modal-bg, .tob')) return;
 
     if (focusedCellRef.current) focusCell(null, null); // clicking the canvas drops cell focus
     setAddMenuOpen(false);
@@ -11855,202 +11803,131 @@ export function CanvasSurface({
     { id: 'vote',    group: 'note', label: tr`Vote`,    icon: ListChecks,    run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
   ];
 
+  // The canvas, group, arrow and comment-pin menus. Like buildMenu this gathers
+  // acts and lets lib/menus/canvasMenu.js / cardMenu.js decide the rows; it
+  // returns { label, title, quick, items, preview } for BackgroundContextMenu.
+  const BG_OPTIONS = [
+    ['default', 'transparent', null],
+    ['paper', '#f5f2ec', '#f5f2ec'],
+    ['midnight', '#0a1428', '#0a1428'],
+    ['mauve', '#1d1822', '#1d1822'],
+    ['cream', '#fef7ec', '#fef7ec'],
+    ['sage', '#e8f0e6', '#e8f0e6'],
+    ['charcoal', '#1a1a1a', '#1a1a1a'],
+  ];
   const buildBgMenu = () => {
+    // A comment pin (right-clicked on the canvas): the menu was built where
+    // the pin's code knows its powers.
+    if (bgCtx.pinMenu) return { ...bgCtx.pinMenu, title: bgCtx.pinMenu.label };
     // Group context menu — opened by right-clicking a group label.
     // First so it short-circuits before the arrow + bg branches.
     if (bgCtx.groupMenu) {
       const { id: gid, name: gname } = bgCtx.groupMenu;
       const g = groupById?.[gid];
-      const items = canComment ? [
-        { id: 'group-comment', label: tr`Add comment to group`,
-          run: () => promptComment({ kind: 'group', id: gid }) },
-      ] : [];
-      // someone who can only view gets the comment and the group's info
-      if (g && !canEdit) {
-        items.push({ id: 'group-info', label: tr`Group info`, run: () => openInfo({ boardId: board.id, groupId: gid }) });
-      } else if (g) {
-        items.push({ id: 'group-tag', label: tr`Tag group…`,
-          run: () => {
-            const r = { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 };
-            setTagPicker({ kind: 'group', id: gid, anchorRect: r });
-          }});
-        items.push({ id: 'group-rename', label: tr`Rename group`, run: async () => {
-          const name = await feedback.prompt({
-            title: tr`Rename group`,
-            label: tr`Name`,
-            defaultValue: gname || g.name || '',
-            confirmLabel: tr`Rename`,
-          });
-          if (name == null) return;
-          mutators.renameGroup?.(gid, name);
-        }});
-        items.push({ id: 'group-info', label: tr`Group info`, run: () => openInfo({ boardId: board.id, groupId: gid }) });
-        items.push({ id: 'group-outline', label: g.outline ? tr`Hide outline` : tr`Show outline`,
-          run: () => mutators.setGroupOutline?.(gid, { outline: !g.outline }) });
-        items.push({ id: 'group-hide-label',
-          label: g.options?.hideLabel ? tr`Show group label` : tr`Hide group label`,
-          run: () => mutators.setGroupOutline?.(gid, {
-            options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
-          }) });
-        if (clusterNudgesAllowed()) {
-          items.push({ id: 'group-to-cluster', label: tr`Turn into cluster…`,
-            run: () => createClusterFrom((cardsByGroup.get(gid) || []).map(m => m.id), { via: 'from_group' }) });
-        }
-        items.push({ divider: true });
-        items.push({ id: 'group-ungroup', label: tr`Ungroup`, danger: true,
-          run: () => { mutators.ungroup?.(gid); logCanvasTool('section_remove', { boardId: board?.id }); } });
-      }
-      return items;
+      const m = groupMenu({ canEdit, name: gname || g?.name }, groupActs(g, { gid, at: { x: bgCtx.x, y: bgCtx.y } }));
+      return { ...m, title: m.label };
     }
     // Arrow context menu — opened by right-clicking an arrow path.
     if (bgCtx.arrowMenu) {
       const { idx, arrow } = bgCtx.arrowMenu;
-      return [
-        { id: 'arrow-label', label: arrow.label ? tr`Edit label` : tr`Add label`, run: async () => {
-          const v = await feedback.prompt({
-            title: tr`Arrow label`,
-            label: tr`Label`,
-            defaultValue: arrow.label || '',
-            placeholder: tr`leads to, blocks, related…`,
-            confirmLabel: tr`Save`,
-          });
-          if (v == null) return;
-          mutators.updateArrow?.(idx, { label: v.trim() || null });
-        }},
-        { id: 'arrow-bidir',
-          label: arrow.bidir ? tr`Single-sided arrow` : tr`Double-sided arrow`,
-          run: () => mutators.updateArrow?.(idx, { bidir: !arrow.bidir }) },
-        { id: 'arrow-straight',
-          label: arrow.straight ? tr`Curved arrow` : tr`Straight arrow`,
-          run: () => mutators.updateArrow?.(idx, { straight: !arrow.straight }) },
-        ...(arrow.bend ? [{ id: 'arrow-reset-curve', label: tr`Reset curve`,
-          run: () => mutators.updateArrow?.(idx, { bend: null }) }] : []),
-        { id: 'arrow-dashed',
-          label: arrow.dashed ? 'Solid line' : 'Dashed line',
-          run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
-        { divider: true },
-        { id: 'arrow-delete', label: tr`Delete arrow`, danger: true,
-          // Right-click selected this index. Left behind, it would select
-          // whichever arrow slides into the slot — with handles, popover and
-          // a Backspace aimed at it.
-          run: () => { deleteSingleArrow(idx); setSelectedArrows(new Set()); } },
-      ];
+      const m = arrowMenu({ canEdit }, arrowActs(idx, arrow));
+      return { ...m, title: m.label };
     }
-    // View-only states (viewer share, no access) — just expose the safe
-    // read-only actions. (The demo-tier upgrade CTA died with 0188.)
-    const clusterInfo = { id: 'cluster-info', label: tr`Cluster info`, shortcut: modShortcut('I'),
-      run: () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow }) };
+    const acts = {};
+    const preview = { name: board?.name || tr`Untitled`, kind: tr`Cluster` };
+    const finish = (m) => ({ ...m, title: board?.name || m.label, preview });
+    acts['cluster-info'] = () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow });
+    acts['copy-link'] = () => copyClusterLink(board.id, feedback);
+    acts['select-all'] = selectAll;
     // Opened by a finger's hold: a finger has no Shift, so it gets a mode in
     // which taps add cards to the selection (touchSelecting).
-    const selectSome = bgCtx.viaTouch
-      ? [{ id: 'selectsome', label: tr`Select…`, run: () => {
-          setTouchSelecting(true);
-          try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'menu', n: selected.size + selectedStrokes.size + selectedArrows.size }); } catch (_) {}
-        } }]
-      : [];
-    if (!canEdit) {
-      // People who can only view may still comment, here where they pressed.
-      const at = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
-        ? clientToCanvas(bgCtx.x, bgCtx.y)
-        : (bgCtx.canvasPos || lastMouseCanvasRef.current);
-      return [
-        ...(canComment && at ? [{ id: 'comment', label: tr`Add comment`, icon: MessageCircle,
-          run: () => promptComment({ kind: 'point', x: at.x, y: at.y }) }] : []),
-        { id: 'selectall', label: tr`Select all`, shortcut: modShortcut('A'), run: selectAll },
-        ...selectSome,
-        clusterInfo,
-      ];
+    if (bgCtx.viaTouch) {
+      acts['select-touch'] = () => {
+        setTouchSelecting(true);
+        try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'menu', n: selected.size + selectedStrokes.size + selectedArrows.size }); } catch (_) {}
+      };
     }
-    // Resolve the placement point. Prefer recomputing from the stored SCREEN
-    // coords (bgCtx.x/y = the raw clientX/clientY of the right-click) against
-    // the LIVE transform at the moment the menu item runs — so if the camera
-    // settled between right-click and pick (e.g. the 220ms is-smooth zoom
-    // transition, or a peer/auto-fit nudge), the item still lands under the
-    // cursor. Falls back to the snapshot taken at open, then the last mouse
-    // position. Identical to bgCtx.canvasPos when nothing moved.
+    // Where the press landed, resolved against the LIVE transform when the
+    // row runs (the camera may have settled between right-click and pick).
     const pos = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
       ? clientToCanvas(bgCtx.x, bgCtx.y)
       : (bgCtx.canvasPos || lastMouseCanvasRef.current);
+    // View-only states (viewer share, no access) — just expose the safe
+    // read-only actions. (The demo-tier upgrade CTA died with 0188.)
+    if (!canEdit) {
+      // People who can only view may still comment, here where they pressed.
+      if (canComment && pos) acts.comment = () => promptComment({ kind: 'point', x: pos.x, y: pos.y });
+      return finish(canvasMenu({ canEdit: false, label: board?.name }, acts));
+    }
     // Shared add actions (see buildAddActions). The right-click "Add" is the
-    // COMPLETE catalog — every card type + linked cluster + link + the two
-    // annotations + the Draw/Arrow tool-modes — grouped under section headers
-    // so it stays scannable. Script is intentionally omitted (write scripts
-    // inside a doc). Comment/Vote/Link no longer sit loose at the top level.
+    // COMPLETE catalog; script is intentionally omitted (write scripts inside
+    // a doc).
     const addActions = buildAddActions(pos, 'context_menu');
-    const byId = (id) => addActions.find(a => a.id === id);
+    const byId = (id) => addActions.find((a) => a.id === id);
     // Settle the camera only when a create actually RUNS (not on menu open), so a
     // right-click during a slow content load doesn't defeat the late-content auto-fit.
     const settled = (fn) => () => { markViewSettled(); return fn?.(); };
-    const sub = (id, labelOverride) => {
-      const a = byId(id);
-      return a ? { id: a.id, label: labelOverride || a.label, run: settled(a.run) } : null;
+    const addAct = (actId, srcId, quickLabel) => {
+      const a = byId(srcId);
+      if (a) acts[actId] = { run: settled(a.run), ...(quickLabel ? { quickLabel } : {}) };
     };
-    const addSubmenu = [
-      { header: tr`Cards` },
-      sub('note', tr`Note`), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('schedule'), sub('doc'), sub('file'),
-      { divider: true },
-      { header: tr`Visual` },
-      sub('shape'), sub('palette', tr`Palette`), sub('draw'),
-      { divider: true },
-      { header: tr`Web` },
-      sub('addurl', tr`Link`),
-      { divider: true },
-      { header: tr`Annotate` },
-      sub('comment'), sub('vote'),
-      { id: 'arrow', label: tr`Arrow`, run: settled(() => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); }) },
-    ].filter(Boolean);
+    addAct('add-note', 'note', tr`Add a note`);
+    addAct('add-image', 'image', tr`Add an image`);
+    addAct('add-cluster', 'board', tr`Add a cluster`);
+    addAct('add-linked-cluster', 'linkedcluster');
+    addAct('add-doc', 'doc', tr`Add a doc`);
+    addAct('add-file', 'file');
+    addAct('add-grid', 'grid');
+    addAct('add-schedule', 'schedule');
+    addAct('add-shape', 'shape');
+    addAct('add-palette', 'palette');
+    addAct('add-draw', 'draw');
+    addAct('add-link', 'addurl', tr`Add a link`);
+    addAct('add-comment', 'comment');
+    addAct('add-vote', 'vote');
+    acts['add-arrow'] = settled(() => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); });
     // Drawings and arrows selected (a finger has no Delete key, and they have
     // no menu of their own to hold open): delete them from here, first.
     // doDeleteSelected takes the selected cards with them, so they count.
     const drawn = selectedStrokes.size + selectedArrows.size;
     const picked = drawn + selected.size;
-    const deleteDrawn = drawn > 0
-      ? [{ id: 'delete-drawn', danger: true,
-          label: picked > 1 ? plural(picked, { one: 'Delete # selected', other: 'Delete # selected' }) : selectedStrokes.size ? tr`Delete drawing` : tr`Delete arrow`,
-          run: () => doDeleteSelected() },
-        { divider: true }]
-      : [];
-    return [
-      ...deleteDrawn,
-      { id: 'add', label: tr`Add`, submenu: addSubmenu },
-      { header: SECTION.CLIPBOARD },
-      { id: 'paste', label: clipboardSize() ? tr`Paste (${ph({ clipboardSize: clipboardSize() })})` : tr`Paste`,
-        shortcut: modShortcut('V'), disabled: clipboardSize() === 0,
-        run: () => doPaste(pos) },
-      { id: 'selectall', label: tr`Select all`, shortcut: modShortcut('A'), run: selectAll },
-      ...selectSome,
-      { header: tr`BOARD` },
-      clusterInfo,
-      ...(canEdit && !isPublic ? [{ id: 'board-tag', label: tr`Tag this cluster…`, run: () => {
+    if (drawn > 0) {
+      acts['delete-drawn'] = {
+        label: picked > 1 ? plural(picked, { one: 'Delete # selected', other: 'Delete # selected' }) : selectedStrokes.size ? tr`Delete drawing` : tr`Delete arrow`,
+        run: () => doDeleteSelected(),
+      };
+    }
+    const clip = clipboardSize();
+    acts.paste = { disabled: clip === 0, run: () => doPaste(pos), ...(clip ? { label: tr`Paste (${ph({ clipboardSize: clip })})` } : {}) };
+    // Tidy up the whole cluster (nothing selected means every card).
+    if ((cards || []).length > 1) {
+      const { tidyRun } = spatialRuns();
+      ['justified', 'masonry', 'grid', 'row', 'column'].forEach((k) => { acts[`tidy-${k}`] = () => tidyRun(k); });
+    }
+    acts.fit = fitToContent;
+    if (!isPublic) {
+      acts['tag-cluster'] = () => {
         setTagPicker({ kind: 'board', id: board.id, anchorRect: { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 } });
-      } }] : []),
-      { id: 'bg', label: tr`Background`, submenu: [
-        { id: 'bg-default', swatch: 'transparent', label: tr`Default`, run: () => mutators.setBoardBgColor?.(null) },
-        { id: 'bg-paper',   swatch: '#f5f2ec', label: tr`Paper`,   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
-        { id: 'bg-mid',     swatch: '#0a1428', label: tr`Midnight`,run: () => mutators.setBoardBgColor?.('#0a1428') },
-        { id: 'bg-mauve',   swatch: '#1d1822', label: tr`Mauve`,   run: () => mutators.setBoardBgColor?.('#1d1822') },
-        { id: 'bg-cream',   swatch: '#fef7ec', label: tr`Cream`,   run: () => mutators.setBoardBgColor?.('#fef7ec') },
-        { id: 'bg-sage',    swatch: '#e8f0e6', label: tr`Sage`,    run: () => mutators.setBoardBgColor?.('#e8f0e6') },
-        { id: 'bg-charcoal',swatch: '#1a1a1a', label: tr`Charcoal`,run: () => mutators.setBoardBgColor?.('#1a1a1a') },
-        { divider: true },
-        { id: 'bg-custom',  label: tr`Custom…`, run: () => {
-          setPicker({
-            value: board.bg_color || '#1c1c1f',
-            onChange: (c) => mutators.setBoardBgColor?.(c),
-            x: bgCtx.x, y: bgCtx.y,
-            allowTransparent: false,
-          });
-        }},
-      ]},
-      { id: 'fit', label: tr`Reset zoom`, shortcut: modShortcut('0'), run: () => zoomAroundCenter(1 / zoomRef.current) },
-      { id: 'export', label: tr`Export`, submenu: [
-        { id: 'export-png', label: tr`PNG image`, run: () => exportBoardAs('png') },
-        { id: 'export-pdf', label: tr`PDF (Save from Print)`, run: () => exportBoardAs('pdf') },
-      ]},
-      { divider: true },
-      { id: 'clearstrokes', label: tr`Clear all drawings`, disabled: !(strokes && strokes.length > 0),
-        danger: true, run: clearAllDrawings },
-    ];
+      };
+      if (clusterAct?.share) acts['share-cluster'] = () => clusterAct.share(board.id, 'canvas_menu');
+    }
+    acts.background = {
+      options: BG_OPTIONS.map(([key, swatch]) => ({ key, swatch })),
+      current: (BG_OPTIONS.find(([, , val]) => val === (board.bg_color || null)) || BG_OPTIONS[0])[0],
+      pick: (key) => mutators.setBoardBgColor?.(BG_OPTIONS.find(([k]) => k === key)?.[2] ?? null),
+      custom: () => {
+        setPicker({
+          value: board.bg_color || '#1c1c1f',
+          onChange: (c) => mutators.setBoardBgColor?.(c),
+          x: bgCtx.x, y: bgCtx.y,
+          allowTransparent: false,
+        });
+      },
+    };
+    acts['export-png'] = () => exportBoardAs('png');
+    acts['export-pdf'] = () => exportBoardAs('pdf');
+    if (strokes && strokes.length > 0) acts['clear-drawings'] = clearAllDrawings;
+    return finish(canvasMenu({ canEdit: true, label: board?.name }, acts));
   };
 
   // Export → PNG image / PDF: the board as the covers draw it (lib/exportBoard.js).
@@ -12121,29 +11998,71 @@ export function CanvasSurface({
   const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect } | { kind: 'group'|'board', id, anchorRect }
   const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
   const closeTagPicker = () => setTagPicker(null);
-  // Right-click menu for an applied tag chip on a card. Lets users
-  // confirm an auto-applied tag (promoting source='auto' → 'user'),
-  // remove it, or dismiss it permanently for that target.
-  const [tagChipMenu, setTagChipMenu] = useState(null); // { x, y, cardId, tag }
+  // Right-click menu for an applied tag chip (a card's, or the cluster's own):
+  // open the tag, confirm an automatic one (source 'auto' → 'user'), or remove
+  // it, which also keeps it from being applied there again (undo lifts both).
+  const [tagChipMenu, setTagChipMenu] = useState(null); // { x, y, kind, targetId, tag }
   const closeTagChipMenu = () => setTagChipMenu(null);
-  useEffect(() => {
-    if (!tagChipMenu) return;
-    const onAway = () => setTagChipMenu(null);
-    // Capture phase so an inner stopPropagation can't swallow Escape, and a
-    // named handler (not {once:true}) so it (a) keeps working across repeated
-    // opens and (b) is actually removed on cleanup instead of leaking until
-    // some unrelated Escape fires.
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setTagChipMenu(null); };
-    // pointerdown too so a tap-away closes it on touch (mousedown may not fire).
-    window.addEventListener('pointerdown', onAway, { capture: true });
-    window.addEventListener('mousedown', onAway, { capture: true });
-    window.addEventListener('keydown', onKey, { capture: true });
-    return () => {
-      window.removeEventListener('pointerdown', onAway, { capture: true });
-      window.removeEventListener('mousedown', onAway, { capture: true });
-      window.removeEventListener('keydown', onKey, { capture: true });
-    };
-  }, [tagChipMenu]);
+  const confirmChipTag = async ({ kind, targetId, tag }) => {
+    try {
+      await confirmAppliedTag({
+        sourceKind: kind, sourceId: targetId,
+        sourceBoardId: kind === 'card' ? board.id : null,
+        tagId: tag.id,
+      });
+      refreshTags?.();
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_confirm_failed', message: tr`Confirm failed: ${ph({ reason: String(shownError(err)) })}` });
+    }
+  };
+  const removeChipTag = async ({ kind, targetId, tag }) => {
+    try {
+      if (kind === 'card') {
+        await untagCard({ boardId: board.id, cardId: targetId, tagId: tag.id });
+      } else if (kind === 'board') {
+        await untagBoard({ boardId: targetId, tagId: tag.id });
+      }
+      // Always dismiss too. Without this, the autotag triggers re-apply on the
+      // next card_index UPDATE and "Remove tag" feels broken.
+      await dismissAutotagSuggestion({
+        workspaceId, targetKind: kind, targetId,
+        tagId: tag.id, userId,
+      });
+      refreshTags?.();
+      // No confirm, a hard delete PLUS a permanent "never suggest again" row:
+      // the undo re-applies AND lifts the suppression.
+      undoToast(feedback, {
+        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
+        onUndo: async () => {
+          try {
+            if (kind === 'card') {
+              await tagCard({ workspaceId, boardId: board.id, cardId: targetId, tagId: tag.id });
+            } else if (kind === 'board') {
+              await tagBoard({ workspaceId, boardId: targetId, tagId: tag.id });
+            }
+            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
+            refreshTags?.();
+          } catch (err) {
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
+          }
+        },
+      });
+    } catch (err) {
+      feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tr`Remove failed: ${ph({ reason: String(shownError(err)) })}` });
+    }
+  };
+  const tagChipMenuItems = (m) => {
+    const auto = !!m.tag.source && m.tag.source !== 'user';
+    return [
+      { id: 'open-tag', label: tr`Open tag`, icon: 'Tag', run: () => openTagPage(m.tag.id, 'chip_menu') },
+      auto && { id: 'confirm-tag', label: tr`Confirm tag`, icon: 'CheckCircle', run: () => confirmChipTag(m) },
+      {
+        id: 'remove-tag', label: tr`Remove tag`, icon: 'X',
+        hint: auto ? tr`Removes this tag and won't auto-apply it here again.` : undefined,
+        run: () => removeChipTag(m),
+      },
+    ].filter(Boolean);
+  };
   const toggleTagOnCard = async (cardId, tag) => {
     if (!workspaceId || !board?.id || !cardId || !tag) return;
     const applied = (tagsByCard.get(cardId) || []).some(t => t.id === tag.id);
@@ -12307,7 +12226,7 @@ export function CanvasSurface({
     const onKey = (e) => {
       if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || e.defaultPrevented || isEditableTarget(e.target)) return;
-      if (document.querySelector('.ctx-menu, .sb-tag-menu, .tag-picker, .modal-bg, [role="dialog"]')) return;
+      if (document.querySelector('.ctx-menu, .ctx-sheet-root, .tag-picker, .modal-bg, [role="dialog"]')) return;
       e.preventDefault();
       e.stopPropagation();
       setSpotlightTagId(null);
@@ -15868,12 +15787,8 @@ export function CanvasSurface({
                   },
                 });
               };
-              // Right-click the dot → toggle arc ↔ straight line.
-              const onBendContext = (ev) => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                mutators.updateArrow?.(i, { straight: !a.straight });
-              };
+              // Right-click the dot → the arrow's menu (Curved toggles arc ↔ straight).
+              const onBendContext = (ev) => onArrowContextMenu(ev, i);
               // Double-click the dot → clear the manual bend (back to auto).
               const onBendReset = (ev) => {
                 ev.preventDefault();
@@ -15934,7 +15849,7 @@ export function CanvasSurface({
                               onPointerDown={onBendDown}
                               onContextMenu={onBendContext}
                               onDoubleClick={onBendReset}>
-                        <title>{tr`Drag to bend · right-click to straighten · double-click to reset`}</title>
+                        <title>{tr`Drag to bend · right-click for options · double-click to reset`}</title>
                       </circle>
                       {/* Visible dot — faded on hover, solid when selected (CSS). */}
                       <circle className="arrow-bend-vis" cx={bendMid.x} cy={bendMid.y} r={BEND_R}
@@ -16320,6 +16235,8 @@ export function CanvasSurface({
           upsertLocally={upsertCommentLocally}
           ydoc={ydoc}
           workspaceId={board?.workspace_id || workspaceId}
+          removeLocally={removeCommentLocally}
+          onPinMenu={({ x, y, menu }) => setBgCtx({ open: true, x, y, canvasPos: null, pinMenu: menu })}
         />}
 
         {/* Vote cards: same canvas-transform layer. They do NOT follow the
@@ -17010,20 +16927,30 @@ export function CanvasSurface({
         loaded={commentsLoaded}
       />
 
-      <CardContextMenu
-        open={ctx.open}
-        x={ctx.x}
-        y={ctx.y}
-        above={!!ctx.above}
-        // Built only while open: ctx.cardId outlives the menu, and buildMenu
-        // (cycle checks across every board for a cluster card) used to run on
-        // every canvas render after the first right-click, drag frames included.
-        items={ctx.open && ctx.cardId ? buildMenu(cardById[ctx.cardId] || {}) : EMPTY_ITEMS}
-        onClose={closeCardMenu}
-        workspaceId={workspaceId}
-        boardId={board?.id}
-        card={ctx.cardId ? cardById[ctx.cardId] : null}
-      />
+      {(() => {
+        // Built only while open, and once: ctx.cardId outlives the menu, and
+        // buildMenu (cycle checks across every board for a cluster card) used
+        // to run on every canvas render after the first right-click.
+        const m = ctx.open && ctx.cardId ? buildMenu(cardById[ctx.cardId] || {}) : null;
+        return (
+          <CardContextMenu
+            open={ctx.open}
+            x={ctx.x}
+            y={ctx.y}
+            above={!!ctx.above}
+            items={m ? m.items : EMPTY_ITEMS}
+            title={m?.title}
+            quick={m?.quick}
+            label={m?.label}
+            preview={m?.preview}
+            byKey={!!ctx.byKey}
+            onClose={closeCardMenu}
+            workspaceId={workspaceId}
+            boardId={board?.id}
+            card={ctx.cardId ? cardById[ctx.cardId] : null}
+          />
+        );
+      })()}
 
       {/* Custom thumbnail for a board card: hidden picker + crop/reposition modal
           (opened from the card's right-click "Upload custom thumbnail…"). */}
@@ -17042,16 +16969,26 @@ export function CanvasSurface({
         />
       )}
 
-      <BackgroundContextMenu
-        open={bgCtx.open}
-        x={bgCtx.x}
-        y={bgCtx.y}
-        items={bgCtx.open ? buildBgMenu() : EMPTY_ITEMS}
-        onClose={closeBgMenu}
-        workspaceId={workspaceId}
-        boardId={board?.id}
-        boardName={board?.name}
-      />
+      {(() => {
+        const m = bgCtx.open ? buildBgMenu() : null;
+        return (
+          <BackgroundContextMenu
+            open={bgCtx.open}
+            x={bgCtx.x}
+            y={bgCtx.y}
+            items={m ? m.items : EMPTY_ITEMS}
+            title={m?.title}
+            quick={m?.quick}
+            label={m?.label}
+            preview={m?.preview}
+            byKey={!!bgCtx.byKey}
+            onClose={closeBgMenu}
+            workspaceId={workspaceId}
+            boardId={board?.id}
+            boardName={board?.name}
+          />
+        );
+      })()}
 
       {/* Mobile-shell bottom-nav "+" → full add sheet. The action set mirrors the
           desktop right-click Add menu (shared via buildAddActions). Close the
@@ -17243,80 +17180,15 @@ export function CanvasSurface({
           }}
         />
       )}
-      {tagChipMenu && (
-        <div className="sb-tag-menu" role="menu"
-             style={{ position: 'fixed', left: tagChipMenu.x, top: tagChipMenu.y, zIndex: 60 }}
-             onMouseDown={(e) => e.stopPropagation()}>
-          <button className="sb-tag-menu-item" role="menuitem"
-                  onClick={() => { const { tag } = tagChipMenu; closeTagChipMenu(); openTagPage(tag.id, 'chip_menu'); }}>
-            <Trans>Open tag page</Trans>
-          </button>
-          {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
-            <button className="sb-tag-menu-item" role="menuitem"
-                    onClick={async () => {
-                      const { kind, targetId, tag } = tagChipMenu;
-                      closeTagChipMenu();
-                      try {
-                        await confirmAppliedTag({
-                          sourceKind: kind, sourceId: targetId,
-                          sourceBoardId: kind === 'card' ? board.id : null,
-                          tagId: tag.id,
-                        });
-                        refreshTags?.();
-                      } catch (err) {
-                        feedback.toast({ type: 'error', code: 'tag_confirm_failed', message: tr`Confirm failed: ${ph({ reason: String(shownError(err)) })}` });
-                      }
-                    }}>
-              <Trans>Confirm tag</Trans>
-            </button>
-          )}
-          <button className="sb-tag-menu-item" role="menuitem"
-                  title={tr`Removes this tag and won't auto-apply it here again.`}
-                  onClick={async () => {
-                    const { kind, targetId, tag } = tagChipMenu;
-                    closeTagChipMenu();
-                    try {
-                      if (kind === 'card') {
-                        await untagCard({ boardId: board.id, cardId: targetId, tagId: tag.id });
-                      } else if (kind === 'board') {
-                        await untagBoard({ boardId: targetId, tagId: tag.id });
-                      }
-                      // Always dismiss too. Without this, the autotag
-                      // triggers re-apply on the next card_index UPDATE
-                      // and "Remove tag" feels broken.
-                      await dismissAutotagSuggestion({
-                        workspaceId, targetKind: kind, targetId,
-                        tagId: tag.id, userId,
-                      });
-                      refreshTags?.();
-                      // This was the app's most casual irreversible click:
-                      // no confirm, hard delete, PLUS a permanent "never
-                      // suggest again" row. The undo re-applies AND lifts
-                      // the suppression.
-                      undoToast(feedback, {
-                        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
-                        onUndo: async () => {
-                          try {
-                            if (kind === 'card') {
-                              await tagCard({ workspaceId, boardId: board.id, cardId: targetId, tagId: tag.id });
-                            } else if (kind === 'board') {
-                              await tagBoard({ workspaceId, boardId: targetId, tagId: tag.id });
-                            }
-                            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
-                            refreshTags?.();
-                          } catch (err) {
-                            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
-                          }
-                        },
-                      });
-                    } catch (err) {
-                      feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tr`Remove failed: ${ph({ reason: String(shownError(err)) })}` });
-                    }
-                  }}>
-            <Trans>Remove tag</Trans>
-          </button>
-        </div>
-      )}
+      <CardContextMenu
+        open={!!tagChipMenu}
+        x={tagChipMenu?.x ?? 0}
+        y={tagChipMenu?.y ?? 0}
+        label={tagChipMenu?.tag?.name}
+        root="menu"
+        items={tagChipMenu ? tagChipMenuItems(tagChipMenu) : []}
+        onClose={closeTagChipMenu}
+      />
       {lightbox && (() => {
         // Share this one file from the viewer: same gates as the card menu.
         // A sub-cluster's row brings its own cluster and card.

@@ -50,7 +50,14 @@ card until the word is settled.
 | `⌘K` or `/` | Search and commands |
 | `⌘B` | Toggle sidebar |
 | `⌘.` | Clean mode — hide all chrome |
-| `↑` / `↓` in a right-click menu | Move through it — `→` opens a submenu and `←` closes it, `Enter` chooses |
+| `⇧F10` or `Menu` | On the canvas, open the selection's menu, or the canvas menu at the centre of the screen when nothing is selected (not on public links) |
+| `↑` / `↓` in a right-click menu | Move through it — `Home` and `End` jump to the first and last row, and typing jumps to a row |
+| `→` or `Enter` in a right-click menu | Open a submenu — `←` goes back |
+| `Enter` or `Space` in a right-click menu | Choose the row |
+| `←` / `→` on a row of icon buttons | Move along the row |
+| `Esc` in a right-click menu | Step back out of a submenu, then close the menu — `Tab` closes it too |
+
+Every menu row that has a keyboard shortcut shows it.
 
 `⌘K` is the fastest way to get anywhere. It searches cluster names, card
 contents, notes, docs and tags, and it also runs commands — "share", "trash",

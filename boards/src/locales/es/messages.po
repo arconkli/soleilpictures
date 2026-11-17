@@ -209,26 +209,6 @@ msgstr "{0, plural, =0 {Opciones de tarjeta} =1 {Opciones de tarjeta} one {Opcio
 
 #. placeholder {0}: ids.length
 #: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Copy to cluster…} =1 {Copy to cluster…} other {Copy # cards to…}}"
-msgstr "{0, plural, =0 {Copiar al clúster…} =1 {Copiar al clúster…} one {Copiar al clúster…} other {Copiar # tarjetas a…}}"
-
-#. placeholder {0}: ids.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Move to cluster…} =1 {Move to cluster…} other {Move # cards to…}}"
-msgstr "{0, plural, =0 {Mover al clúster…} =1 {Mover al clúster…} one {Mover al clúster…} other {Mover # tarjetas a…}}"
-
-#. placeholder {0}: actingBoardIds.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Move to cluster…} =1 {Move to cluster…} other {Move # clusters to…}}"
-msgstr "{0, plural, =0 {Mover al clúster…} =1 {Mover al clúster…} one {Mover al clúster…} other {Mover # clústeres a…}}"
-
-#. placeholder {0}: offIds.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Remove from board} =1 {Remove from board} other {Remove # from board}}"
-msgstr "{0, plural, =0 {Quitar del lienzo} =1 {Quitar del lienzo} one {Quitar del lienzo} other {Quitar # del lienzo}}"
-
-#. placeholder {0}: ids.length
-#: src/components/CanvasSurface.jsx
 msgid "{0, plural, =1 {Card deleted} other {# cards deleted}}"
 msgstr "{0, plural, =1 {Tarjeta eliminada} one {Tarjeta eliminada} other {# tarjetas eliminadas}}"
 
@@ -246,11 +226,6 @@ msgstr "{0, plural, =1 {Se pegó una tarjeta cortada de {cutFrom}: los originale
 #: src/components/CanvasSurface.jsx
 msgid "{0, plural, =1 {Put on the board} other {# put on the board}}"
 msgstr "{0, plural, =1 {Archivo puesto en el lienzo} one {Archivo puesto en el lienzo} other {# archivos puestos en el lienzo}}"
-
-#. placeholder {0}: list.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =1 {Removed from board — it’s still in Files} other {# removed from board — still in Files}}"
-msgstr "{0, plural, =1 {Archivo quitado del lienzo: sigue en Archivos} one {Archivo quitado del lienzo: sigue en Archivos} other {# archivos quitados del lienzo: siguen en Archivos}}"
 
 #. placeholder {0}: mine.length
 #: src/components/ShareModal.jsx
@@ -333,6 +308,7 @@ msgstr "{0, plural, one {# tarjeta que excedía el espacio de tu plan se dejó f
 #. placeholder {0}: cards.length
 #. placeholder {0}: cardsOf(b)
 #: src/auth/AuthGate.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
@@ -569,7 +545,7 @@ msgstr "{0, plural, one {Se quitará # trazo. Puedes deshacerlo.} other {Se quit
 msgid "{0, plural, one {# TARGETS} other {# TARGETS}}"
 msgstr "{0, plural, one {# DESTINO} other {# DESTINOS}}"
 
-#. placeholder {0}: counts.get(sheetFor.id)
+#. placeholder {0}: counts.get(tag.id)
 #: src/components/SidebarTags.jsx
 msgid "{0, plural, one {# thing} other {# things}}"
 msgstr "{0, plural, one {# cosa} other {# cosas}}"
@@ -687,11 +663,6 @@ msgstr "{0, plural, one {Solo las personas de abajo, más # enlace aún activo} 
 msgid "{0, plural, one {Preview: nobody was emailed. # invite added to People.} other {Preview: nobody was emailed. # invites added to People.}}"
 msgstr "{0, plural, one {Vista previa: no se envió ningún correo. Se añadió # invitación a Personas.} other {Vista previa: no se envió ningún correo. Se añadieron # invitaciones a Personas.}}"
 
-#. placeholder {0}: offSel.length
-#: src/components/ListSurface.jsx
-msgid "{0, plural, one {Put # on board} other {Put # on board}}"
-msgstr "{0, plural, one {Poner # en el lienzo} other {Poner # en el lienzo}}"
-
 #. placeholder {0}: plan.length
 #: src/App.jsx
 msgid "{0, plural, one {Put on the board · {left} still in Files} other {# put on the board · {left} still in Files}}"
@@ -743,6 +714,11 @@ msgstr "{0, plural, one {Mostrar # más} other {Mostrar # más}}"
 msgid "{0, plural, one {Show all #} other {Show all #}}"
 msgstr "{0, plural, one {Mostrar todo (#)} many {Mostrar todos (#)} other {Mostrar todos (#)}}"
 
+#. placeholder {0}: list.length
+#: src/components/CanvasSurface.jsx
+msgid "{0, plural, one {Taken off the canvas. It’s still in Files.} other {# taken off the canvas. They’re still in Files.}}"
+msgstr "{0, plural, one {Quitada del lienzo. Sigue en Archivos.} other {# quitadas del lienzo. Siguen en Archivos.}}"
+
 #. placeholder {0}: chosen.length
 #: src/components/team/TeamSetup.jsx
 msgid "{0, plural, one {Team · # workspace moving in · {editors, plural, one {# person who edit} other {# people who edit}}} other {Team · # workspaces moving in · {editors, plural, one {# person who edit} other {# people who edit}}}}"
@@ -777,11 +753,6 @@ msgstr "{0, plural, one {# invitado} other {# invitados}}"
 #: src/components/CanvasSurface.jsx
 msgid "{0, plural, other {# versions — Info shows them all}}"
 msgstr "{0, plural, one {# versión: Información las muestra todas} other {# versiones: Información las muestra todas}}"
-
-#. placeholder {0}: plan.ids.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, other {New cluster from # cards}}"
-msgstr "{0, plural, one {Nuevo clúster con # tarjeta} other {Nuevo clúster con # tarjetas}}"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "{activeCount, plural, one {View, # filter on} other {View, # filters on}}"
@@ -1020,9 +991,14 @@ msgstr "{count, plural, one {# tarjeta · {board}} other {# tarjetas · {board}}
 
 #: src/components/entityPreviews/GroupPreview.jsx
 #: src/components/MessageSharedCard.jsx
+#: src/lib/menus/cardMenu.js
 #: src/lib/messageThing.js
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, one {# tarjeta} other {# tarjetas}}"
+
+#: src/lib/menus/rows.js
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, one {# comentario} other {# comentarios}}"
 
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is coming in} other {# files are coming in}}"
@@ -1031,6 +1007,10 @@ msgstr "{count, plural, one {# archivo está llegando} other {# archivos están 
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is in Files} other {# files are in Files}}"
 msgstr "{count, plural, one {# archivo está en Archivos} other {# archivos están en Archivos}}"
+
+#: src/lib/menus/fileMenu.js
+msgid "{count, plural, one {# file} other {# files}}"
+msgstr "{count, plural, one {# archivo} other {# archivos}}"
 
 #: src/components/SidebarTags.jsx
 msgid "{count, plural, one {# item are tagged with \"{name}\". Delete the tag and all of its applications?\n"
@@ -1049,6 +1029,7 @@ msgid "{count, plural, one {# item on {when}} other {# items on {when}}}"
 msgstr "{count, plural, one {# elemento el {when}} other {# elementos el {when}}}"
 
 #: src/components/cards/ScheduleRail.jsx
+#: src/lib/menus/fileMenu.js
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# elemento} other {# elementos}}"
 
@@ -1524,6 +1505,10 @@ msgstr "{label}, volver al menú del lienzo"
 msgid "{label}, back to the card menu"
 msgstr "{label}, volver al menú de la tarjeta"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the menu"
+msgstr "{label}, volver al menú"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, one {Se guardó “{name}” con # rótulo.} other {Se guardó “{name}” con # rótulos.}}"
@@ -1591,6 +1576,10 @@ msgstr "{limit, plural, one {Este clúster gratuito admite **{take}** más: ya t
 #: src/lib/notificationWords.js
 msgid "{limit, plural, one {Your plan has # person who can edit, the most it allows.} other {Your plan has # people who can edit, the most it allows.}}"
 msgstr "{limit, plural, one {Tu plan tiene # persona que puede editar, el máximo que permite.} other {Tu plan tiene # personas que pueden editar, el máximo que permite.}}"
+
+#: src/components/CardContextMenu.jsx
+msgid "{linkedN, plural, one {Linked from # place} other {Linked from # places}}"
+msgstr "{linkedN, plural, one {Enlazado desde # lugar} other {Enlazado desde # lugares}}"
 
 #: src/lib/sendTo.js
 msgid "{list} can't open it yet: only editors can let people in."
@@ -1959,10 +1948,6 @@ msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them
 msgstr "{n, plural, one {Pide a un administrador que lo añada.} other {Pide a un administrador que los añada.}}"
 
 #: src/components/CanvasSurface.jsx
-msgid "{n, plural, one {Comments (#)} other {Comments (#)}}"
-msgstr "{n, plural, one {Comentarios (#)} other {Comentarios (#)}}"
-
-#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
 msgstr "{n, plural, one {Se copió # tarjeta · ⌘Z lo deshace} other {Se copiaron # tarjetas · ⌘Z lo deshace}}"
 
@@ -2125,9 +2110,9 @@ msgstr "{n} de {total}"
 msgid "{n} people who can edit"
 msgstr "{n} personas que pueden editar"
 
-#: src/components/ListSurface.jsx
-msgid "{n} selected"
-msgstr "{n} seleccionados"
+#: src/lib/menus/rows.js
+msgid "{n} px"
+msgstr "{n} px"
 
 #: src/components/DocBookmarkList.jsx
 msgid "{name} — {page}"
@@ -2167,8 +2152,8 @@ msgid "{name} — Soleil Clusters"
 msgstr "{name} — Soleil Clusters"
 
 #: src/components/SidebarTags.jsx
-msgid "{name} · {c} applied · right-click to manage"
-msgstr "{name} · {c} aplicadas · clic derecho para gestionar"
+msgid "{name} · {c} applied"
+msgstr "{name} · usada en {c}"
 
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{name} · {where}"
@@ -2205,10 +2190,6 @@ msgstr "{name} · no está en el lienzo"
 #: src/components/clusterBrowser/FilesPageHead.jsx
 msgid "{name} · press to see another cluster’s files"
 msgstr "{name} · pulsa para ver los archivos de otro clúster"
-
-#: src/components/SidebarTags.jsx
-msgid "{name} · right-click to manage"
-msgstr "{name} · clic derecho para gestionar"
 
 #: src/components/SidebarSharedBoards.jsx
 msgid "{name} · view only"
@@ -2345,10 +2326,6 @@ msgstr "{name}, editar perfil"
 #: src/components/team/TeamPage.jsx
 msgid "{name}, team"
 msgstr "{name}, equipo"
-
-#: src/components/SidebarTags.jsx
-msgid "{name}: actions"
-msgstr "{name}: acciones"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "{name}: go to where they are"
@@ -2633,11 +2610,6 @@ msgstr "{px} px"
 #: src/lib/importCopy.js
 msgid "{readyCount, plural, one {Put # on the board} other {Put # on the board}}"
 msgstr "{readyCount, plural, one {Poner # en el lienzo} other {Poner # en el lienzo}}"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "{refCount, plural, one {Linked from # place} other {Linked from # places}}"
-msgstr "{refCount, plural, one {Enlazado desde # lugar} other {Enlazado desde # lugares}}"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{removed, plural, one {# file} other {# files}}"
@@ -3047,10 +3019,6 @@ msgstr "{unreadCount} sin leer"
 #: src/components/MessageThread.jsx
 msgid "{unseenCount, plural, one {# new message} other {# new messages}}"
 msgstr "{unseenCount, plural, one {# mensaje nuevo} other {# mensajes nuevos}}"
-
-#: src/components/ColorPicker.jsx
-msgid "{upperCase} — right-click to remove"
-msgstr "{upperCase}: clic derecho para quitar"
 
 #: src/components/sidebar/SidebarMeter.jsx
 msgid "{used} of {cardLimit} cards"
@@ -3928,6 +3896,12 @@ msgstr "Tamaño real, {pct}%"
 msgid "Add"
 msgstr "Añadir"
 
+#: src/lib/menus/canvasMenu.js
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Add"
+msgstr "Añadir"
+
 #: src/lib/billingCopyWords.js
 msgid "Add {block} — {then}"
 msgstr "Añadir {block} — {then}"
@@ -3967,6 +3941,7 @@ msgstr "Añadir 1 TB · {price} al mes"
 msgid "Add a card"
 msgstr "Añadir una tarjeta"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 msgid "Add a cluster"
 msgstr "Añadir un clúster"
@@ -3992,6 +3967,10 @@ msgstr "Añadir un día"
 #: src/components/cards/ScheduleRail.jsx
 msgid "Add a day here"
 msgstr "Añadir un día aquí"
+
+#: src/components/CanvasSurface.jsx
+msgid "Add a doc"
+msgstr "Añadir un documento"
 
 #: src/lib/workspaceSetup.js
 msgid "Add a few emails, or share one link with everyone."
@@ -4080,6 +4059,10 @@ msgstr "Añadir una línea vertical (dividir en columnas)"
 msgid "Add a web link"
 msgstr "Añadir un enlace web"
 
+#: src/components/CanvasSurface.jsx
+msgid "Add an image"
+msgstr "Añadir una imagen"
+
 #: src/components/setup/InviteStep.jsx
 msgid "Add another"
 msgstr "Añadir otro"
@@ -4101,10 +4084,6 @@ msgid "Add bookmark"
 msgstr "Añadir marcador"
 
 #: src/components/CanvasSurface.jsx
-msgid "Add caption"
-msgstr "Añadir pie de foto"
-
-#: src/components/CanvasSurface.jsx
 msgid "Add cluster"
 msgstr "Añadir clúster"
 
@@ -4124,15 +4103,11 @@ msgstr "Añadir columna a la izquierda"
 msgid "Add column right"
 msgstr "Añadir columna a la derecha"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Add comment"
 msgstr "Añadir comentario"
-
-#: src/components/CanvasSurface.jsx
-msgid "Add comment to group"
-msgstr "Añadir comentario al grupo"
 
 #: src/components/cards/GridCard.jsx
 #: src/components/cards/ScheduleCard.jsx
@@ -4179,10 +4154,6 @@ msgid "Add grid tool"
 msgstr "Herramienta para añadir cuadrícula"
 
 #: src/components/CanvasSurface.jsx
-msgid "Add hyperlink"
-msgstr "Añadir hipervínculo"
-
-#: src/components/CanvasSurface.jsx
 msgid "Add image"
 msgstr "Añadir imagen"
 
@@ -4203,9 +4174,9 @@ msgstr "Añadir imágenes"
 msgid "Add item"
 msgstr "Añadir elemento"
 
-#: src/components/CanvasSurface.jsx
-msgid "Add label"
-msgstr "Añadir rótulo"
+#: src/lib/menus/rows.js
+msgid "Add label…"
+msgstr "Añadir rótulo…"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "Add layer"
@@ -4315,7 +4286,6 @@ msgstr "Añadirlos"
 msgid "Add this TXT record to its DNS, then check."
 msgstr "Añade este registro TXT al DNS del dominio y comprueba."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "Add title"
 msgstr "Añadir título"
@@ -4333,7 +4303,7 @@ msgstr "Añadir al clúster"
 msgid "Add to Cursor"
 msgstr "Añadir a Cursor"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Add to group"
 msgstr "Añadir al grupo"
 
@@ -4349,13 +4319,13 @@ msgstr "Añadir a VS Code"
 msgid "Add to workspace"
 msgstr "Añadir al espacio de trabajo"
 
+#: src/lib/menus/rows.js
+msgid "Add vote"
+msgstr "Añadir votación"
+
 #: src/components/CanvasSurface.jsx
 msgid "Add vote failed: {reason}"
 msgstr "Error al añadir el voto: {reason}"
-
-#: src/components/CanvasSurface.jsx
-msgid "Add vote to card"
-msgstr "Añadir voto a la tarjeta"
 
 #: src/components/ImportCapDialog.jsx
 msgid "Add what fits"
@@ -4459,10 +4429,6 @@ msgstr "Se añadió a {only} a “{name}”."
 msgid "Added {versionLabel} of “{nameOf}”"
 msgstr "Se añadió {versionLabel} de “{nameOf}”"
 
-#: src/components/TagDetailView.jsx
-msgid "added automatically"
-msgstr "añadida automáticamente"
-
 #: src/lib/cardInfo.js
 msgid "Added here"
 msgstr "Añadido aquí"
@@ -4559,20 +4525,26 @@ msgstr "Sugerencias de IA"
 msgid "Aileron (default)"
 msgstr "Aileron (predeterminada)"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align"
 msgstr "Alinear"
 
+#: src/lib/menus/rows.js
+msgid "Align bottom"
+msgstr "Alinear abajo"
+
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align center"
 msgstr "Centrar"
 
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align left"
 msgstr "Alinear a la izquierda"
 
@@ -4580,10 +4552,19 @@ msgstr "Alinear a la izquierda"
 msgid "Align left · center · right"
 msgstr "Alinear a la izquierda · al centro · a la derecha"
 
+#: src/lib/menus/rows.js
+msgid "Align middle"
+msgstr "Centrar verticalmente"
+
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align right"
 msgstr "Alinear a la derecha"
+
+#: src/lib/menus/rows.js
+msgid "Align top"
+msgstr "Alinear arriba"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Align: {label}"
@@ -4614,6 +4595,7 @@ msgstr "Todos los cambios guardados"
 
 #: src/components/CommandPalette.jsx
 #: src/components/SidebarBoardsSection.jsx
+#: src/lib/menus/moveMenu.js
 msgid "All clusters"
 msgstr "Todos los clústeres"
 
@@ -4704,7 +4686,7 @@ msgstr "ya está ahí"
 msgid "Also share sub-clusters"
 msgstr "Compartir también subclústeres"
 
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Always open in Files"
 msgstr "Abrir siempre en Archivos"
 
@@ -4756,10 +4738,6 @@ msgstr "Ángulo en grados: 0 es a la derecha, 90 hacia abajo"
 #: src/components/CanvasSurface.jsx
 msgid "Annotate"
 msgstr "Anotar"
-
-#: src/lib/contextMenuSections.js
-msgid "ANNOTATE"
-msgstr "ANOTAR"
 
 #: src/auth/PricingSuccess.jsx
 #: src/auth/WaitlistConfirm.jsx
@@ -4946,7 +4924,7 @@ msgstr "Se aplica al próximo enlace que crees. Los enlaces existentes conservan
 msgid "Apply"
 msgstr "Aplicar"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Apply template…"
 msgstr "Aplicar plantilla…"
 
@@ -4978,19 +4956,17 @@ msgstr "Apps"
 msgid "Archive"
 msgstr "Archivo comprimido"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Arrange"
 msgstr "Organizar"
-
-#: src/lib/contextMenuSections.js
-msgid "ARRANGE"
-msgstr "ORGANIZAR"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/shapeOptions.js
 msgid "Arrow"
 msgstr "Flecha"
@@ -5159,6 +5135,7 @@ msgstr "audio"
 #: src/lib/importJob.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/sharedFiles.js
 #: src/lib/sidebarShelves.js
 msgid "Audio"
@@ -5193,9 +5170,9 @@ msgstr "Automático ({autoName})"
 msgid "Automatic follows this browser. Cards, clusters and comments stay in the language they were written in."
 msgstr "Automático sigue a este navegador. Las tarjetas, los clústeres y los comentarios se quedan en el idioma en que se escribieron."
 
-#: src/components/CanvasSurface.jsx
-msgid "Autoplay (muted)"
-msgstr "Reproducción automática (sin sonido)"
+#: src/lib/menus/rows.js
+msgid "Autoplay"
+msgstr "Reproducción automática"
 
 #: src/lib/billingCopyWords.js
 msgid "Awaiting payment"
@@ -5268,8 +5245,8 @@ msgstr "Volver al lienzo (F)"
 msgid "Back to your workspace"
 msgstr "Volver a tu espacio de trabajo"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
+#: src/lib/menus/rows.js
 msgid "Background"
 msgstr "Fondo"
 
@@ -5392,7 +5369,6 @@ msgstr "clúster"
 msgid "Board"
 msgstr "Clúster"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/docExtensions/BoardEmbed.js
 msgid "BOARD"
@@ -5468,11 +5444,8 @@ msgstr "Marcar este punto"
 msgid "Bookmarks"
 msgstr "Marcadores"
 
-#: src/components/CanvasSurface.jsx
-msgid "Bottom"
-msgstr "Abajo"
-
 #: src/components/cards/GridCard.jsx
+#: src/lib/menus/rows.js
 msgid "Box"
 msgstr "Recuadro"
 
@@ -5496,10 +5469,6 @@ msgstr "Estilo del cuadro"
 #: src/lib/importGuide.js
 msgid "Box, Notion, an old hard drive and a camera card all work this way."
 msgstr "Box, Notion, un disco duro antiguo y una tarjeta de cámara funcionan así."
-
-#: src/components/CanvasSurface.jsx
-msgid "Box{value}"
-msgstr "Caja{value}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Boxes"
@@ -5566,7 +5535,7 @@ msgstr "Traer archivos de otra app…"
 msgid "Bring files in from a computer: download them, unzip, and drop them on Clusters."
 msgstr "Trae archivos desde un dispositivo: descárgalos, descomprímelos y suéltalos en Clusters."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Bring forward"
 msgstr "Traer adelante"
 
@@ -5574,7 +5543,7 @@ msgstr "Traer adelante"
 msgid "Bring in a folder"
 msgstr "Traer una carpeta"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Bring to front"
 msgstr "Traer al frente"
 
@@ -5779,7 +5748,6 @@ msgstr "No se puede guardar: el acceso terminó"
 #: src/components/SaveTemplateDialog.jsx
 #: src/components/settings/DeleteAccount.jsx
 #: src/components/SketchPadOverlay.jsx
-#: src/components/TagActionSheet.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamBilling.jsx
 #: src/components/team/TeamConfirm.jsx
@@ -5855,6 +5823,10 @@ msgstr "clúster de lienzo"
 msgid "Canvas groups"
 msgstr "Grupos del lienzo"
 
+#: src/lib/menus/canvasMenu.js
+msgid "Canvas menu"
+msgstr "Menú del lienzo"
+
 #: src/lib/filesView.js
 msgid "Canvas order"
 msgstr "Orden del lienzo"
@@ -5866,6 +5838,10 @@ msgstr "Límite de {MAX_SHOOT_DAYS_PER_ADD}; añade el resto en una segunda tand
 #: src/components/cards.jsx
 msgid "Caption"
 msgstr "Pie de foto"
+
+#: src/lib/menus/rows.js
+msgid "Caption…"
+msgstr "Pie de foto…"
 
 #: src/components/capture/CaptureHud.jsx
 #: src/components/SettingsPanel.jsx
@@ -5894,6 +5870,7 @@ msgstr "captura, pantallazo, grabar, demo, marketing, limpio"
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/messageThing.js
 msgid "Card"
 msgstr "Tarjeta"
@@ -5944,7 +5921,6 @@ msgstr "Título de la tarjeta"
 msgid "Card, invoices and receipts are in Stripe."
 msgstr "La tarjeta, las facturas y los recibos están en Stripe."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/TagDetailView.jsx
 #: src/lib/billingCopyWords.js
 msgid "Cards"
@@ -5974,10 +5950,6 @@ msgstr "Casting"
 msgid "Caveat (handwritten)"
 msgstr "Caveat (manuscrita)"
 
-#: src/components/CanvasSurface.jsx
-msgid "Center"
-msgstr "Centro"
-
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Center in the box"
 msgstr "Centrar en el recuadro"
@@ -5998,10 +5970,6 @@ msgstr "Cruz central"
 #: src/components/team/TeamBilling.jsx
 msgid "Change card"
 msgstr "Cambiar tarjeta"
-
-#: src/components/SidebarBoardTree.jsx
-msgid "Change color"
-msgstr "Cambiar color"
 
 #: src/components/settings/fields.jsx
 msgid "Change picture"
@@ -6048,7 +6016,8 @@ msgstr "Personaje"
 msgid "Characters"
 msgstr "Personajes"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Charcoal"
 msgstr "Carbón"
 
@@ -6196,7 +6165,7 @@ msgstr "Borrar (esc)"
 msgid "Clear {label}"
 msgstr "Quitar {label}"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Clear all drawings"
 msgstr "Borrar todos los dibujos"
 
@@ -6253,6 +6222,10 @@ msgstr "Borrar selección"
 #: src/components/ListSurface.jsx
 msgid "Clear selection (Esc)"
 msgstr "Borrar selección (Esc)"
+
+#: src/lib/menus/rows.js
+msgid "Clear start point"
+msgstr "Borrar punto de inicio"
 
 #: src/components/CanvasSurface.jsx
 msgid "Clear start point ({clipTime})"
@@ -6385,10 +6358,6 @@ msgstr "Clic: 100% · Doble clic: clúster completo"
 #: src/components/film/FilmPlayer.jsx
 msgid "Clip timecode"
 msgstr "Código de tiempo del clip"
-
-#: src/lib/contextMenuSections.js
-msgid "CLIPBOARD"
-msgstr "PORTAPAPELES"
 
 #: src/App.jsx
 #: src/components/cards/SchedulePeek.jsx
@@ -6549,6 +6518,8 @@ msgstr "clúster"
 #: src/lib/entityKinds.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 #: src/pages/KeepPage.jsx
 msgid "Cluster"
@@ -6566,7 +6537,7 @@ msgstr "Clúster en {parent}"
 msgid "Cluster in {ws}"
 msgstr "Clúster en {ws}"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Cluster info"
 msgstr "Información del clúster"
 
@@ -6730,12 +6701,19 @@ msgstr "Color {custom}"
 msgid "Color {k}"
 msgstr "Color {k}"
 
+#: src/lib/menus/rows.js
+msgid "Color and cover"
+msgstr "Color y portada"
+
 #: src/components/CanvasSurface.jsx
 #: src/lib/helpHub.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Color palette"
 msgstr "Paleta de colores"
 
 #: src/components/cards.jsx
+#: src/components/ColorPicker.jsx
 msgid "Color removed"
 msgstr "Color quitado"
 
@@ -6792,6 +6770,8 @@ msgstr "¿Vienes de Google Drive o Dropbox?"
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/commentAuthor.js
 #: src/lib/commentPins.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Comment"
 msgstr "Comentario"
 
@@ -6812,6 +6792,7 @@ msgid "Comment by {author}"
 msgstr "Comentario de {author}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/CommentRow.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
@@ -6839,6 +6820,7 @@ msgid "Comment replies"
 msgstr "Respuestas a comentarios"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 msgid "Comment resolved"
@@ -7081,6 +7063,11 @@ msgstr "Conversación oculta"
 msgid "Conversations you resolve are kept here."
 msgstr "Las conversaciones que resuelves se guardan aquí."
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Cool"
+msgstr "Frío"
+
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
 #: src/components/setup/InviteStep.jsx
@@ -7145,13 +7132,16 @@ msgstr "Copiado."
 msgid "Copies the existing link when one is already live."
 msgstr "Copia el enlace existente cuando ya hay uno activo."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/ShareModal.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/team/TeamJoining.jsx
 #: src/components/team/TeamSetup.jsx
+msgid "Copy"
+msgstr "Copiar"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Copy"
 msgstr "Copiar"
 
@@ -7162,14 +7152,6 @@ msgstr "Copiar · cortar · pegar"
 #: src/App.jsx
 msgid "Copy \"{name}\" to your personal workspace?"
 msgstr "¿Copiar “{name}” a tu espacio de trabajo personal?"
-
-#: src/components/CanvasSurface.jsx
-msgid "Copy ({size})"
-msgstr "Copiar ({size})"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Copy {count} to…"
-msgstr "Copiar {count} en…"
 
 #: src/lib/dropRules.js
 msgid "Copy {what} to {name}"
@@ -7206,14 +7188,12 @@ msgstr "Copiar archivos en lugar de moverlos"
 #: src/components/comments/CommentRow.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
-#: src/components/ListSurface.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/setup/InviteStep.jsx
-#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/menus/rows.js
 msgid "Copy link"
 msgstr "Copiar enlace"
 
@@ -7251,16 +7231,21 @@ msgstr "Cópialo ahora: no se vuelve a mostrar."
 msgid "Copy timecode"
 msgstr "Copiar código de tiempo"
 
+#: src/lib/menus/rows.js
+msgid "Copy to cluster"
+msgstr "Copiar al clúster"
+
 #: src/components/ListSurface.jsx
 msgid "Copy to cluster…"
 msgstr "Copiar al clúster…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Copy to my workspace"
 msgstr "Copiar a mi espacio de trabajo"
 
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Copy to…"
 msgstr "Copiar a…"
 
@@ -7341,6 +7326,7 @@ msgid "Could not change their access: {reason}"
 msgstr "No se pudo cambiar su acceso: {reason}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 #: src/lib/cardLink.js
@@ -7654,6 +7640,7 @@ msgid "Couldn’t be uploaded"
 msgstr "No se pudo subir"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't bring it back: {why}"
 msgstr "No se pudo recuperar: {why}"
 
@@ -7690,7 +7677,7 @@ msgstr "No se pudieron copiar los comentarios con las tarjetas: {why}"
 msgid "Couldn't copy the link — your browser blocked the clipboard."
 msgstr "No se pudo copiar el enlace: tu navegador bloqueó el portapapeles."
 
-#: src/App.jsx
+#: src/lib/cardLink.js
 msgid "Couldn't copy the link."
 msgstr "No se pudo copiar el enlace."
 
@@ -7719,6 +7706,7 @@ msgid "Couldn't create the group. Check your connection and try again."
 msgstr "No se pudo crear el grupo. Comprueba tu conexión y vuelve a intentarlo."
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't delete: {why}"
 msgstr "No se pudo eliminar: {why}"
 
@@ -7995,10 +7983,12 @@ msgid "Couldn’t remove those files."
 msgstr "No se pudieron quitar esos archivos."
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't reopen: {why}"
 msgstr "No se pudo reabrir: {why}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't resolve: {why}"
 msgstr "No se pudo resolver: {why}"
 
@@ -8108,9 +8098,9 @@ msgstr "Portada"
 msgid "Cover changed"
 msgstr "Portada cambiada"
 
-#: src/components/CanvasSurface.jsx
-msgid "Cover color"
-msgstr "Color de portada"
+#: src/lib/menus/rows.js
+msgid "Cover image…"
+msgstr "Imagen de portada…"
 
 #: src/lib/versionFields.js
 msgid "Cover restored."
@@ -8120,7 +8110,8 @@ msgstr "Portada restaurada."
 msgid "Covers your whole workspace"
 msgstr "Cubre todo tu espacio de trabajo"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Cream"
 msgstr "Crema"
 
@@ -8195,11 +8186,6 @@ msgstr "Ctrl"
 msgid "Current"
 msgstr "Actual"
 
-#: src/components/SidebarTags.jsx
-msgctxt "type"
-msgid "Current"
-msgstr "Actual"
-
 #: src/components/film/FilmDock.jsx
 msgid "Current timecode — click to jump"
 msgstr "Código de tiempo actual: haz clic para saltar"
@@ -8209,12 +8195,9 @@ msgid "Cursor"
 msgstr "Cursor"
 
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 msgid "Curved"
 msgstr "Curva"
-
-#: src/components/CanvasSurface.jsx
-msgid "Curved arrow"
-msgstr "Flecha curva"
 
 #: src/lib/filesView.js
 msgid "Custom"
@@ -8247,20 +8230,15 @@ msgstr "Fuentes personalizadas"
 msgid "Custom thumbnail set"
 msgstr "Miniatura personalizada establecida"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/fields.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Custom…"
 msgstr "Personalizado…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/lib/menus/rows.js
 msgid "Cut"
 msgstr "Cortar"
-
-#: src/components/CanvasSurface.jsx
-msgid "Cut ({size})"
-msgstr "Cortar ({size})"
 
 #: src/components/CanvasSurface.jsx
 msgid "Cut into boxes"
@@ -8279,6 +8257,7 @@ msgid "Dark theme"
 msgstr "Tema oscuro"
 
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 #: src/lib/shapeOptions.js
 msgid "Dashed"
 msgstr "Discontinua"
@@ -8299,6 +8278,7 @@ msgstr "Fecha de adición"
 msgid "Date modified"
 msgstr "Fecha de modificación"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 #: src/components/cards/ScheduleRail.jsx
 #: src/components/cards/ScheduleTiles.jsx
@@ -8314,10 +8294,6 @@ msgstr "Mosaicos de días"
 msgid "Day view"
 msgstr "Vista del día"
 
-#: src/components/CanvasSurface.jsx
-msgid "Day{value}"
-msgstr "Día{value}"
-
 #: src/components/cards/ShootDayRange.jsx
 msgid "Days are created empty. Open one and “Set up this day” adds its call sheet, shotlist, script pages and hour-by-hour."
 msgstr "Los días se crean vacíos. Abre uno y “Configurar este día” añade su hoja de rodaje, su lista de planos, sus páginas de guion y su plan hora por hora."
@@ -8330,9 +8306,13 @@ msgstr "Reducir {what}"
 msgid "Decrease font size"
 msgstr "Reducir tamaño de fuente"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/settings/fields.jsx
+msgid "Default"
+msgstr "Predeterminado"
+
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Default"
 msgstr "Predeterminado"
 
@@ -8369,10 +8349,10 @@ msgstr "Supr"
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarTags.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 #: src/lib/oauthTrustWords.js
 msgid "Delete"
 msgstr "Eliminar"
@@ -8384,18 +8364,6 @@ msgstr "¿Eliminar “{name}”? Puedes deshacerlo: se puede recuperar durante 3
 #: src/components/DocPageTree.jsx
 msgid "Delete \"{pageLabel}\"?"
 msgstr "¿Eliminar “{pageLabel}”?"
-
-#: src/components/CanvasSurface.jsx
-msgid "Delete ({size})"
-msgstr "Eliminar ({size})"
-
-#: src/components/SidebarBoardTree.jsx
-msgid "Delete (last cluster)"
-msgstr "Eliminar (último clúster)"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Delete {count}"
-msgstr "Eliminar {count}"
 
 #: src/components/ListSurface.jsx
 msgid "Delete {count} clusters and all their content?\n"
@@ -8435,6 +8403,7 @@ msgstr "Eliminar cuenta…"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 msgid "Delete arrow"
 msgstr "Eliminar flecha"
 
@@ -8471,6 +8440,7 @@ msgid "Delete conversation"
 msgstr "Eliminar conversación"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Delete drawing"
 msgstr "Eliminar dibujo"
 
@@ -8778,10 +8748,17 @@ msgstr "Descartar: {title}"
 msgid "Display name"
 msgstr "Nombre visible"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 msgid "Distribute"
 msgstr "Distribuir"
+
+#: src/lib/menus/rows.js
+msgid "Distribute horizontally"
+msgstr "Distribuir horizontalmente"
+
+#: src/lib/menus/rows.js
+msgid "Distribute vertically"
+msgstr "Distribuir verticalmente"
 
 #: src/components/DocInsertMenu.jsx
 msgid "Divider"
@@ -8811,6 +8788,8 @@ msgstr "documento"
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "Doc"
 msgstr "Documento"
@@ -8957,10 +8936,6 @@ msgstr "Doble clic"
 msgid "Double-click to interact"
 msgstr "Doble clic para interactuar"
 
-#: src/components/CanvasSurface.jsx
-msgid "Double-sided arrow"
-msgstr "Flecha de doble sentido"
-
 #: src/components/cards.jsx
 msgid "Double-tap to play"
 msgstr "Toca dos veces para reproducir"
@@ -8969,7 +8944,6 @@ msgstr "Toca dos veces para reproducir"
 msgid "download"
 msgstr "descarga"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/cards/GridCellMenu.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
@@ -8981,21 +8955,15 @@ msgstr "descarga"
 #: src/components/ImageEditModal.jsx
 #: src/components/ImageLightbox.jsx
 #: src/components/info/VersionsSection.jsx
-#: src/components/ListSurface.jsx
 #: src/components/PdfViewer.jsx
 #: src/components/R2Image.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Download"
 msgstr "Descargar"
 
 #: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
 msgid "Download {count}"
 msgstr "Descargar {count}"
-
-#: src/components/ListSurface.jsx
-msgid "Download {count} of {n}"
-msgstr "Descargar {count} de {n}"
 
 #: src/components/cards/FileCard.jsx
 msgid "Download {label}"
@@ -9139,8 +9107,8 @@ msgid "Drag to another date to move this day"
 msgstr "Arrastra a otra fecha para mover este día"
 
 #: src/components/CanvasSurface.jsx
-msgid "Drag to bend · right-click to straighten · double-click to reset"
-msgstr "Arrastra para curvar · clic derecho para enderezar · doble clic para restablecer"
+msgid "Drag to bend · right-click for options · double-click to reset"
+msgstr "Arrastra para curvar · clic derecho para opciones · doble clic para restablecer"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to draw"
@@ -9194,6 +9162,7 @@ msgid "Drag to zoom"
 msgstr "Arrastra para hacer zoom"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Draw"
 msgstr "Dibujar"
 
@@ -9354,14 +9323,10 @@ msgstr "Dropbox descarga las carpetas que elijas como un solo zip."
 msgid "Dual dialogue"
 msgstr "Diálogo simultáneo"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Duplicate"
 msgstr "Duplicar"
-
-#: src/components/CanvasSurface.jsx
-msgid "Duplicate ({size})"
-msgstr "Duplicar ({size})"
 
 #: src/components/cards/ScheduleRundown.jsx
 msgid "Duration"
@@ -9371,6 +9336,11 @@ msgstr "Duración"
 msgctxt "media"
 msgid "Duration"
 msgstr "Duración"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Dusk"
+msgstr "Atardecer"
 
 #: src/components/settings/fields.jsx
 msgid "e.g. Atkinson Hyperlegible"
@@ -9452,7 +9422,6 @@ msgstr "Cada persona que puede editar usa un puesto. Los lectores son gratis."
 msgid "edit"
 msgstr "editar"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/comments/CommentRow.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
@@ -9461,33 +9430,26 @@ msgstr "editar"
 msgid "Edit"
 msgstr "Editar"
 
-#: src/lib/contextMenuSections.js
-msgid "EDIT"
-msgstr "EDITAR"
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Edit"
+msgstr "Editar"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Edit a note or title"
 msgstr "Editar una nota o un título"
-
-#: src/components/CanvasSurface.jsx
-msgid "Edit caption"
-msgstr "Editar pie de foto"
 
 #: src/components/comments/CommentComposer.jsx
 msgid "Edit comment"
 msgstr "Editar comentario"
 
 #: src/components/CanvasSurface.jsx
-msgid "Edit hyperlink"
-msgstr "Editar hipervínculo"
-
-#: src/components/CanvasSurface.jsx
 msgid "Edit image hyperlink"
 msgstr "Editar hipervínculo de la imagen"
 
-#: src/components/CanvasSurface.jsx
-msgid "Edit label"
-msgstr "Editar rótulo"
+#: src/lib/menus/rows.js
+msgid "Edit label…"
+msgstr "Editar rótulo…"
 
 #: src/components/cards.jsx
 #: src/components/cards/GridCellMenu.jsx
@@ -9496,7 +9458,7 @@ msgstr "Editar rótulo"
 msgid "Edit photo"
 msgstr "Editar foto"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Edit photo…"
 msgstr "Editar foto…"
 
@@ -9507,10 +9469,6 @@ msgstr "Editar foto…"
 #: src/components/ShareModal.jsx
 msgid "Edit profile"
 msgstr "Editar perfil"
-
-#: src/components/CanvasSurface.jsx
-msgid "Edit title"
-msgstr "Editar título"
 
 #: src/components/MessageComposer.jsx
 msgid "Edit your message"
@@ -9739,7 +9697,6 @@ msgstr "Entrando"
 msgid "ENTITIES NAMED THIS"
 msgstr "ENTIDADES CON ESTE NOMBRE"
 
-#: src/components/SidebarTags.jsx
 #: src/components/TagDetailView.jsx
 msgid "Entity type"
 msgstr "Tipo de entidad"
@@ -9998,8 +9955,8 @@ msgstr "Explora primero la demo"
 msgid "Explore universe →"
 msgstr "Explorar el universo →"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Export"
 msgstr "Exportar"
 
@@ -10065,9 +10022,9 @@ msgstr "El almacenamiento extra llega hasta {STORAGE_ADDON_MAX_BLOCKS} × {STORA
 msgid "Extra storage isn’t available yet."
 msgstr "El almacenamiento extra aún no está disponible."
 
-#: src/components/CanvasSurface.jsx
-msgid "Eyedrop color (anywhere on screen)…"
-msgstr "Cuentagotas de color (toda la pantalla)…"
+#: src/lib/menus/rows.js
+msgid "Eyedrop color…"
+msgstr "Cuentagotas…"
 
 #: src/components/CanvasSurface.jsx
 msgid "Eyedropper not supported in this browser yet."
@@ -10116,6 +10073,9 @@ msgstr "archivo"
 #: src/lib/filesView.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/fileMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "File"
 msgstr "Archivo"
@@ -10142,6 +10102,7 @@ msgstr "archivos"
 #: src/components/ViewSwitch.jsx
 #: src/lib/cardInfo.js
 #: src/lib/feedbackContext.js
+#: src/lib/menus/fileMenu.js
 #: src/lib/onboardingTourWords.js
 #: src/lib/sidebarShelves.js
 #: src/lib/viewSwitch.js
@@ -10214,7 +10175,7 @@ msgctxt "photo fit"
 msgid "Fill"
 msgstr "Rellenar"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Fill color…"
 msgstr "Color de relleno…"
 
@@ -10255,6 +10216,7 @@ msgstr "Buscar"
 
 #: src/components/home/ClustersHome.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
+#: src/lib/menus/rows.js
 msgid "Find a cluster"
 msgstr "Buscar un clúster"
 
@@ -10338,6 +10300,7 @@ msgid "Fit"
 msgstr "Ajustar"
 
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Fit everything"
 msgstr "Ajustar todo"
 
@@ -10387,7 +10350,7 @@ msgstr "Ajustar el clip entero en la línea de tiempo"
 msgid "Fit to cell"
 msgstr "Ajustar a la celda"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Fit to content"
 msgstr "Ajustar al contenido"
 
@@ -10450,6 +10413,7 @@ msgstr "Plegar"
 #: src/components/HeldUploadsBar.jsx
 #: src/lib/folderPlan.js
 #: src/lib/importStart.js
+#: src/lib/menus/rows.js
 msgid "Folder"
 msgstr "Carpeta"
 
@@ -10729,7 +10693,7 @@ msgstr "Generar"
 msgid "Generate a matrix"
 msgstr "Generar una matriz"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Generate matrix…"
 msgstr "Generar matriz…"
 
@@ -10744,10 +10708,6 @@ msgstr "Obtener {planName}"
 #: src/components/UpgradeChip.jsx
 msgid "Get Creator"
 msgstr "Obtener Creator"
-
-#: src/components/ListSurface.jsx
-msgid "Get info"
-msgstr "Ver información"
 
 #: src/components/SendSheet.jsx
 msgid "Gets it in Messages, or an email invite if they're new"
@@ -10824,8 +10784,8 @@ msgstr "Ir al archivo enfocado: en su lienzo o en Archivos"
 msgid "Go to the message"
 msgstr "Ir al mensaje"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
+#: src/lib/menus/rows.js
 msgid "Go to today"
 msgstr "Ir a hoy"
 
@@ -10899,6 +10859,8 @@ msgstr "cuadrícula"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Grid"
 msgstr "Cuadrícula"
 
@@ -10941,19 +10903,22 @@ msgctxt "default name"
 msgid "Group"
 msgstr "Grupo"
 
+#: src/lib/menus/cardMenu.js
+msgctxt "noun"
+msgid "Group"
+msgstr "Grupo"
+
 #: src/components/CanvasSurface.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgctxt "verb"
 msgid "Group"
 msgstr "Agrupar"
 
-#: src/components/CanvasSurface.jsx
-msgid "Group \"{groupTitle}\""
-msgstr "Grupo “{groupTitle}”"
-
-#: src/components/CanvasSurface.jsx
-msgid "Group ({size})"
-msgstr "Agrupar ({size})"
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
+msgid "Group \"{name}\""
+msgstr "Grupo “{name}”"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Group by"
@@ -10963,7 +10928,7 @@ msgstr "Agrupar por"
 msgid "GROUP CHAT"
 msgstr "CHAT DE GRUPO"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Group info"
 msgstr "Información del grupo"
 
@@ -11170,25 +11135,13 @@ msgstr "Ocultar guías de encuadre"
 msgid "Hide from search"
 msgstr "Ocultar de la búsqueda"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide group label"
-msgstr "Ocultar rótulo del grupo"
-
 #: src/components/ListSurface.jsx
 msgid "Hide info"
 msgstr "Ocultar información"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide label"
-msgstr "Ocultar rótulo"
-
 #: src/components/cards.jsx
 msgid "Hide labels"
 msgstr "Ocultar rótulos"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide labels (pure color)"
-msgstr "Ocultar rótulos (color puro)"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "Hide layer"
@@ -11201,10 +11154,6 @@ msgstr "Ocultar mensajes"
 #: src/App.jsx
 msgid "Hide notifications"
 msgstr "Ocultar notificaciones"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide outline"
-msgstr "Ocultar contorno"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Hide pages"
@@ -11320,10 +11269,6 @@ msgstr "inicio, grafo, resumen, vista general"
 msgid "Horizontal rule"
 msgstr "Línea horizontal"
 
-#: src/components/CanvasSurface.jsx
-msgid "Horizontally"
-msgstr "Horizontalmente"
-
 #: src/components/cards/SchedulePeek.jsx
 msgid "Hours on grid"
 msgstr "Horas en la cuadrícula"
@@ -11378,9 +11323,9 @@ msgstr "https://…"
 msgid "https://example.com/font.woff2"
 msgstr "https://example.com/font.woff2"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hug{value}"
-msgstr "Ajustado{value}"
+#: src/lib/menus/rows.js
+msgid "Hug"
+msgstr "Ceñido"
 
 #: src/components/FeedbackButton.jsx
 msgid "I love something"
@@ -11429,6 +11374,8 @@ msgstr "imagen"
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "Image"
 msgstr "Imagen"
@@ -11616,12 +11563,10 @@ msgstr "Sangrar · quitar sangría (guion: cambiar de elemento)"
 msgid "indexable by search"
 msgstr "indexable por buscadores"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
-#: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
+#: src/lib/menus/rows.js
 msgid "Info"
 msgstr "Información"
 
@@ -11632,10 +11577,6 @@ msgstr "Información: la selección, o el clúster si no hay nada seleccionado"
 #: src/components/ListSurface.jsx
 msgid "Info ({cmdKey}I)"
 msgstr "Información ({cmdKey}I)"
-
-#: src/components/CanvasSurface.jsx
-msgid "Info ({size})"
-msgstr "Información ({size})"
 
 #: src/components/clusterBrowser/QuickLook.jsx
 msgid "Info (⌘I)"
@@ -12257,7 +12198,7 @@ msgstr "Solo tú"
 msgid "Just you so far. Anyone you invite above will see this cluster and everything inside it."
 msgstr "Solo tú por ahora. Quien invites arriba verá este clúster y todo lo que contiene."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Justified rows"
 msgstr "Filas justificadas"
 
@@ -12276,6 +12217,10 @@ msgstr "Mantener como archivo aparte"
 #: src/components/team/TeamPeople.jsx
 msgid "Keep as viewer"
 msgstr "Mantener como lector"
+
+#: src/lib/menus/rows.js
+msgid "Keep in Files only"
+msgstr "Dejar solo en Archivos"
 
 #: src/components/StorageAddonSheet.jsx
 #: src/pages/KeepPage.jsx
@@ -12407,6 +12352,11 @@ msgstr "Tipos"
 msgid "Label"
 msgstr "Rótulo"
 
+#: src/lib/menus/rows.js
+msgctxt "group label"
+msgid "Label"
+msgstr "Rótulo"
+
 #: src/lib/versionActions.js
 msgid "Label {versionLabel}"
 msgstr "Etiqueta {versionLabel}"
@@ -12426,6 +12376,11 @@ msgstr "Rótulo…"
 #: src/components/GridLayoutThumb.jsx
 msgid "labelled {names}"
 msgstr "con rótulo {names}"
+
+#: src/lib/menus/rows.js
+msgctxt "palette"
+msgid "Labels"
+msgstr "Rótulos"
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Language"
@@ -12602,10 +12557,10 @@ msgid "Leave workspace"
 msgstr "Salir del espacio de trabajo"
 
 #: src/components/MessagesPanel.jsx
+#: src/components/MessageThread.jsx
 msgid "Leave…"
 msgstr "Salir…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 msgid "Left"
 msgstr "Izquierda"
@@ -12699,12 +12654,15 @@ msgstr "enlace"
 #: src/components/doc/DocBarA.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/ListSurface.jsx
 #: src/components/MessageComposer.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 msgid "Link"
 msgstr "Enlace"
@@ -12737,8 +12695,8 @@ msgstr "Tarjeta de enlace"
 msgid "Link cards"
 msgstr "Tarjetas de enlace"
 
-#: src/App.jsx
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 #: src/components/EntityHoverPopover.jsx
@@ -12835,6 +12793,11 @@ msgctxt "command search words"
 msgid "link, embed, reference, cluster, board"
 msgstr "enlace, enlazar, vincular, incrustar, referencia, clúster, tablero"
 
+#: src/lib/menus/rows.js
+msgctxt "image hyperlink"
+msgid "Link…"
+msgstr "Enlace…"
+
 #: src/components/cards/GridCard.jsx
 #: src/components/ListSurface.jsx
 msgid "Linked"
@@ -12853,6 +12816,8 @@ msgstr "CLÚSTER ENLAZADO"
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/lib/cardInfo.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Linked cluster"
 msgstr "Clúster enlazado"
 
@@ -12863,11 +12828,6 @@ msgstr "Clúster enlazado · sin acceso"
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Linked from"
 msgstr "Enlazado desde"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "Linked from…"
-msgstr "Enlazado desde…"
 
 #: src/components/cards/GridCard.jsx
 msgid "Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach."
@@ -13048,9 +13008,9 @@ msgstr "Repaso lo que ya tengo"
 msgid "Looking up…"
 msgstr "Buscando…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/film/FilmDock.jsx
 #: src/components/film/FilmPlayer.jsx
+#: src/lib/menus/rows.js
 msgid "Loop"
 msgstr "Bucle"
 
@@ -13275,7 +13235,6 @@ msgstr "Solo manuales"
 msgid "Mark all read"
 msgstr "Marcar todo como leído"
 
-#: src/components/SidebarTags.jsx
 #: src/components/TagDetailView.jsx
 msgid "Mark as {label}"
 msgstr "Marcar como {label}"
@@ -13292,7 +13251,7 @@ msgstr "Rotulador"
 msgid "Marking"
 msgstr "Marcando"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Masonry columns"
 msgstr "Columnas en mosaico"
 
@@ -13304,7 +13263,8 @@ msgstr "Distinguir mayúsculas"
 msgid "Matching “{trim}”"
 msgstr "Coincide con “{trim}”"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Mauve"
 msgstr "Malva"
 
@@ -13356,6 +13316,7 @@ msgid "Mentions and replies to you show up here."
 msgstr "Las menciones y las respuestas para ti aparecen aquí."
 
 #: src/App.jsx
+#: src/components/CardContextMenu.jsx
 #: src/components/film/FilmMenu.jsx
 msgid "Menu"
 msgstr "Menú"
@@ -13458,11 +13419,8 @@ msgstr "mensajes, chat, conversación, mensaje directo, comentarios"
 msgid "Messaging opens once your account is off the waitlist"
 msgstr "La mensajería se abre cuando tu cuenta salga de la lista de espera"
 
-#: src/components/CanvasSurface.jsx
-msgid "Middle"
-msgstr "Medio"
-
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Midnight"
 msgstr "Medianoche"
 
@@ -13520,6 +13478,7 @@ msgstr "Mono"
 msgid "Monospace code"
 msgstr "Código monoespaciado"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 msgid "Month"
 msgstr "Mes"
@@ -13527,10 +13486,6 @@ msgstr "Mes"
 #: src/components/cards/ScheduleCard.jsx
 msgid "Month grid"
 msgstr "Cuadrícula del mes"
-
-#: src/components/CanvasSurface.jsx
-msgid "Month{value}"
-msgstr "Mes{value}"
 
 #: src/auth/PricingSuccess.jsx
 #: src/auth/WaitlistConfirm.jsx
@@ -13573,6 +13528,7 @@ msgstr "Moodboards, guiones, listas de planos: todos tus recursos, un solo lienz
 #: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "More"
 msgstr "Más"
 
@@ -13587,6 +13543,7 @@ msgstr "Más opciones de flecha"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
+#: src/components/SidebarTags.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13670,10 +13627,6 @@ msgstr "Traslado"
 #: src/App.jsx
 msgid "Move “{moveName}” into…"
 msgstr "Mover “{moveName}” a…"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Move {count} to…"
-msgstr "Mover {count} a…"
 
 #: src/lib/dropRules.js
 msgid "Move {movingCount} and copy {copyingCount} to {name}"
@@ -13764,9 +13717,9 @@ msgstr "Moverse por los archivos"
 msgid "Move through the clusters, or the files"
 msgstr "Moverse por los clústeres o los archivos"
 
-#: src/components/CanvasSurface.jsx
-msgid "Move to a new cluster…"
-msgstr "Mover a un clúster nuevo…"
+#: src/lib/menus/rows.js
+msgid "Move to cluster"
+msgstr "Mover al clúster"
 
 #: src/components/ListSurface.jsx
 msgid "Move to cluster…"
@@ -13774,6 +13727,7 @@ msgstr "Mover al clúster…"
 
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Move to…"
 msgstr "Mover a…"
 
@@ -13880,8 +13834,8 @@ msgid "Muted"
 msgstr "Silenciadas"
 
 #: src/components/CanvasSurface.jsx
-msgid "N — columns, top→bottom{value}"
-msgstr "N: columnas, arriba→abajo{value}"
+msgid "N — columns, top→bottom"
+msgstr "N — columnas, arriba→abajo"
 
 #: src/App.jsx
 #: src/components/CanvasSurface.jsx
@@ -13985,6 +13939,11 @@ msgstr "Necesita al menos 3 imágenes. Un administrador lo revisa antes de publi
 msgid "Nest · un-nest a list item"
 msgstr "Anidar · desanidar un elemento de lista"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Neutral"
+msgstr "Neutro"
+
 #: src/components/ShareModal.jsx
 msgid "Never"
 msgstr "Nunca"
@@ -14034,10 +13993,15 @@ msgstr "CHAT NUEVO"
 #: src/components/ListSurface.jsx
 #: src/components/NewClusterButton.jsx
 #: src/components/ProjectsHome.jsx
+#: src/lib/menus/fileMenu.js
 msgid "New cluster"
 msgstr "Nuevo clúster"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
+msgid "New cluster from these"
+msgstr "Nuevo clúster con la selección"
+
+#: src/lib/menus/rows.js
 msgid "New cluster inside"
 msgstr "Nuevo clúster dentro"
 
@@ -14045,7 +14009,7 @@ msgstr "Nuevo clúster dentro"
 msgid "New cluster name"
 msgstr "Nombre del clúster nuevo"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "New cluster…"
 msgstr "Nuevo clúster…"
 
@@ -14412,6 +14376,7 @@ msgid "No manually applied items."
 msgstr "Ningún elemento aplicado manualmente."
 
 #: src/components/ColorPicker.jsx
+#: src/components/ctxMenuParts.jsx
 msgid "No matches"
 msgstr "Sin coincidencias"
 
@@ -14607,7 +14572,6 @@ msgstr "No se añadió a nadie{tail}"
 #: src/components/capture/CaptureHud.jsx
 #: src/components/ColorPicker.jsx
 #: src/components/settings/BillingTab.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/TeamBilling.jsx
 #: src/lib/cardInfo.js
 msgid "None"
@@ -14676,11 +14640,6 @@ msgstr "no encontrado"
 #: src/lib/captureRecorder.js
 msgid "Not in a browser."
 msgstr "No está en un navegador."
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "Not linked anywhere"
-msgstr "No está enlazado en ningún sitio"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/FirstValueUpgradeBanner.jsx
@@ -14785,6 +14744,8 @@ msgstr "nota"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 msgid "Note"
 msgstr "Nota"
@@ -15491,17 +15452,11 @@ msgstr "Opacidad"
 
 #: src/App.jsx
 #: src/components/ActivityTray.jsx
-#: src/components/CanvasSurface.jsx
 #: src/components/DocCard.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
-#: src/components/ListSurface.jsx
 #: src/components/MessageSharedCard.jsx
-#: src/components/shared/SharedPage.jsx
-#: src/components/SidebarBoardTree.jsx
-#: src/components/SidebarSharedBoards.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
 #: src/hooks/useNotifications.js
@@ -15519,6 +15474,11 @@ msgstr "Pendiente"
 msgctxt "status"
 msgid "Open"
 msgstr "Abiertos"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
+msgid "Open"
+msgstr "Abrir"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open · close the tool rail’s + menu"
@@ -15631,8 +15591,8 @@ msgstr "Abrir los controles de captura"
 msgid "Open chat"
 msgstr "Abrir chat"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
+#: src/lib/menus/rows.js
 msgid "Open cluster"
 msgstr "Abrir clúster"
 
@@ -15654,6 +15614,7 @@ msgid "Open day"
 msgstr "Abrir el día"
 
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/lib/menus/rows.js
 msgid "Open doc"
 msgstr "Abrir documento"
 
@@ -15714,9 +15675,8 @@ msgstr "Abrir en Clusters"
 msgid "Open in Files"
 msgstr "Abrir en Archivos"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/film/FilmPlayer.jsx
-#: src/components/ListSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Open in player"
 msgstr "Abrir en el reproductor"
 
@@ -15743,14 +15703,14 @@ msgstr "Ábrelo de nuevo"
 msgid "Open it to see what’s been added."
 msgstr "Ábrelo para ver lo que se ha añadido."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/lib/menus/rows.js
 msgid "Open link"
 msgstr "Abrir enlace"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Open linked cluster"
 msgstr "Abrir clúster enlazado"
 
@@ -15769,10 +15729,6 @@ msgstr "Abrir nota"
 #: src/components/sidebar/ClusterSwitch.jsx
 msgid "Open now"
 msgstr "Abrir ahora"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Open on the board by default"
-msgstr "Abrir en el lienzo por defecto"
 
 #: src/lib/importGuide.js
 msgid "Open OneDrive"
@@ -15830,25 +15786,28 @@ msgstr "Abrir barra lateral"
 msgid "Open sidebar (⌘B)"
 msgstr "Abrir barra lateral (⌘B)"
 
+#: src/lib/menus/rows.js
+msgid "Open sketch"
+msgstr "Abrir boceto"
+
 #: src/App.jsx
 msgid "Open split view"
 msgstr "Abrir vista dividida"
 
+#: src/components/CanvasSurface.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/EntityHoverPopover.jsx
 msgid "Open tag"
 msgstr "Abrir etiqueta"
 
-#: src/components/CardContextMenu.jsx
-msgid "Open tag \"{name}\""
-msgstr "Abrir etiqueta “{name}”"
+#. placeholder {0}: c.name
+#: src/components/DocPageTagChips.jsx
+msgid "Open tag \"{0}\""
+msgstr "Abrir etiqueta “{0}”"
 
 #: src/components/TagRangeHoverPopover.jsx
 msgid "Open tag detail"
 msgstr "Abrir el detalle de la etiqueta"
-
-#: src/components/CanvasSurface.jsx
-msgid "Open tag page"
-msgstr "Abrir página de la etiqueta"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the box: type in a text box, or its menu"
@@ -16078,11 +16037,15 @@ msgstr "Salida {tc}"
 msgid "Out {tc} · {frames} fr"
 msgstr "Salida {tc} · {frames} fot."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgid "Outline"
+msgstr "Contorno"
+
+#: src/lib/menus/rows.js
 msgid "Outline color…"
 msgstr "Color del contorno…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Outline shape"
 msgstr "Forma del contorno"
 
@@ -16240,7 +16203,8 @@ msgstr "Desplazar el lienzo"
 msgid "Pan tool"
 msgstr "Herramienta de desplazamiento"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Paper"
 msgstr "Papel"
 
@@ -16294,8 +16258,8 @@ msgstr "Las llaves de acceso no funcionan en esta dirección."
 msgid "Password"
 msgstr "Contraseña"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/lib/menus/fileMenu.js
 msgid "Paste"
 msgstr "Pegar"
 
@@ -16319,6 +16283,10 @@ msgstr "Error al pegar: {reason}"
 msgid "Paste from any tab, drag from your desktop, or drop a whole folder — they arrange themselves."
 msgstr "Pega desde cualquier pestaña, arrastra desde el escritorio o suelta una carpeta entera: se ordenan solas."
 
+#: src/lib/menus/rows.js
+msgid "Paste here"
+msgstr "Pegar aquí"
+
 #: src/lib/firstBoardCopy.js
 msgid "Paste images or links from any tab, or drop a folder of frames"
 msgstr "Pega imágenes o enlaces desde cualquier pestaña, o suelta una carpeta de fotogramas"
@@ -16331,7 +16299,7 @@ msgstr "Pega imágenes o enlaces desde cualquier pestaña, o suelta una carpeta.
 msgid "Paste images or links from any tab, or drop a whole folder"
 msgstr "Pega imágenes o enlaces desde cualquier pestaña, o suelta una carpeta entera"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Paste into this cluster"
 msgstr "Pegar en este clúster"
 
@@ -16430,11 +16398,12 @@ msgstr "pdf"
 #: src/components/shared/SharedPage.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/sharedFiles.js
 msgid "PDF"
 msgstr "PDF"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "PDF (Save from Print)"
 msgstr "PDF (guardar desde Imprimir)"
 
@@ -16620,7 +16589,7 @@ msgstr "Elige un tema arriba, o simplemente escribe: cualquiera de las dos basta
 msgid "Pick a topic, or write a few words."
 msgstr "Elige un tema o escribe unas palabras."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Pick from cluster image…"
 msgstr "Elegir de una imagen del clúster…"
 
@@ -16827,6 +16796,10 @@ msgstr "Cabezal"
 msgid "Playing muted — press M for sound"
 msgstr "Reproduciendo sin sonido: pulsa M para activarlo"
 
+#: src/components/CanvasSurface.jsx
+msgid "Plays muted"
+msgstr "Sin sonido"
+
 #: src/App.jsx
 msgid "Please choose a PDF file."
 msgstr "Elige un archivo PDF."
@@ -16835,7 +16808,7 @@ msgstr "Elige un archivo PDF."
 msgid "Please choose an image file."
 msgstr "Elige un archivo de imagen."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "PNG image"
 msgstr "Imagen PNG"
 
@@ -17112,10 +17085,6 @@ msgstr "Acercamiento rápido"
 msgid "Push in"
 msgstr "Acercar"
 
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Put {count} on board"
-msgstr "Poner {count} en el lienzo"
-
 #: src/lib/dropRules.js
 msgid "Put {named} here"
 msgstr "Poner {named} aquí"
@@ -17133,6 +17102,7 @@ msgstr "Ponerlo en el lienzo"
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Put on board"
 msgstr "Poner en el lienzo"
 
@@ -17158,8 +17128,11 @@ msgstr "Poner una tarjeta de pago para una prueba"
 msgid "Queued"
 msgstr "En cola"
 
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/components/ctxMenuParts.jsx
+msgid "Quick actions"
+msgstr "Acciones rápidas"
+
+#: src/lib/menus/rows.js
 msgid "Quick look"
 msgstr "Vista rápida"
 
@@ -17234,7 +17207,7 @@ msgstr "Leyendo"
 msgid "Reading {title}…"
 msgstr "Leyendo {title}…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Reading order"
 msgstr "Orden de lectura"
 
@@ -17275,6 +17248,7 @@ msgstr "Recibos"
 #: src/components/doc/DocBarA.jsx
 #: src/components/SendSheet.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/moveMenu.js
 msgid "Recent"
 msgstr "Recientes"
 
@@ -17297,12 +17271,12 @@ msgid "Recently deleted ({count})"
 msgstr "Eliminadas recientemente ({count})"
 
 #: src/components/SidebarTags.jsx
-msgid "Recolor"
-msgstr "Cambiar color"
-
-#: src/components/SidebarTags.jsx
 msgid "Recolor failed: {reason}"
 msgstr "Error al cambiar el color: {reason}"
+
+#: src/components/SidebarTags.jsx
+msgid "Recolor…"
+msgstr "Cambiar color…"
 
 #: src/lib/docSaveStatus.js
 msgid "Reconnecting — changes kept on this device"
@@ -17482,7 +17456,11 @@ msgstr "Quitar marcador"
 msgid "Remove bookmark {name}"
 msgstr "Quitar marcador {name}"
 
-#: src/components/CanvasSurface.jsx
+#: src/components/ColorPicker.jsx
+msgid "Remove color"
+msgstr "Quitar color"
+
+#: src/lib/menus/rows.js
 msgid "Remove cover image"
 msgstr "Quitar imagen de portada"
 
@@ -17503,16 +17481,11 @@ msgstr "Quitar de Explorar"
 msgid "Remove from Explore?"
 msgstr "¿Quitar de Explorar?"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Remove from group"
 msgstr "Quitar del grupo"
 
-#: src/components/CanvasSurface.jsx
-msgid "Remove from group ({size})"
-msgstr "Quitar del grupo ({size})"
-
-#: src/components/shared/SharedPage.jsx
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/menus/rows.js
 msgid "Remove from my list"
 msgstr "Quitar de mi lista"
 
@@ -17551,6 +17524,7 @@ msgstr "Quitar vista previa"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/TagRangeHoverPopover.jsx
 msgid "Remove tag"
@@ -17651,13 +17625,9 @@ msgid "Removing…"
 msgstr "Quitando…"
 
 #: src/components/CanvasSurface.jsx
-#: src/components/DocPageTree.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/home/HomeWorkspace.jsx
-#: src/components/ListSurface.jsx
-#: src/components/MessageThread.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarTags.jsx
 msgid "Rename"
 msgstr "Cambiar nombre"
@@ -17678,7 +17648,7 @@ msgstr "Error al cambiar el nombre: {reason}"
 msgid "Rename group"
 msgstr "Cambiar nombre del grupo"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Rename group…"
 msgstr "Cambiar nombre del grupo…"
 
@@ -17707,6 +17677,10 @@ msgid "Rename, color, cover and view changes — each can be reverted."
 msgstr "Cambios de nombre, color, portada y vista: cada uno se puede revertir."
 
 #: src/components/CanvasSurface.jsx
+#: src/components/DocPageTree.jsx
+#: src/components/MessageThread.jsx
+#: src/components/SidebarTags.jsx
+#: src/lib/menus/rows.js
 msgid "Rename…"
 msgstr "Cambiar nombre…"
 
@@ -17725,6 +17699,7 @@ msgstr "Se renueva"
 #: src/components/comments/CommentCard.jsx
 #: src/components/DocCard.jsx
 #: src/components/fileShare/DocShareView.jsx
+#: src/lib/menus/rows.js
 msgid "Reopen"
 msgstr "Reabrir"
 
@@ -17744,11 +17719,11 @@ msgstr "Reemplazar todo"
 msgid "Replace all {count}"
 msgstr "Reemplazar todo ({count})"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Replace cover image…"
 msgstr "Reemplazar imagen de portada…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Replace image…"
 msgstr "Reemplazar imagen…"
 
@@ -17831,7 +17806,7 @@ msgstr "Reenviar en {resendCooldown} s"
 msgid "Reset"
 msgstr "Restablecer"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Reset curve"
 msgstr "Restablecer curva"
 
@@ -17839,7 +17814,7 @@ msgstr "Restablecer curva"
 msgid "Reset framing"
 msgstr "Restablecer encuadre"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Reset to auto thumbnail"
 msgstr "Restablecer a miniatura automática"
 
@@ -17851,7 +17826,6 @@ msgstr "Restablecer valor predeterminado"
 msgid "Reset view state"
 msgstr "Restablecer estado de la vista"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 msgid "Reset zoom"
 msgstr "Restablecer zoom"
@@ -17865,6 +17839,7 @@ msgid "Resolution"
 msgstr "Resolución"
 
 #: src/components/comments/CommentCard.jsx
+#: src/lib/menus/rows.js
 msgid "Resolve"
 msgstr "Resolver"
 
@@ -18073,7 +18048,6 @@ msgstr "Retrocediendo…"
 msgid "Rewinds every cluster in this workspace at once — for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible."
 msgstr "Retrocede todos los clústeres de este espacio de trabajo a la vez, para después de una eliminación masiva accidental. Se conserva el estado previo al retroceso, así que el propio retroceso se puede deshacer."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 msgid "Right"
 msgstr "Derecha"
@@ -18146,7 +18120,8 @@ msgstr "Se ejecuta en este dispositivo."
 msgid "Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file."
 msgstr "Safari en un Mac lo reproduce. O sube una versión H.264: las notas se quedan en este archivo."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Sage"
 msgstr "Salvia"
 
@@ -18157,6 +18132,11 @@ msgstr "Error al tomar la muestra: {reason}"
 #: src/lib/cardInfo.js
 msgid "Sample rate"
 msgstr "Frecuencia de muestreo"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sand"
+msgstr "Arena"
 
 #: src/components/doc/DocBarA.jsx
 #: src/components/ToolOptionsBar.jsx
@@ -18232,7 +18212,7 @@ msgstr "Guardar y compartir"
 msgid "Save as template"
 msgstr "Guardar como plantilla"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Save as template…"
 msgstr "Guardar como plantilla…"
 
@@ -18379,6 +18359,8 @@ msgstr "plan de rodaje"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Schedule"
 msgstr "Plan de rodaje"
 
@@ -18470,6 +18452,11 @@ msgstr "Al desplazarte, se mueve la vista del lienzo. Desplazarte con {WHEEL_CMD
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling zooms at the pointer. {WHEEL_CMD}-scroll, Alt-scroll or Shift-scroll pans."
 msgstr "Al desplazarte, el zoom se aplica en el puntero. Desplazarte con {WHEEL_CMD}, Alt o Shift mueve la vista."
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sea"
+msgstr "Mar"
 
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
@@ -18684,8 +18671,8 @@ msgstr "Ve quiénes son en Personas."
 msgid "Seen"
 msgstr "Visto"
 
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Select"
 msgstr "Seleccionar"
 
@@ -18702,8 +18689,8 @@ msgstr "Seleccionar / mover"
 msgid "Select / move (V)"
 msgstr "Seleccionar / mover (V)"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Select all"
 msgstr "Seleccionar todo"
 
@@ -18756,7 +18743,7 @@ msgstr "Herramienta de selección"
 msgid "Select words inside one paragraph to tag them."
 msgstr "Selecciona palabras dentro de un párrafo para etiquetarlas."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Select…"
 msgstr "Seleccionar…"
 
@@ -18798,7 +18785,7 @@ msgstr "Envía el enlace a un colaborador o a un cliente. Verán lo que añadas,
 msgid "Send a direct message"
 msgstr "Enviar un mensaje directo"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Send backward"
 msgstr "Enviar atrás"
 
@@ -18819,13 +18806,12 @@ msgstr "Enviar invitación"
 msgid "Send invites"
 msgstr "Enviar invitaciones"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Send to back"
 msgstr "Enviar al fondo"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/SendSheet.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Send to…"
 msgstr "Enviar a…"
 
@@ -18963,10 +18949,6 @@ msgstr "Cuenta de servicio"
 msgid "Set cluster thumbnail"
 msgstr "Establecer miniatura del clúster"
 
-#: src/components/CanvasSurface.jsx
-msgid "Set cover image…"
-msgstr "Establecer imagen de portada…"
-
 #: src/components/film/FilmDock.jsx
 msgid "Set in"
 msgstr "Marcar entrada"
@@ -19054,6 +19036,17 @@ msgstr "forma"
 msgid "Shape"
 msgstr "Forma"
 
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
+msgctxt "add card"
+msgid "Shape"
+msgstr "Forma"
+
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Shape"
+msgstr "Forma"
+
 #: src/lib/listItemWords.js
 msgid "Shape ({shape})"
 msgstr "Forma ({shape})"
@@ -19091,6 +19084,7 @@ msgid "Share doc"
 msgstr "Compartir documento"
 
 #: src/lib/fileShareBus.js
+#: src/lib/menus/rows.js
 msgid "Share doc…"
 msgstr "Compartir documento…"
 
@@ -19098,9 +19092,7 @@ msgstr "Compartir documento…"
 msgid "Share file"
 msgstr "Compartir archivo"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Share file…"
 msgstr "Compartir archivo…"
 
@@ -19125,6 +19117,7 @@ msgid "Share it in the store"
 msgstr "Compartirla en la tienda"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Share layout"
 msgstr "Compartir disposición"
 
@@ -19171,7 +19164,7 @@ msgid "share, invite, collaborate, public link"
 msgstr "compartir, invitar, colaborar, enlace público, colaboración"
 
 #: src/components/settings/InviteTab.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Share…"
 msgstr "Compartir…"
 
@@ -19420,23 +19413,14 @@ msgstr "Mostrar archivos debajo de los clústeres"
 msgid "Show framing guides"
 msgstr "Mostrar guías de encuadre"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show group label"
-msgstr "Mostrar rótulo del grupo"
-
 #: src/components/ListSurface.jsx
 msgid "Show in cluster"
 msgstr "Mostrar en el clúster"
 
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Show in Files"
 msgstr "Mostrar en Archivos"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show label"
-msgstr "Mostrar rótulo"
-
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "Show labels"
 msgstr "Mostrar rótulos"
@@ -19468,17 +19452,13 @@ msgstr "Mostrar notificaciones"
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Show on board"
 msgstr "Mostrar en el lienzo"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "Show only"
 msgstr "Mostrar solo"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show outline"
-msgstr "Mostrar contorno"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Show pages"
@@ -19771,17 +19751,13 @@ msgstr "Una punta de flecha"
 msgid "Single cell"
 msgstr "Celda única"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Single column"
 msgstr "Una sola columna"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Single row"
 msgstr "Una sola fila"
-
-#: src/components/CanvasSurface.jsx
-msgid "Single-sided arrow"
-msgstr "Flecha de un solo sentido"
 
 #: src/lib/cardInfo.js
 msgid "Site"
@@ -19808,6 +19784,7 @@ msgid "Size of the files"
 msgstr "Tamaño de los archivos"
 
 #: src/components/SketchPadOverlay.jsx
+#: src/lib/menus/cardMenu.js
 msgid "Sketch"
 msgstr "Boceto"
 
@@ -19868,8 +19845,8 @@ msgid "Small tiles"
 msgstr "Mosaicos pequeños"
 
 #: src/components/CanvasSurface.jsx
-msgid "Snake — alternating rows{value}"
-msgstr "Serpiente: filas alternas{value}"
+msgid "Snake — alternating rows"
+msgstr "Serpentina — filas alternas"
 
 #: src/lib/errorWords.js
 msgid "Snapshot has 0 cards / arrows / strokes — restore would empty the board."
@@ -20027,7 +20004,6 @@ msgstr "Filtro de origen y sugerencias pendientes"
 msgid "Source timecode"
 msgstr "Código de tiempo de origen"
 
-#: src/components/ListSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/playerKeys.js
 msgctxt "keyboard key"
@@ -20039,7 +20015,7 @@ msgctxt "keyboard key"
 msgid "Space-drag"
 msgstr "Espacio-arrastrar"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Spacing"
 msgstr "Espaciado"
 
@@ -20122,7 +20098,6 @@ msgid "Stand-in collaborators: none. Tap to change."
 msgstr "Colaboradores de relleno: ninguno. Toca para cambiar."
 
 #: src/components/home/ClustersHome.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
 msgid "Star"
 msgstr "Marcar con estrella"
 
@@ -20131,6 +20106,11 @@ msgstr "Marcar con estrella"
 msgctxt "shape"
 msgid "Star"
 msgstr "Estrella"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
+msgid "Star"
+msgstr "Marcar con estrella"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Star a file or a cluster from its menu and it stays here."
@@ -20168,7 +20148,7 @@ msgstr "Empezar un equipo"
 msgid "Start a Team trial"
 msgstr "Empezar una prueba de Team"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Start at…"
 msgstr "Empezar en…"
 
@@ -20187,6 +20167,10 @@ msgstr "Empieza gratis. Paga cuando se te quede pequeño."
 #: src/components/ShowcaseBanner.jsx
 msgid "Start fresh"
 msgstr "Empezar de cero"
+
+#: src/lib/menus/rows.js
+msgid "Start here"
+msgstr "Empezar aquí"
 
 #: src/components/CanvasSurface.jsx
 msgid "Start here ({clipTime})"
@@ -20400,10 +20384,6 @@ msgstr "Página de storyboard"
 msgid "Straight"
 msgstr "Recta"
 
-#: src/components/CanvasSurface.jsx
-msgid "Straight arrow"
-msgstr "Flecha recta"
-
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Strikethrough"
@@ -20429,8 +20409,8 @@ msgstr "Stripe aún está confirmando el pago. Abriremos tu equipo en cuanto se 
 msgid "Stripe took the payment, but we haven't seen activation come through yet."
 msgstr "Stripe cobró el pago, pero aún no hemos visto que se complete la activación."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
+#: src/lib/menus/rows.js
 msgid "Stroke"
 msgstr "Trazo"
 
@@ -20438,7 +20418,7 @@ msgstr "Trazo"
 msgid "Stroke color"
 msgstr "Color del trazo"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Stroke color…"
 msgstr "Color del trazo…"
 
@@ -20540,6 +20520,11 @@ msgstr "Sugerida a partir del texto: {name}. ✓ la conserva, × no la vuelve a 
 #: src/components/settings/WorkspaceTab.jsx
 msgid "Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work."
 msgstr "Sugiere etiquetas a partir de lo que la gente escribe aquí, subraya las probables en los documentos y describe las imágenes que se añaden. El texto y una copia pequeña de cada imagen van a Cloudflare Workers AI. Si está desactivado, Clusters no envía nada y se eliminan las descripciones de imágenes; las etiquetas que añadas y las etiquetas cuyo nombre exacto aparece en el texto siguen funcionando."
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sun"
+msgstr "Sol"
 
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"
@@ -20643,7 +20628,6 @@ msgstr "Tabla eliminada"
 msgid "tag"
 msgstr "etiqueta"
 
-#: src/components/CardContextMenu.jsx
 #: src/components/entityPreviews/TagPreview.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/TagRangeHoverPopover.jsx
@@ -20669,9 +20653,9 @@ msgstr "Etiqueta · {source}"
 msgid "Tag \"{name}\" deleted"
 msgstr "Etiqueta “{name}” eliminada"
 
-#: src/components/CanvasSurface.jsx
-msgid "Tag {size} cards…"
-msgstr "Etiquetar {size} tarjetas…"
+#: src/lib/menus/rows.js
+msgid "Tag cluster…"
+msgstr "Etiquetar clúster…"
 
 #: src/components/SidebarTags.jsx
 msgid "Tag create failed: {reason}"
@@ -20683,7 +20667,7 @@ msgstr "Error al crear la etiqueta: {reason}"
 msgid "Tag failed: {reason}"
 msgstr "Error al etiquetar: {reason}"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Tag group…"
 msgstr "Etiquetar grupo…"
 
@@ -20696,6 +20680,7 @@ msgid "tag page"
 msgstr "página de etiqueta"
 
 #: src/components/DocPageEditor.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/TagDetailView.jsx
 msgid "Tag removed"
 msgstr "Etiqueta quitada"
@@ -20704,11 +20689,7 @@ msgstr "Etiqueta quitada"
 msgid "Tag selection…"
 msgstr "Etiquetar selección…"
 
-#: src/components/CanvasSurface.jsx
-msgid "Tag this cluster…"
-msgstr "Etiquetar este clúster…"
-
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Tag…"
 msgstr "Etiquetar…"
 
@@ -20730,7 +20711,6 @@ msgstr "Etiquetados: las cosas que llevan esta etiqueta, tal como las cuenta la 
 msgid "Tags"
 msgstr "Etiquetas"
 
-#: src/components/CardContextMenu.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/EntityPicker.jsx
 msgid "TAGS"
@@ -20747,6 +20727,10 @@ msgstr "Toma: {label}. Toca para cambiar."
 #: src/components/capture/CaptureHud.jsx
 msgid "Take: none. Tap to change."
 msgstr "Toma: ninguna. Toca para cambiar."
+
+#: src/lib/menus/rows.js
+msgid "Takes it off the canvas"
+msgstr "La quita del lienzo"
 
 #: src/lib/teamPricingCopyWords.js
 msgid "Talk to us"
@@ -20958,6 +20942,7 @@ msgstr "Temperatura"
 
 #: src/components/GridTemplatePanel.jsx
 #: src/components/SaveTemplateDialog.jsx
+#: src/lib/menus/rows.js
 msgid "Templates"
 msgstr "Plantillas"
 
@@ -22407,16 +22392,9 @@ msgid "Thu"
 msgstr "Jue"
 
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Tidy up"
 msgstr "Ordenar"
-
-#: src/components/CanvasSurface.jsx
-msgid "Tidy up ({size})"
-msgstr "Ordenar ({size})"
-
-#: src/components/CanvasSurface.jsx
-msgid "Tidy up board"
-msgstr "Ordenar el lienzo"
 
 #: src/components/WaitlistModal.jsx
 msgid "tiktok.com/@your-handle"
@@ -22591,16 +22569,12 @@ msgstr "Barras de herramientas"
 msgid "Tools"
 msgstr "Herramientas"
 
-#: src/components/CanvasSurface.jsx
-msgid "Top"
-msgstr "Arriba"
-
 #: src/App.jsx
 msgid "top level"
 msgstr "nivel superior"
 
-#: src/components/CanvasSurface.jsx
 #: src/lib/cardInfo.js
+#: src/lib/menus/rows.js
 msgid "Top level"
 msgstr "Nivel superior"
 
@@ -22735,21 +22709,13 @@ msgctxt "weekday, short"
 msgid "Tue"
 msgstr "Mar"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Turn into cluster…"
 msgstr "Convertir en clúster…"
-
-#: src/components/CanvasSurface.jsx
-msgid "Turn off autoplay"
-msgstr "Desactivar la reproducción automática"
 
 #: src/App.jsx
 msgid "Turn off capture mode"
 msgstr "Desactivar modo captura"
-
-#: src/components/CanvasSurface.jsx
-msgid "Turn off looping"
-msgstr "Desactivar el bucle"
 
 #: src/components/setup/WorkspaceSetup.jsx
 msgid "Two taps. We’ll set up your first cluster to match."
@@ -22758,6 +22724,10 @@ msgstr "Dos toques. Prepararemos tu primer clúster a juego."
 #: src/lib/billingCopyWords.js
 msgid "Two things — how many cards you can have and how much you can store: {limit}. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and {planName}: up to {EDITOR_LIMIT} who edit, and as many as you like who view."
 msgstr "Dos cosas: cuántas tarjetas puedes tener y cuánto puedes almacenar: {limit}. Cualquier archivo de cualquier tamaño es bienvenido en todos los planes, y los clústeres son gratis: no gastan ninguna de tus tarjetas. Las personas son iguales en Gratis y en {planName}: hasta {EDITOR_LIMIT} que editan y todas las que quieras que vean."
+
+#: src/lib/menus/rows.js
+msgid "Two-way"
+msgstr "Bidireccional"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/clusterBrowser/ClusterTable.jsx
@@ -22865,7 +22835,7 @@ msgstr "Deshacer necesita el clúster al que se movieron: ábrelo y arrástralas
 msgid "Undo sketch change"
 msgstr "Deshacer cambio del boceto"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Ungroup"
 msgstr "Desagrupar"
 
@@ -22980,7 +22950,11 @@ msgid "Unread"
 msgstr "No leído"
 
 #: src/components/home/ClustersHome.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+msgid "Unstar"
+msgstr "Quitar estrella"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Unstar"
 msgstr "Quitar estrella"
 
@@ -23041,6 +23015,7 @@ msgstr "Tarjeta sin título"
 #: src/hooks/useSidebarFiles.js
 #: src/lib/homeMap.js
 #: src/lib/homeRail.js
+#: src/lib/menus/clusterMenu.js
 #: src/lib/moveFailure.js
 #: src/lib/ownWork.js
 #: src/lib/shareCardLayout.js
@@ -23224,8 +23199,7 @@ msgstr "Sube cualquier archivo y se queda aquí, en Archivos, esté o no en un l
 msgid "Upload any file and it stays here in Files. Search it, or open it as a full page."
 msgstr "Sube cualquier archivo y se queda aquí, en Archivos. Búscalo o ábrelo como página completa."
 
-#: src/components/CanvasSurface.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Upload custom thumbnail…"
 msgstr "Subir miniatura personalizada…"
 
@@ -23243,6 +23217,10 @@ msgstr "Error al subir: {reason}"
 msgid "Upload files"
 msgstr "Subir archivos"
 
+#: src/lib/menus/rows.js
+msgid "Upload files…"
+msgstr "Subir archivos…"
+
 #: src/components/DocInsertMenu.jsx
 msgid "Upload from your machine"
 msgstr "Subir desde tu dispositivo"
@@ -23251,8 +23229,7 @@ msgstr "Subir desde tu dispositivo"
 msgid "Upload network error"
 msgstr "Error de red en la subida"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/ListSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Upload new version…"
 msgstr "Subir versión nueva…"
 
@@ -23448,10 +23425,6 @@ msgstr "Las versiones están en Información"
 msgid "Vertical"
 msgstr "Vertical"
 
-#: src/components/CanvasSurface.jsx
-msgid "Vertically"
-msgstr "Verticalmente"
-
 #: src/components/ImageAdjustPanel.jsx
 msgid "Vibrance"
 msgstr "Intensidad"
@@ -23475,6 +23448,7 @@ msgstr "vídeo"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/onboardingTourWords.js
 #: src/lib/sharedFiles.js
 msgid "Video"
@@ -23517,6 +23491,11 @@ msgctxt "permission"
 msgid "View"
 msgstr "Lectura"
 
+#: src/lib/menus/rows.js
+msgctxt "schedule"
+msgid "View"
+msgstr "Vista"
+
 #: src/App.jsx
 msgid "View access to “{name}” was shared with you."
 msgstr "Se compartió contigo “{name}” con acceso de solo lectura."
@@ -23529,8 +23508,8 @@ msgstr "Se compartió contigo un clúster con acceso de solo lectura."
 msgid "View changed"
 msgstr "Vista cambiada"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
+#: src/lib/menus/rows.js
 msgid "View full size"
 msgstr "Ver a tamaño completo"
 
@@ -23607,10 +23586,6 @@ msgstr "Los lectores no pueden iniciar chats aquí. Cambia a tu propio espacio d
 msgid "Violet"
 msgstr "Violeta"
 
-#: src/components/CanvasSurface.jsx
-msgid "Visual"
-msgstr "Visual"
-
 #: src/components/film/FilmDock.jsx
 msgid "Volume"
 msgstr "Volumen"
@@ -23627,6 +23602,7 @@ msgstr "Subir · bajar volumen"
 #: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/lib/indexRowCard.js
+#: src/lib/menus/rows.js
 msgid "Vote"
 msgstr "Votar"
 
@@ -23698,6 +23674,11 @@ msgstr "quiere conectarse a tus clústeres"
 msgid "Wardrobe and art direction"
 msgstr "Vestuario y dirección de arte"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Warm"
+msgstr "Cálido"
+
 #: src/lib/oauthConsentCopy.js
 msgid "We could not check that app just now"
 msgstr "No pudimos comprobar esa app en este momento"
@@ -23756,22 +23737,15 @@ msgstr "Te escribiremos por correo en una semana más o menos, una vez aprobado.
 msgid "We're reviewing your application and will email you when a spot opens."
 msgstr "Estamos revisando tu solicitud y te enviaremos un correo cuando se abra un lugar."
 
-#: src/components/CanvasSurface.jsx
-msgid "Web"
-msgstr "Web"
-
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"
 msgid "Wed"
 msgstr "Mié"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 msgid "Week"
 msgstr "Semana"
-
-#: src/components/CanvasSurface.jsx
-msgid "Week{value}"
-msgstr "Semana{value}"
 
 #: src/pages/ResumePage.jsx
 msgid "Welcome back — pick up where you left off."
@@ -23885,10 +23859,6 @@ msgstr "¿Para qué es? p. ej., script de lista de planos"
 #: src/components/UpgradeReasonAsk.jsx
 msgid "What is it?"
 msgstr "¿Qué es?"
-
-#: src/components/SidebarTags.jsx
-msgid "What kind of thing is it?"
-msgstr "¿Qué tipo de cosa es?"
 
 #: src/components/setup/WorkspaceSetup.jsx
 msgid "What kind of work do you do?<0>Optional</0>"
@@ -24998,6 +24968,10 @@ msgstr "Tu enlace de invitación"
 msgid "Your invites and referral link →"
 msgstr "Tus invitaciones y tu enlace de invitación →"
 
+#: src/lib/menus/clusterMenu.js
+msgid "Your last cluster can't be deleted"
+msgstr "Tu último clúster no se puede eliminar"
+
 #: src/lib/docResets.js
 msgid "Your last edits on this page didn’t make it before the cluster reloaded."
 msgstr "Tus últimas ediciones en esta página no llegaron antes de que el clúster se recargara."
@@ -25170,8 +25144,8 @@ msgid "yourself"
 msgstr "ti"
 
 #: src/components/CanvasSurface.jsx
-msgid "Z — rows, left→right{value}"
-msgstr "Z: filas, izquierda→derecha{value}"
+msgid "Z — rows, left→right"
+msgstr "Z — filas, izquierda→derecha"
 
 #: src/lib/importCopy.js
 msgid "Zip file"

@@ -321,7 +321,8 @@ test('Send puts the comment on the card it was made for', async ({ page }) => {
 test('deleting a cluster card asks with the top bar, not Cmd+Z', async ({ page }) => {
   await bootLocal(page);
   await openCardMenu(page, card(page, 'b-sundown'));
-  await menu(page).getByRole('menuitem', { name: /^Delete/ }).tap();
+  // Delete is a tile of the sheet's quick row now (plan.md §2.3, Phone sheet).
+  await page.locator('.ctx-quick').getByRole('menuitem', { name: 'Delete', exact: true }).tap();
   const msg = page.locator('.feedback-dialog .feedback-message');
   await expect(msg).toContainText('You can undo this from the top bar.');
   await expect(msg).not.toContainText('Cmd+Z');

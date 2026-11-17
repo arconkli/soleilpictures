@@ -534,6 +534,7 @@ at. Click a row to open it, or use its **⋯** menu:
 | Option | What it does |
 |---|---|
 | **Open** | Opens the cluster, or the file in the app |
+| **Send to…** | Sends the cluster to someone in Messages — clusters only |
 | **Copy link** | Copies the cluster's link — clusters only |
 | **Save a copy…** | Copies the file into one of your clusters — files only, when downloading is allowed |
 | **Add shortcut…** | Puts a live shortcut to the file on one of your clusters — files only |
@@ -542,8 +543,8 @@ at. Click a row to open it, or use its **⋯** menu:
 **By you** lists the clusters and files you have shared that are still
 shared, the newest first, each with who has it and **Link on** while its link
 works. Click a cluster to open it, or a file to open its sharing dialog. A
-cluster's **⋯** menu has **Open**, **Manage sharing…** and **Copy link**; a
-file's has **Manage sharing…**, **Copy link** and **Stop sharing**, which
+cluster's **⋯** menu has **Open**, **Send to…**, **Manage sharing…** and
+**Copy link**; a file's has **Share file…**, **Copy link** and **Stop sharing**, which
 turns the link off and removes everyone you added, at once. Stopping has an
 undo that brings back the link and exactly the people it removed, and emails
 nobody again.

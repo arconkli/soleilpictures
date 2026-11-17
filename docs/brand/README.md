@@ -112,7 +112,7 @@ Soleil surfaces carry one fine, still film grain at one strength: `--grain-o` `.
 ### Materials
 
 - **Glass, sparingly.** A floating island is glass (`--sbf-glass`), an inset hairline (`--sbf-glass-line`) and one small shadow (`--sbf-glass-shadow`, `0 1px 1px`), and nothing softer. (`boards/src/components/sidebar/clusterSidebar.css` header.)
-- **Menus are solid** (`--bg-3`): they open over photos, and glass would let the art run through the text. (`boards/src/styles.css` `.ctx-menu`.)
+- **Menus are nearly solid** (`--menu-bg`, `--bg-1` at 96%, blurred 14px, with an inset `--menu-line` hairline): they open over photos, and clearer glass would let the art run through the text. (`boards/src/styles.css` `.ctx-menu`.)
 - **Scrims** behind a dialog are a near-black scrim at .45 on dark and .28 on light (`.modal-bg` and `[data-theme='light'] .modal-bg` in `boards/src/styles.css`).
 - **Radii** are `--radius` 4, `--radius-sm` 6, `--radius-md` 8, `--radius-lg` 12, `--radius-xl` 16. Pills are fully round.
 - **Shadows** are `--shadow-1`, `--shadow-2`, `--shadow-3`, each with its own light version.

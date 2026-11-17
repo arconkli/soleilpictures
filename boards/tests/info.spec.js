@@ -111,7 +111,7 @@ test('the empty board offers Cluster info; a cluster card says what it holds', a
   await expect(d.getByRole('button', { name: /Open cluster/ })).toBeVisible();
 });
 
-test('Files beside the board: Get info on a file and on a folder', async ({ page }) => {
+test('Files beside the board: Info on a file and on a folder', async ({ page }) => {
   await go(page);
   await page.locator('.canvas-wrap').click({ position: { x: 30, y: 300 } });
   await page.keyboard.press('f');
@@ -119,13 +119,14 @@ test('Files beside the board: Get info on a file and on a folder', async ({ page
   await expect(panel).toBeVisible();
   const tile = panel.locator('.ct-jg [data-item-id]').first();
   await tile.click({ button: 'right' });
-  await menuItem(page, 'Get info').click();
+  // "Get info" is "Info" now (plan.md §3 File: "Info ⌘I · Delete").
+  await page.locator('.ctx-menu').getByRole('menuitem', { name: 'Info', exact: true }).click();
   const d = drawer(page);
   await expect(d).toBeVisible();
   await expect(d.locator('.cbd-section-label', { hasText: 'Details' })).toBeVisible();
   const folder = panel.locator('[data-folder-id]').first();
   await folder.click({ button: 'right' });
-  await menuItem(page, 'Get info').click();
+  await page.locator('.ctx-menu').getByRole('menuitem', { name: 'Info', exact: true }).click();
   await expect(d.locator('.cbd-sub')).toHaveText('Cluster');
 });
 
@@ -153,7 +154,7 @@ test('a file you just added says it was added by you, with the date and time', a
   const tile = panel.locator('.ct-jg [data-item-id]', { hasText: 'still-07' });
   await expect(tile).toBeVisible();
   await tile.click({ button: 'right' });
-  await menuItem(page, 'Get info').click();
+  await page.locator('.ctx-menu').getByRole('menuitem', { name: 'Info', exact: true }).click();
   const d = drawer(page);
   await expect(d.locator('.cbd-meta-row', { hasText: 'File name' })).toContainText('still-07.png');
   const added = d.locator('.cbd-person', { hasText: 'Added' });

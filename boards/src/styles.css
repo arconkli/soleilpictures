@@ -56,6 +56,12 @@
 [data-theme="light"] .public-dark .clusters-mark-light { display: none; }
 
 :root {
+  /* The right-click menu's material (.ctx-menu). */
+  --menu-bg:    color-mix(in oklab, var(--bg-1) 96%, transparent);
+  --menu-blur:  blur(14px) saturate(1.2);
+  --menu-line:  #232328;
+  --menu-lift:  0 18px 48px rgba(0,0,0,.28);
+  --menu-hover: color-mix(in oklab, var(--ink-0) 8%, transparent);
   /* The film grain: one still, fine, seamless tile (src/assets/grain, made by
      scripts/grain/gen-grain.py) drawn at one strength on every surface that
      carries it: grounds, bars, panels, menus, dialogs, toasts. Cards and
@@ -175,6 +181,11 @@
 }
 
 [data-theme='light'] {
+  --menu-bg:    color-mix(in oklab, var(--bg-1) 96%, transparent);
+  --menu-blur:  blur(14px) saturate(1.2);
+  --menu-line:  rgba(10,10,12,.08);
+  --menu-lift:  0 18px 40px rgba(10,10,12,.1);
+  --menu-hover: color-mix(in oklab, var(--ink-0) 6%, transparent);
   color-scheme: light;
   /* The grain reads a touch stronger on a light ground. */
   --grain-o: .027;
@@ -926,32 +937,6 @@ body {
   box-shadow: 0 0 0 2px var(--soleil-soft, rgba(0,0,0,0.08));
 }
 
-.ws-menu-row-pop {
-  position: absolute;
-  top: calc(100% + 2px);
-  right: 4px;
-  z-index: 5;
-  min-width: 180px;
-  padding: 4px;
-  border-radius: var(--radius-md);
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  box-shadow: var(--shadow-3);
-}
-.ws-menu-row-pop-item {
-  appearance: none; border: 0; background: transparent;
-  display: flex; align-items: center; gap: 8px;
-  width: 100%;
-  padding: 7px 10px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  text-align: left;
-  font: 500 12px/1.3 var(--font-sans);
-  color: var(--ink-1);
-}
-.ws-menu-row-pop-item:hover { background: var(--bg-hov); }
-.ws-menu-row-pop-item.danger { color: var(--ink-1); }
-.ws-menu-row-pop-item.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
 .ws-menu-avatar {
   width: 26px; height: 26px;
   border-radius: var(--radius-md);
@@ -1247,14 +1232,13 @@ body {
    between formatting marks and structural items. */
 .doc-ctx-color-row {
   display: flex; align-items: center; gap: 4px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   flex-wrap: wrap;
 }
 .doc-ctx-color-label {
-  font: 600 9.5px/1 var(--font-mono, monospace);
-  text-transform: uppercase; letter-spacing: .14em;
-  color: var(--ink-3);
-  margin-right: 4px;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--ink-2);
+  margin-right: 6px;
 }
 .doc-ctx-color-dot {
   width: 16px; height: 16px;
@@ -1282,61 +1266,6 @@ body {
   position: absolute; inset: 0;
   opacity: 0;
   cursor: pointer;
-}
-
-.sb-tag-menu {
-  z-index: 2147483647;
-  background: rgba(20,20,24,.94);
-  color: var(--ink-0);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-3);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
-  padding: 4px;
-  min-width: 140px;
-  display: flex; flex-direction: column;
-}
-[data-theme='light'] .sb-tag-menu {
-  background: rgba(252,251,247,.96);
-  border-color: rgba(0,0,0,.06);
-  color: #1a1a1f;
-}
-.sb-tag-menu-item {
-  background: transparent; border: 0;
-  text-align: left;
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  color: var(--ink-1);
-  font: 500 12px/1.3 var(--font-sans);
-}
-.sb-tag-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sb-tag-menu-item.danger:hover { background: rgba(239,68,68,.12); color: #ef4444; }
-
-/* Entity-type switch inside the row menu (one-tap re-type / un-Untyped). */
-.sb-tag-menu-types {
-  display: flex; gap: 3px;
-  padding: 5px 8px 6px;
-  margin-top: 2px;
-  border-top: 1px solid var(--line-1);
-}
-.sb-tag-menu-type {
-  flex: 1 1 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  height: 26px;
-  border: 1px solid var(--line-1);
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--ink-3);
-  cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-}
-.sb-tag-menu-type:hover { color: var(--ink-1); border-color: var(--line-2); background: var(--bg-hov); }
-.sb-tag-menu-type.is-on {
-  color: var(--ink-0);
-  border-color: color-mix(in oklab, var(--soleil) 45%, var(--line-2));
-  background: color-mix(in oklab, var(--soleil) 14%, transparent);
 }
 
 /* Entity index — grouped-by-type sections in the sidebar. */
@@ -2021,33 +1950,6 @@ body {
   color: var(--ink-3);
 }
 .tag-detail-filter-pill.is-on .tag-detail-filter-count { color: var(--soleil); }
-
-/* Right-click menu over preview items. */
-.tag-detail-menu {
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-2);
-  min-width: 190px;
-  padding: 4px;
-  display: flex; flex-direction: column;
-}
-.tag-detail-menu-item {
-  background: transparent;
-  border: 0;
-  text-align: left;
-  padding: 7px 10px;
-  font: 500 12px/1.2 var(--font-sans);
-  color: var(--ink-1);
-  cursor: pointer;
-  border-radius: 4px;
-}
-.tag-detail-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-.tag-detail-menu-hint {
-  padding: 8px 10px 6px;
-  font: 400 10.5px/1.45 var(--font-sans);
-  color: var(--ink-3);
-}
 
 /* Auto/AI badge on a card preview to show it's a directly-tagged
    non-user application. */
@@ -8375,35 +8277,56 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   z-index: 5;
 }
 
-/* Context menu — shared frosted-glass treatment */
+/* Context menu: the one right-click menu (CardContextMenu.jsx, its flyouts and
+   the phone sheet's list). Tokens --menu-* in :root / [data-theme='light']. The
+   look is B, icons + a quick row: a frosted card, 16px icons, shortcuts as
+   plain text, the keys' own row in the brand's soft gold (:focus-visible only,
+   never at rest or on hover). */
 .ctx-menu {
   position: fixed;
   z-index: 2147483600;
-  min-width: 220px;
-  max-width: calc(100vw - 16px);
+  /* What the foot of a scrolling menu fades to (the has-more-below wash). */
+  --ctx-ground: var(--bg-1);
+  min-width: 232px;
+  max-width: min(300px, calc(100vw - 16px));
   max-height: calc(100vh - 16px);
   /* The screen a phone actually shows (its bars in, its notch and home bar
      out), less the 8px kept to each edge. */
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
   overflow: visible;
-  /* Menus open over photos: solid, or the art runs through the text. */
-  background: var(--bg-3);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid color-mix(in srgb, var(--ink-0) 10%, transparent);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-3);
+  /* Menus open over photos: nearly solid, or the art runs through the text. */
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: var(--menu-blur);
+  backdrop-filter: var(--menu-blur);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--menu-line), var(--menu-lift);
   padding: 4px;
   display: flex; flex-direction: column;
-  gap: 1px;
-  font-family: var(--font-sans);
-  animation: ctx-menu-in var(--dur-base) var(--ease);
-  transform-origin: top left;
+  gap: 0;
+  color: var(--ink-1);
+  font: 400 13px/1.35 var(--font-sans);
+  animation: ctx-menu-pop var(--dur-fast) var(--ease);
+  transform-origin: var(--ctx-ox, 0%) var(--ctx-oy, 0%);
 }
-[data-theme='light'] .ctx-menu { background: var(--bg-3); border-color: rgba(10,10,12,.10); box-shadow: 0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08); }
+.ctx-menu:focus { outline: none; }
+/* A flyout: the same card, narrower; the search flyout is 280px. */
+.ctx-submenu { min-width: 200px; max-width: min(280px, calc(100vw - 16px)); }
+.ctx-submenu.has-search { min-width: 280px; }
+@keyframes ctx-menu-pop {
+  from { opacity: 0; transform: scale(.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes ctx-menu-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ctx-menu { animation-name: ctx-menu-fade; }
+}
 /* The card and canvas menus (and their portaled submenus) can outgrow a short
    window: scroll, rather than letting the max-height flex column crush every
-   32px row toward its 13px text. */
+   row toward its text. */
 .ctx-menu.is-scrollable { overflow-y: auto; }
 .ctx-menu.is-scrollable > * { flex-shrink: 0; }
 /* Its scrollbar is hidden, so while rows wait below the fold its foot fades
@@ -8439,16 +8362,20 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 }
 .ctx-step-body::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .ctx-step-body > * { flex-shrink: 0; }
-.ctx-menu.is-step .ctx-item.is-back { justify-content: flex-start; gap: 10px; }
+.ctx-menu.is-step .ctx-item.is-back,
+.ctx-menu.is-step.no-icons .ctx-item.is-back { grid-template-columns: 20px minmax(0, 1fr); column-gap: 10px; justify-content: start; }
 .ctx-menu.is-step .ctx-item.is-back .ctx-back-chevron { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-1); }
 .ctx-menu.is-step .ctx-item.is-back .ctx-label { color: var(--ink-0); font-weight: 600; }
-@media (pointer: coarse) {
-  .ctx-menu.is-step .ctx-item { height: auto; min-height: 44px; }
-}
+/* Other pop-ups (.cbt-menu, the entity popover) still rise with this one. */
 @keyframes ctx-menu-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* A row: icon | text (label over hint) | aside | shortcut, check or chevron.
+   The base is flex, for the toolbars' menus (.cbt-menu, .pb-menu) that reuse
+   .ctx-item; inside .ctx-menu it is a grid of 16px + the rest, the extras
+   flowing into auto columns. */
 .ctx-item {
   appearance: none;
   background: transparent; border: 0;
@@ -8464,94 +8391,223 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   width: 100%;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.ctx-item:hover:not(:disabled), .ctx-item.kbd-active { background: var(--bg-hov); color: var(--ink-0); }
-/* Menus sit on --bg-3 now; --bg-hov is darker than that in dark, so a hovered
-   row would vanish. An ink wash shows on any surface, in either theme. */
-.ctx-menu .ctx-item:hover:not(:disabled), .ctx-menu .ctx-item.kbd-active,
+.ctx-item:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
 .cbt-menu .ctx-item:hover:not(:disabled) { background: color-mix(in srgb, var(--ink-0) 7%, transparent); }
-.ctx-item.kbd-active { background: var(--soleil-soft); }
 .ctx-item.danger { color: var(--ink-error); }
-.ctx-item.danger:hover { background: rgba(224,139,139,0.10); }
 .ctx-item:disabled { opacity: .4; cursor: default; }
 .ctx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+
+.ctx-menu .ctx-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  align-items: center;
+  column-gap: 10px;
+  justify-content: stretch;
+  height: auto;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--ink-1);
+  font: 400 13px/1.35 var(--font-sans);
+  text-align: left;
+}
+.ctx-menu.no-icons .ctx-item { grid-template-columns: minmax(0, 1fr); }
+.ctx-menu.no-icons .ctx-item > .ctx-icon { display: none; }
+.ctx-menu .ctx-item:hover:not(:disabled):not([aria-disabled='true']),
+.ctx-menu .ctx-item[aria-expanded='true'] {
+  background: var(--menu-hover);
+  color: var(--ink-0);
+}
+/* The keys' row: the one place gold shows in a menu (never at rest). */
+.ctx-menu .ctx-item:focus-visible,
+.ctx-menu .ctx-item.kbd-active {
+  background: var(--soleil-soft);
+  color: var(--ink-0);
+  outline: none;
+  box-shadow: none;
+}
+.ctx-menu .ctx-item.danger { color: var(--ink-error); }
+.ctx-menu .ctx-item.danger:hover:not([aria-disabled='true']) { background: color-mix(in oklab, var(--ink-error) 10%, transparent); }
+.ctx-menu .ctx-item:disabled,
+.ctx-menu .ctx-item[aria-disabled='true'] { opacity: .4; cursor: default; }
+.ctx-icon {
+  display: grid; place-items: center;
+  width: 16px; height: 16px;
+  color: var(--ink-2);
+}
+.ctx-icon svg { width: 16px; height: 16px; }
+.ctx-item.danger .ctx-icon { color: var(--ink-error); }
+.ctx-text { display: flex; flex-direction: column; min-width: 0; }
+/* Labels wrap, never an ellipsis. */
+.ctx-menu .ctx-label { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; flex: none; }
+.ctx-hint { font-size: 11.5px; line-height: 1.35; color: var(--ink-3); overflow-wrap: anywhere; }
+.ctx-aside {
+  min-width: 0; max-width: 45%;
+  font-size: 12px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The shortcut is words: "⌘D", "Ctrl+D". */
 .ctx-shortcut {
   flex-shrink: 0;
-  font: 500 11px/1 var(--font-sans); color: var(--ink-2);
+  font: 400 12px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
   padding: 0; border: 0; background: none;
+  white-space: nowrap;
 }
-/* A touch-only device (a tablet or phone without a keyboard) can't press
-   Ctrl+X: the hint is noise there. */
-@media (hover: none) and (pointer: coarse) {
-  .ctx-shortcut { display: none; }
-}
-.ctx-divider { height: 1px; background: var(--line-2); margin: 4px 6px; }
-/* Non-interactive section label inside a context menu / its "Add" submenu. */
-.ctx-header {
-  font: 700 10px/1 var(--font-display);
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  padding: 10px 12px 4px;
+.ctx-check { width: 14px; height: 14px; color: var(--ink-1); }
+.ctx-menu .ctx-chevron { width: 12px; height: 12px; margin: 0; transform: none; color: var(--ink-3); }
+.ctx-has-submenu:hover .ctx-chevron { color: var(--ink-1); }
+.ctx-divider { flex-shrink: 0; height: 1px; background: var(--line-1); margin: 4px 6px; }
+/* A caption: a small sentence-case label inside a list; the title tops the menu. */
+.ctx-caption, .ctx-title {
+  padding: 8px 10px 2px;
+  font: 400 11.5px/1.3 var(--font-sans);
+  color: var(--ink-3);
   user-select: none;
 }
+.ctx-title { padding: 6px 10px 2px; }
+/* Non-interactive section label inside a context menu / its "Add" submenu. */
 .ctx-section-label {
   font: 700 10px/1 var(--font-display); letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-3);
   padding: 10px 12px 4px;
 }
-.ctx-has-submenu .ctx-chevron {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1;
-  color: var(--ink-3);
-  margin-right: -2px;
-  transform: scaleX(.85);
-}
-.ctx-has-submenu:hover .ctx-chevron { color: var(--ink-1); }
 
-/* Applied-tag chips strip at the top of the card right-click menu. */
-.ctx-tags-head {
-  font: 700 9.5px/1 var(--font-display);
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  padding: 8px 12px 4px;
-}
-.ctx-tags-row {
-  display: flex; flex-wrap: wrap; gap: 4px;
-  padding: 0 10px 8px;
-}
-.ctx-tag-chip {
-  appearance: none;
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 8px 3px 6px;
-  background: color-mix(in oklab, var(--tag-c, #4f8df8) 14%, transparent);
-  border: 1px solid color-mix(in oklab, var(--tag-c, #4f8df8) 26%, transparent);
-  border-radius: 999px;
-  cursor: pointer;
-  font: 500 11px/1.2 var(--font-sans);
+/* The quick row (B): equal icon buttons across the top, then a divider. */
+.ctx-quick { display: flex; gap: 2px; padding: 2px 0; }
+.ctx-quick-btn {
+  appearance: none; border: 0; background: transparent;
+  flex: 1 1 0; min-width: 0;
+  height: 34px;
+  display: grid; place-items: center;
+  border-radius: 6px;
   color: var(--ink-1);
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.ctx-tag-chip:hover {
-  background: color-mix(in oklab, var(--tag-c, #4f8df8) 22%, transparent);
-  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 42%, transparent);
+.ctx-quick-btn svg { width: 18px; height: 18px; }
+.ctx-quick-btn:hover:not([aria-disabled='true']) { background: var(--menu-hover); }
+.ctx-quick-btn:focus-visible { background: var(--soleil-soft); outline: none; }
+.ctx-quick-btn.danger:is(:hover, :focus-visible) { color: var(--ink-error); }
+.ctx-quick-btn[aria-disabled='true'] { opacity: .4; cursor: default; }
+/* Its tooltip: portaled to the body (the menu scrolls and would clip it). */
+.ctx-quick-tip {
+  position: fixed;
+  z-index: 2147483602;
+  pointer-events: none;
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: var(--menu-blur);
+  backdrop-filter: var(--menu-blur);
   color: var(--ink-0);
-}
-.ctx-tag-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--tag-c, #4f8df8);
-  flex: 0 0 auto;
-}
-.ctx-tag-chip.is-auto, .ctx-tag-chip.is-ai {
-  border-style: dashed;
-  border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
-}
-.ctx-tag-name {
+  font: 400 12px/1.3 var(--font-sans);
   white-space: nowrap;
-  max-width: 140px;
-  overflow: hidden; text-overflow: ellipsis;
+  box-shadow: inset 0 0 0 1px var(--menu-line), 0 4px 12px rgba(0, 0, 0, .22);
+}
+.ctx-quick-tip-keys { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* A submenu's search field. */
+.ctx-search {
+  display: flex; align-items: center; gap: 8px;
+  height: 30px; margin: 0 0 4px; padding: 0 8px;
+  border-radius: 6px;
+  background: var(--menu-hover);
+  color: var(--ink-3);
+}
+.ctx-search svg { width: 14px; height: 14px; flex: none; }
+.ctx-search input {
+  flex: 1 1 auto; min-width: 0;
+  appearance: none; border: 0; outline: 0; background: transparent;
+  color: var(--ink-0);
+  font: 400 13px/1.35 var(--font-sans);
+}
+.ctx-search input::placeholder { color: var(--ink-3); }
+.ctx-search input::-webkit-search-cancel-button { display: none; }
+
+/* The phone's sheet: the same list, in the sheet's box (no glass, no shadow,
+   the sheet scrolls). */
+.ctx-menu.is-sheet {
+  position: static;
+  z-index: auto;
+  flex: 1 1 auto; min-height: 0;
+  min-width: 0; max-width: none; max-height: none;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  background: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 12px;
+  animation: none;
+  transform: none;
+}
+.ctx-menu.is-sheet.is-step { overflow: hidden; }
+/* The sheet's body holds the header and the tiles still and lets the list
+   (.ctx-menu.is-sheet) be what scrolls, so the box never outgrows the panel's
+   90dvh cap. */
+.sheet-root.ctx-sheet-root { z-index: 2147483600; }
+.sheet-root.ctx-sheet-root .sheet-body {
+  overflow: hidden; display: flex; flex-direction: column; min-height: 0;
+  padding: 0 0 8px;
+}
+.ctx-sheet-wrap { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.ctx-sheet-wrap > .ctx-sheet-head, .ctx-sheet-wrap > .ctx-quick { flex: none; }
+@media (min-width: 601px) {
+  .sheet-root.ctx-sheet-root { align-items: center; }
+  .sheet-root.ctx-sheet-root .sheet-panel { width: 100%; max-width: 480px; }
+}
+.ctx-menu.is-sheet .ctx-item { min-height: 48px; padding: 10px 12px; font-size: 15px; column-gap: 12px; grid-template-columns: 20px minmax(0, 1fr); }
+.ctx-menu.is-sheet.no-icons .ctx-item { grid-template-columns: minmax(0, 1fr); }
+.ctx-menu.is-sheet .ctx-icon, .ctx-menu.is-sheet .ctx-icon svg { width: 20px; height: 20px; }
+.ctx-menu.is-sheet .ctx-shortcut { display: none; }
+.ctx-menu.is-sheet.is-step .ctx-item.is-back { min-height: 48px; }
+.ctx-sheet-head { display: flex; align-items: center; gap: 12px; padding: 4px 16px 12px; }
+.ctx-sheet-titles { min-width: 0; flex: 1 1 auto; }
+.ctx-sheet-name {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font: 600 15px/1.3 var(--font-sans); color: var(--ink-0); overflow-wrap: anywhere;
+}
+.ctx-sheet-kind { display: block; font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); }
+.ctx-sheet-thumb { flex: none; width: 40px; height: 40px; border-radius: 6px; overflow: hidden; background: var(--menu-hover); }
+.ctx-sheet-thumb > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ctx-sheet-tint { flex: none; width: 40px; height: 40px; border-radius: 8px; }
+.ctx-sheet-thumbs { flex: none; display: flex; }
+.ctx-sheet-thumbs > * { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; background: var(--menu-hover); box-shadow: 0 0 0 2px var(--bg-1); }
+.ctx-sheet-thumbs > * + * { margin-left: -12px; }
+.ctx-sheet-mosaic { flex: none; display: grid; grid-template: 1fr 1fr / 1fr 1fr; gap: 2px; width: 40px; height: 40px; border-radius: 6px; overflow: hidden; }
+.ctx-sheet-mosaic > * { width: 100%; height: 100%; object-fit: cover; background: var(--menu-hover); }
+/* The sheet's quick row: labelled tiles (64px, which beats the finger's 44px). */
+.ctx-quick.is-tiles { display: flex; gap: 6px; padding: 0 16px 8px; }
+.ctx-quick.is-tiles .ctx-quick-btn {
+  min-height: 64px; height: auto; padding: 12px 0 10px; border-radius: 10px;
+  background: var(--menu-hover);
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px;
+  color: var(--ink-1);
+}
+.ctx-quick.is-tiles .ctx-quick-btn svg { width: 20px; height: 20px; }
+.ctx-quick-label { font: 400 12px/1.2 var(--font-sans); color: var(--ink-2); }
+/* A long word on a narrow phone (ru "Изображение" in a 61px tile) breaks inside its tile, hyphenated where
+   the page's language allows (i18nBoot sets <html lang>). Icons line up because tiles are top-aligned and a
+   row grows together when one label wraps; text-wrap: balance splits a wrapped word evenly. */
+.ctx-quick.is-tiles .ctx-quick-label { max-width: 100%; text-align: center; overflow-wrap: anywhere; -webkit-hyphens: auto; hyphens: auto; text-wrap: balance; }
+.ctx-quick.is-tiles .ctx-quick-btn.danger, .ctx-quick.is-tiles .ctx-quick-btn.danger .ctx-quick-label { color: var(--ink-error); }
+
+/* A finger: 44px rows at 15px with 20px icons, 44px quick buttons, and no
+   shortcuts (a tablet or phone without a keyboard can't press them). */
+@media (hover: none) and (pointer: coarse) {
+  .ctx-shortcut { display: none; }
+  .ctx-menu .ctx-item { min-height: 44px; font-size: 15px; grid-template-columns: 20px minmax(0, 1fr); }
+  .ctx-menu.no-icons .ctx-item { grid-template-columns: minmax(0, 1fr); }
+  .ctx-menu .ctx-icon, .ctx-menu .ctx-icon svg { width: 20px; height: 20px; }
+  .ctx-quick-btn { height: 44px; }
+  .ctx-quick-btn svg { width: 20px; height: 20px; }
+}
+@media (pointer: coarse) {
+  .ctx-menu.is-step .ctx-item { height: auto; min-height: 44px; }
 }
 
 /* Image card link overlay (top-right). Title now lives in-flow below the
@@ -10385,9 +10441,6 @@ html, body { overscroll-behavior: none; }
 .ctx-submenu-wrap { position: relative; }
 .ctx-submenu {
   z-index: 2147483601;
-  min-width: 204px;
-  max-width: calc(100vw - 16px);
-  transform-origin: top left;
 }
 
 /* Popovers / menus: hide scrollbar entirely so they look clean. They scroll
@@ -10399,12 +10452,13 @@ html, body { overscroll-behavior: none; }
 .ctx-menu::-webkit-scrollbar,
 .ctx-submenu::-webkit-scrollbar,
 .cp-pop::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.ctx-swatch-row { gap: 8px; display: flex; align-items: center; }
+.ctx-swatch-row { gap: 10px; display: flex; align-items: center; }
 .ctx-swatch-dot {
   display: inline-block;
   width: 14px; height: 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line-3);
+  border-radius: 50%;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--line-3);
   flex-shrink: 0;
 }
 
@@ -11099,51 +11153,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-color: color-mix(in oklab, var(--tag-c, #4f8df8) 45%, transparent);
 }
 
-/* A tag's or a tagged item's actions on a phone (direction A), as the
-   mockup draws them: a head over a hairline (a dot or a picture, the name,
-   what it is), rows of icon + words + what the row holds now, the red row
-   under a rule, and Cancel as a button of its own. */
-.sheet-root.tag-sheet { align-items: center; }
-.sheet-root.tag-sheet .sheet-panel { width: 100%; max-width: 480px; }
-/* The head's hairline runs edge to edge; the rows and Cancel set their own insets. */
-.sheet-root.tag-sheet .sheet-body { padding: 0 0 16px; }
-.tag-sheet-head {
-  display: flex; align-items: center; gap: 12px;
-  padding: 6px 20px 14px; border-bottom: 1px solid var(--line-1);
-}
-.tag-sheet-titles { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.tag-sheet-title { font: 600 17px/1.15 var(--font-sans); color: var(--ink-0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tag-sheet-sub { display: flex; align-items: center; gap: 6px; font: 500 13px/1.2 var(--font-sans); color: var(--ink-2); }
-.tag-sheet-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-.tag-sheet-thumb {
-  width: 44px; height: 44px; border-radius: 8px; flex: none; overflow: hidden;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--bg-3); color: var(--ink-2);
-}
-.tag-sheet-thumb.has-pic > * { width: 100%; height: 100%; }
-.tag-sheet-chip { font-size: 11px; padding: 2px 8px; max-width: 160px; }
-.tag-sheet-actions { display: flex; flex-direction: column; padding: 6px 0; }
-.tag-sheet-act {
-  appearance: none; border: 0; background: transparent;
-  width: 100%; min-height: 52px; padding: 0 20px;
-  display: flex; align-items: center; gap: 14px;
-  color: var(--ink-0); font: 500 16px/1.2 var(--font-sans); text-align: left;
-  cursor: pointer;
-}
-.tag-sheet-act:active { background: var(--bg-hov); }
-.tag-sheet-icon { color: var(--ink-1); flex: none; }
-.tag-sheet-act.is-danger, .tag-sheet-act.is-danger .tag-sheet-icon { color: var(--danger); }
-.tag-sheet-label { flex: 1; min-width: 0; }
-.tag-sheet-value { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 14px; }
-.tag-sheet-swatch { width: 16px; height: 16px; border-radius: 50%; }
-.tag-sheet-rule { height: 1px; background: var(--line-1); margin: 6px 20px; }
-.tag-sheet-foot { padding: 6px 16px 0; }
-.tag-sheet-cancel {
-  appearance: none; border: 0; width: 100%; height: 48px; border-radius: 12px;
-  background: var(--bg-3); color: var(--ink-0); font: 600 15px/1 var(--font-sans);
-  cursor: pointer;
-}
-/* A long press on a tag page item opens its sheet, not the browser's callout. */
+/* A long press on a tag page item opens its menu, not the browser's callout. */
 .tag-detail-body [data-tag-item] { -webkit-touch-callout: none; }
 /* The row's ⋯: always there under a finger, on hover or focus otherwise. */
 .sb-tag-row-more {
@@ -12999,6 +13009,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .doc-tree-row:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-tree-row:focus-visible { outline: none; background: var(--soleil-soft); color: var(--ink-0); }
 .doc-tree-row.is-active {
   background: var(--soleil-soft);
   color: var(--ink-0);
@@ -15082,51 +15093,59 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 /* Doc editor right-click context menu */
 .doc-ctx {
   z-index: 2147483640;
-  width: 220px;
-  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid var(--line-2);
+  width: 232px;
+  background: var(--menu-bg);
+  -webkit-backdrop-filter: var(--menu-blur);
+  backdrop-filter: var(--menu-blur);
+  border: 0;
   border-radius: 10px;
-  box-shadow: var(--shadow-3);
-  padding: 5px;
-  font-family: var(--font-sans);
-  font-size: 12.5px;
+  box-shadow: inset 0 0 0 1px var(--menu-line), var(--menu-lift);
+  padding: 4px;
+  font: 400 13px/1.35 var(--font-sans);
   display: flex; flex-direction: column;
-  /* Match the app-wide menu motion (.ctx-menu) — a 200ms settle, not a snap. */
-  animation: ctx-menu-in var(--dur-base) var(--ease);
+  /* Match the app-wide menu motion (.ctx-menu). */
+  animation: ctx-menu-pop var(--dur-fast) var(--ease);
   transform-origin: top left;
 }
 .doc-ctx-item {
   appearance: none; border: 0; background: transparent;
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 9px;
-  border-radius: 5px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 6px;
   color: var(--ink-1);
   cursor: pointer;
   text-align: left;
-  font: inherit; font-size: 12.5px;
+  font: inherit;
   transition: background-color var(--dur-fast) var(--ease);
 }
-.doc-ctx-item:hover { background: var(--bg-hov); color: var(--ink-0); }
+.doc-ctx-item:hover { background: var(--menu-hover); color: var(--ink-0); }
+.doc-ctx-item:focus-visible { outline: none; background: var(--soleil-soft); color: var(--ink-0); }
+/* A mark that is on in the selection: the one gold the menu shows at rest. */
 .doc-ctx-item.is-active { background: var(--soleil-soft); color: var(--ink-0); }
-.doc-ctx-item.danger { color: var(--ink-error); }
+.doc-ctx-item.danger, .doc-ctx-item.danger .doc-ctx-icon { color: var(--ink-error); }
 .doc-ctx-icon {
-  width: 18px; height: 18px;
+  width: 16px; height: 16px;
   display: grid; place-items: center;
   color: var(--ink-2);
   flex-shrink: 0;
 }
 .doc-ctx-item.is-active .doc-ctx-icon,
 .doc-ctx-item:hover .doc-ctx-icon { color: var(--ink-0); }
-.doc-ctx-label { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-ctx-label { flex: 1 1 auto; white-space: normal; overflow-wrap: anywhere; }
 .doc-ctx-kbd {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-3);
-  letter-spacing: .04em;
+  flex-shrink: 0;
 }
 .doc-ctx-sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+@media (hover: none) and (pointer: coarse) {
+  .doc-ctx { width: 260px; }
+  .doc-ctx-item { min-height: 44px; font-size: 15px; }
+  .doc-ctx-icon { width: 20px; height: 20px; }
+  .doc-ctx-kbd { display: none; }
+}
 
 /* ─── Custom-fonts modal ─── */
 .cfont-back {
@@ -15818,7 +15837,8 @@ body[data-doc-overlay='1'] .sheet-root.msg-sheet { z-index: 2147483604; }
    stacking context and the numbers compare directly. */
 body[data-doc-overlay='1'] .msg-panel { z-index: 2147483602; }
 body[data-doc-overlay='1'] .msg-newconv-pop,
-body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
+/* The shared menu (a conversation row's, over the panel) rides above it too. */
+body[data-doc-overlay='1'] .ctx-menu { z-index: 2147483603; }
 
 .msg-panel-head {
   display: flex; align-items: center; gap: 8px;
@@ -16595,31 +16615,6 @@ button.msg-panel-name:hover { color: var(--ink-0); }
 .msg-newconv-btn.primary:hover { background: var(--soleil); filter: brightness(1.08); }
 .msg-newconv-btn:disabled { opacity: 0.5; cursor: default; }
 
-/* ── Group chat dropdown menu ─────────────────────────────────── */
-.msg-group-menu {
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.24);
-  padding: 4px;
-  z-index: 80;
-  min-width: 160px;
-  display: flex; flex-direction: column;
-}
-.msg-group-menu-item {
-  display: flex; align-items: center; gap: 8px;
-  background: transparent; border: 0;
-  color: var(--ink-1);
-  font: 500 12px/1.2 var(--font-sans);
-  padding: 7px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-}
-.msg-group-menu-item:hover { background: var(--bg-hov); color: var(--ink-0); }
-.msg-group-menu-item:disabled { opacity: 0.4; cursor: default; }
-.msg-group-menu-item.is-danger { color: #d04848; }
-.msg-group-menu-item.is-danger:hover { background: rgba(208,72,72,.10); }
 .msg-bubble-attachments { display: flex; flex-direction: column; gap: 6px; }
 .msg-attachment {
   border: 1px solid var(--line-2);
@@ -17233,30 +17228,6 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   white-space: nowrap;
   max-width: 160px;
   overflow: hidden; text-overflow: ellipsis;
-}
-.doc-page-tag-menu {
-  background: var(--bg-1);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
-  padding: 4px;
-  min-width: 140px;
-}
-.doc-page-tag-menu-item {
-  appearance: none;
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 4px;
-  color: var(--ink-0);
-  font: 500 12.5px/1.2 var(--font-sans);
-  cursor: pointer;
-}
-.doc-page-tag-menu-item:hover {
-  background: var(--bg-0);
 }
 
 .ent-pop-tag-feature {
@@ -19458,7 +19429,6 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .ctx-submenu,
 .cp-pop,
 .ws-menu,
-.ws-menu-row-pop,
 .ws-menu-section,
 .cnv-add-menu,
 .topbar-add-menu,
@@ -19470,7 +19440,6 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .settings-modal,
 .home-graph-drawer,
 .home-graph-hud,
-.tag-detail-menu,
 .tag-detail-head,
 .tag-detail-block-attr,
 .tag-detail-block-open,
@@ -19478,7 +19447,6 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .tag-picker,
 .surface-card,
 .sb-tags-suggestions,
-.sb-tag-menu,
 .sb-tag-suggest-list,
 .merge-picker,
 .ws-presence-audit,
@@ -19519,7 +19487,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
    ::after pseudo, so the grain still anchors correctly. */
 .cnv-tools, .cnv-zoom, .cnv-hint, .cnv-add-menu, .topbar-add-menu,
 .inbox, .tob, .doc-find, .tt-img-tb,
-.ws-menu, .ws-menu-row-pop,
+.ws-menu,
 .home-graph-drawer, .home-graph-hud, .public-card,
 .rb-swatch-pop, .folder-tab,
 .msg-panel { position: absolute; }
@@ -19565,13 +19533,13 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .doc-find::after, .doc-link-picker::after,
 .doc-outline::after, .note-toolbar::after, .tt-img-tb::after,
 .sketchpad-toolbar::after, .sketchpad-frame::after, .ctx-menu::after,
-.ctx-submenu::after, .cp-pop::after, .ws-menu::after, .ws-menu-row-pop::after,
+.ctx-submenu::after, .cp-pop::after, .ws-menu::after,
 .ws-menu-section::after, .cnv-add-menu::after, .topbar-add-menu::after,
 .entity-picker::after, .entity-hover-popover::after, .link-popover::after,
 .link-hover-card::after, .account-modal::after, .settings-modal::after,
-.home-graph-drawer::after, .home-graph-hud::after, .tag-detail-menu::after,
+.home-graph-drawer::after, .home-graph-hud::after,
 .tag-detail-head::after, .tag-picker::after, .sb-tags-suggestions::after,
-.sb-tag-menu::after, .sb-tag-suggest-list::after, .merge-picker::after,
+.sb-tag-suggest-list::after, .merge-picker::after,
 .ws-presence-audit::after, .picker::after, .public-card::after,
 .rb-swatch-pop::after, .list-selbar::after, .split-bar::after, .toast::after,
 .emoji-palette::after, .msg-composer::after, .msg-pinned-strip::after,

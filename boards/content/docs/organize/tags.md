@@ -31,14 +31,14 @@ everything that does not fit a hierarchy.
   picker suggests as you type, and `Enter` creates a tag that does not exist
   yet.
 - **Several cards at once** — select them and press **Tag** in the selection
-  bar (or right-click one and choose **Tag … cards…**). Each tag shows how many
+  bar (or right-click one and choose **Tag…**). Each tag shows how many
   of the selected cards carry it (✓ all, – some); clicking puts it on all of
   them, or takes it off all of them when they all have it. Dropping a tag from
   the sidebar onto a selected card tags the whole selection.
 - A **[group](/docs/canvas/groups)**, as a unit — right-click its label and
   choose **Tag group…**.
 - A whole **[cluster](/docs/clusters)** — right-click an empty part of it and
-  choose **Tag this cluster…**, or drag a tag from the sidebar onto it.
+  choose **Tag cluster…**, or drag a tag from the sidebar onto it.
 - A **passage of text** — in a [document](/docs/documents/comments-and-tags),
   select the words, right-click and choose **Tag selection…**; a name the app
   has noticed can also become a tag right where it appears.
@@ -58,7 +58,7 @@ tagged group counts.
 ## The tag page
 
 Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's
-right-click menu (**Open tag page**), or from its hover card, and you get
+right-click menu (**Open tag**), or from its hover card, and you get
 everything carrying it, from anywhere in the workspace — clusters, then
 groups, then cards — and the document pages it is on. A tagged group or
 cluster shows what is inside it. Its header counts both: "12 tagged · 40

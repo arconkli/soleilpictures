@@ -1237,7 +1237,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — an Add menu grouped into Cards, Visual, Web and Annotate, plus paste, select all, background colour and export."
+      "v": " — quick buttons for note, picture, cluster, doc and link, an Add › menu, plus paste, select all, background and export."
      }
     ]
    ]
@@ -2364,6 +2364,28 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "⇧F10"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "On the canvas, open the selection's menu, or the canvas menu at the centre of the screen when nothing is selected (not on public links)"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "↑"
       },
       {
@@ -2386,19 +2408,31 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "Home"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "End"
+      },
+      {
+       "t": "text",
+       "v": " jump to the first and last row, and typing jumps to a row"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "→"
       },
       {
        "t": "text",
-       "v": " opens a submenu and "
-      },
-      {
-       "t": "code",
-       "v": "←"
-      },
-      {
-       "t": "text",
-       "v": " closes it, "
+       "v": " or "
       },
       {
        "t": "code",
@@ -2406,10 +2440,111 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " chooses"
+       "v": " in a right-click menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open a submenu — "
+      },
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " goes back"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Space"
+      },
+      {
+       "t": "text",
+       "v": " in a right-click menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Choose the row"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " on a row of icon buttons"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move along the row"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      },
+      {
+       "t": "text",
+       "v": " in a right-click menu"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Step back out of a submenu, then close the menu — "
+      },
+      {
+       "t": "code",
+       "v": "Tab"
+      },
+      {
+       "t": "text",
+       "v": " closes it too"
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Every menu row that has a keyboard shortcut shows it."
+    }
    ]
   },
   {
@@ -7985,7 +8120,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Add (Cards / Visual / Web / Annotate), Paste, Select all, Background colour, Reset zoom, Export to PNG or PDF, and Clear all drawings."
+     "v": " a row of buttons on top that add a note, a picture, a cluster, a doc or a link; then Add › (everything else you can add), Paste here, Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy link, Tag cluster…, Cluster info, and Clear all drawings when there are drawings. "
+    },
+    {
+     "t": "code",
+     "v": "⌘0"
+    },
+    {
+     "t": "text",
+     "v": " still resets the zoom."
     }
    ]
   },
@@ -8004,7 +8147,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " everything specific to that card kind, plus the universal operations — duplicate, delete, layer order, tag, comment, copy link, and "
+     "v": " a row of icon buttons on top — Cut, Copy, Duplicate, Delete — then everything specific to that card kind, plus the universal operations — layer order, tag, comment, copy link, and "
     },
     {
      "t": "strong",
@@ -8044,7 +8187,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " rename, outline shape and colour, add to group, ungroup, group comment, group tag."
+     "v": " Rename group…, Add comment, Tag group…, Outline, Label, Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup."
     }
    ]
   },
@@ -8257,11 +8400,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "New cluster from N cards",
+     "v": "New cluster from these",
      "children": [
       {
        "t": "text",
-       "v": "New cluster from N cards"
+       "v": "New cluster from these"
       }
      ]
     },
@@ -8271,11 +8414,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Move N cards to…",
+     "v": "Move to cluster",
      "children": [
       {
        "t": "text",
-       "v": "Move N cards to…"
+       "v": "Move to cluster"
       }
      ]
     },
@@ -8424,11 +8567,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Background colour",
+     "v": "Background",
      "children": [
       {
        "t": "text",
-       "v": "Background colour"
+       "v": "Background"
       }
      ]
     },
@@ -9266,7 +9409,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " send backward and forward. Also in the right-click menu."
+     "v": " send backward and forward. Also in the right-click menu, under "
+    },
+    {
+     "t": "strong",
+     "v": "Arrange ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "Arrange ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -9401,11 +9558,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Move to cluster…",
+     "v": "Move to cluster",
      "children": [
       {
        "t": "text",
-       "v": "Move to cluster…"
+       "v": "Move to cluster"
       }
      ]
     },
@@ -9506,7 +9663,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — right-click → comment, which puts a pin at the corner of that card. See "
+     "v": " — right-click → "
+    },
+    {
+     "t": "strong",
+     "v": "Add comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which puts a pin at the corner of that card. See "
     },
     {
      "t": "link",
@@ -9623,7 +9794,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or select it and press "
+     "v": " ("
+    },
+    {
+     "t": "strong",
+     "v": "Cluster info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cluster info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a cluster card, "
+    },
+    {
+     "t": "strong",
+     "v": "Group info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Group info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a group), or select it and press "
     },
     {
      "t": "code",
@@ -9836,17 +10035,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Remove from board",
+     "v": "Move to cluster ›",
      "children": [
       {
        "t": "text",
-       "v": "Remove from board"
+       "v": "Move to cluster ›"
       }
      ]
     },
     {
      "t": "text",
-     "v": " to take it off the canvas without deleting it. It stays in the cluster, waiting in "
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Keep in Files only",
+     "children": [
+      {
+       "t": "text",
+       "v": "Keep in Files only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", to take it off the canvas without deleting it. It stays in the cluster, waiting in "
     },
     {
      "t": "link",
@@ -10959,11 +11172,25 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Upload custom thumbnail",
+     "v": "Color and cover ›",
      "children": [
       {
        "t": "text",
-       "v": "Upload custom thumbnail"
+       "v": "Color and cover ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " → "
+    },
+    {
+     "t": "strong",
+     "v": "Upload custom thumbnail…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload custom thumbnail…"
       }
      ]
     },
@@ -11637,7 +11864,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A note's background and text colour are set from the toolbar or the right-click menu. Text colour is always resolved for readability, so a note stays legible if someone switches between light and dark "
+     "v": "A note's background and text colour are set from the toolbar. Text colour is always resolved for readability, so a note stays legible if someone switches between light and dark "
     },
     {
      "t": "link",
@@ -14356,6 +14583,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
+     "v": "Templates ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "Templates ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
      "v": "Share layout",
      "children": [
       {
@@ -15150,7 +15391,21 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Cover colour"
+       "v": "Cover colour ("
+      },
+      {
+       "t": "strong",
+       "v": "Color and cover",
+       "children": [
+        {
+         "t": "text",
+         "v": "Color and cover"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " in the cluster's menu)"
       }
      ]
     ],
@@ -15419,11 +15674,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Arrange",
+     "v": "Align ›",
      "children": [
       {
        "t": "text",
-       "v": "Arrange"
+       "v": "Align ›"
       }
      ]
     },
@@ -15467,7 +15722,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — Horizontally or Vertically. The two outermost cards stay put and the ones between them are spread so the "
+     "v": " (inside "
+    },
+    {
+     "t": "strong",
+     "v": "Align ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "Align ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", for three or more cards) — Horizontally or Vertically. The two outermost cards stay put and the ones between them are spread so the "
     },
     {
      "t": "strong",
@@ -15502,11 +15771,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Arrange → Tidy up",
+     "v": "Tidy up ›",
      "children": [
       {
        "t": "text",
-       "v": "Arrange → Tidy up"
+       "v": "Tidy up ›"
       }
      ]
     },
@@ -17567,21 +17836,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the right-click menu does the same with a file picker — for images it's under "
+     "v": " in the right-click menu does the same with a file picker — on the canvas it's under "
     },
     {
      "t": "strong",
-     "v": "Edit",
+     "v": "Edit ›",
      "children": [
       {
        "t": "text",
-       "v": "Edit"
+       "v": "Edit ›"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". Images, videos, audio, PDFs and other files all take versions; the new one has to be the same kind as the old."
+     "v": ", and in Files it is a top-level row. Images, videos, audio, PDFs and other files all take versions; the new one has to be the same kind as the old."
     }
    ]
   },
@@ -17734,6 +18003,43 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each version's row in the list also has its own menu, with "
+    },
+    {
+     "t": "strong",
+     "v": "Look at it",
+     "children": [
+      {
+       "t": "text",
+       "v": "Look at it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Rename label…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Rename label…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
    ]
   },
   {
@@ -19264,21 +19570,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Right-click a video card for "
+     "v": "Right-click a video card, then "
     },
     {
      "t": "strong",
-     "v": "Autoplay (muted)",
+     "v": "Edit ›",
      "children": [
       {
        "t": "text",
-       "v": "Autoplay (muted)"
+       "v": "Edit ›"
       }
      ]
     },
     {
      "t": "text",
-     "v": " and "
+     "v": ", for "
+    },
+    {
+     "t": "strong",
+     "v": "Autoplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "Autoplay"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (its hint says \"Plays muted\") and "
     },
     {
      "t": "strong",
@@ -19384,7 +19704,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": the frame it shows when the board starts. Right-click an autoplaying clip and choose "
+     "v": ": the frame it shows when the board starts. Right-click an autoplaying clip, open "
+    },
+    {
+     "t": "strong",
+     "v": "Edit ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "Edit ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and choose "
     },
     {
      "t": "strong",
@@ -19428,7 +19762,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A looping clip still plays the whole clip, just shifted; one that plays once begins at its start point. The start point is saved on the card, so everyone sees the same alignment, and "
+     "v": ". A looping clip still plays the whole clip, just shifted; one that plays once begins at its start point. These rows show only with "
+    },
+    {
+     "t": "strong",
+     "v": "Autoplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "Autoplay"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on. The start point is saved on the card, so everyone sees the same alignment, and "
     },
     {
      "t": "strong",
@@ -19815,21 +20163,63 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "WAV and AIFF have no standard way to carry a picture, so a loop exported to either will not have one. Right-click any audio card for "
+     "v": "WAV and AIFF have no standard way to carry a picture, so a loop exported to either will not have one. Right-click any audio card, open "
     },
     {
      "t": "strong",
-     "v": "Set cover image",
+     "v": "Edit ›",
      "children": [
       {
        "t": "text",
-       "v": "Set cover image"
+       "v": "Edit ›"
       }
      ]
     },
     {
      "t": "text",
-     "v": " to add one by hand; a cover you set that way is never overwritten."
+     "v": " and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Cover image…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cover image…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "strong",
+     "v": "Replace cover image…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Replace cover image…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove cover image",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove cover image"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " once it has one) to add one by hand; a cover you set that way is never overwritten."
     }
    ]
   },
@@ -21383,11 +21773,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "New cluster from N cards",
+      "v": "New cluster from these",
       "children": [
        {
         "t": "text",
-        "v": "New cluster from N cards"
+        "v": "New cluster from these"
        }
       ]
      }
@@ -21399,11 +21789,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Move to cluster…",
+      "v": "Move to cluster ›",
       "children": [
        {
         "t": "text",
-        "v": "Move to cluster…"
+        "v": "Move to cluster ›"
        }
       ]
      },
@@ -21570,17 +21960,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Move to cluster…",
+     "v": "Move to…",
      "children": [
       {
        "t": "text",
-       "v": "Move to cluster…"
+       "v": "Move to…"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". Moves are cycle-safe — dragging a cluster into one of its own descendants is refused rather than creating a loop. Cards move the same way — see "
+     "v": " (on its card on a canvas, the row is "
+    },
+    {
+     "t": "strong",
+     "v": "Move to cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Moves are cycle-safe — dragging a cluster into one of its own descendants is refused rather than creating a loop. Cards move the same way — see "
     },
     {
      "t": "link",
@@ -21804,7 +22208,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "To override it, right-click the cluster:"
+     "v": "To override it, right-click the cluster and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Color and cover ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "Color and cover ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ":"
     }
    ]
   },
@@ -21815,27 +22233,43 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Cover colour",
+      "v": "Neutral, Warm, Cool, Sun, Dusk, Sand and Sea",
       "children": [
        {
         "t": "text",
-        "v": "Cover colour"
+        "v": "Neutral, Warm, Cool, Sun, Dusk, Sand and Sea"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — a flat colour instead of a render"
+      "v": " — a flat tint instead of a render"
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Upload custom thumbnail",
+      "v": "Custom…",
       "children": [
        {
         "t": "text",
-        "v": "Upload custom thumbnail"
+        "v": "Custom…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a colour of your own"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Upload custom thumbnail…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Upload custom thumbnail…"
        }
       ]
      },
@@ -22384,7 +22818,119 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu, which adds "
+      "v": " below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu: "
+     },
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Send to…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send to…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Share…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Share…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "; "
+     },
+     {
+      "t": "strong",
+      "v": "Rename…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Rename…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "New cluster inside",
+      "children": [
+       {
+        "t": "text",
+        "v": "New cluster inside"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Move to…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move to…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Color and cover ›",
+      "children": [
+       {
+        "t": "text",
+        "v": "Color and cover ›"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "; "
      },
      {
       "t": "strong",
@@ -22398,7 +22944,77 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " and, if you can edit it, "
+      "v": " (or "
+     },
+     {
+      "t": "strong",
+      "v": "Unstar",
+      "children": [
+       {
+        "t": "text",
+        "v": "Unstar"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), "
+     },
+     {
+      "t": "strong",
+      "v": "Info",
+      "children": [
+       {
+        "t": "text",
+        "v": "Info"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "More ›",
+      "children": [
+       {
+        "t": "text",
+        "v": "More ›"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " ("
+     },
+     {
+      "t": "strong",
+      "v": "Copy",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Paste into this cluster",
+      "children": [
+       {
+        "t": "text",
+        "v": "Paste into this cluster"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
      },
      {
       "t": "strong",
@@ -22412,7 +23028,35 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " to the "
+      "v": "); and "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (or "
+     },
+     {
+      "t": "strong",
+      "v": "Remove from my list",
+      "children": [
+       {
+        "t": "text",
+        "v": "Remove from my list"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for a cluster shared with you). See the "
      },
      {
       "t": "link",
@@ -22557,6 +23201,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Send to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send to…"
       }
      ]
     },
@@ -23251,7 +23909,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", for its menu: Quick look, Show on board (or Show in Files), Put on board, Star, Download, Share file…, Move to…, Copy to… and Delete. Delete has an undo."
+      "v": ", for its menu: Quick look, Show on board (or Show in Files), Put on board, Send to…, Copy link, Share file…, Download, Move to…, Copy to…, Star, Info and Delete. Delete has an undo."
      }
     ]
    ]
@@ -23465,6 +24123,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
+     "v": "More ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "More ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
      "v": "Always open in Files",
      "children": [
       {
@@ -23475,7 +24147,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " from its menu in the sidebar."
+     "v": ", from its menu in the sidebar."
     }
    ]
   },
@@ -24237,6 +24909,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
+     "v": "More ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "More ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
      "v": "Always open in Files",
      "children": [
       {
@@ -24247,21 +24933,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " from its menu in the sidebar (if you can edit it); the same menu turns it back with "
-    },
-    {
-     "t": "strong",
-     "v": "Open on the board by default",
-     "children": [
-      {
-       "t": "text",
-       "v": "Open on the board by default"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". Visitors on those links get this same page, read-only: the search, "
+     "v": ", from its menu (if you can edit it; it is a tick, offered in the sidebar tree and on folders in Files, not on Home); untick it to turn it back. Visitors on those links get this same page, read-only: the search, "
     },
     {
      "t": "strong",
@@ -24393,11 +25065,25 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Remove from board",
+     "v": "Move to cluster ›",
      "children": [
       {
        "t": "text",
-       "v": "Remove from board"
+       "v": "Move to cluster ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Keep in Files only",
+     "children": [
+      {
+       "t": "text",
+       "v": "Keep in Files only"
       }
      ]
     },
@@ -25634,7 +26320,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Copy to…, Get info and Delete — or press "
+     "v": " a file, a folder or a selection for everything you can do with it, or press "
     },
     {
      "t": "code",
@@ -25642,7 +26328,58 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to open the same menu from the keyboard."
+     "v": " to open the same menu from the keyboard. A file's menu runs in this order: Quick look, Open in player, Show on board (or Put on board); Send to…, Copy link, Share file… (Share doc… for a doc), Download; Rename, Upload new version…, Move to…, Copy to…; Info, Linked from N places, Delete. A row that doesn't apply to the file is left out. With several files selected the menu's title is the count, and it holds Put on board, Send to…, Download, Move to…, Copy to…, Info and Delete."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click empty space in Files for a menu with "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Upload files…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Upload files…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Select all",
+     "children": [
+      {
+       "t": "text",
+       "v": "Select all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It is right-click only."
     }
    ]
   },
@@ -26385,17 +27122,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Get info",
+     "v": "Info",
      "children": [
       {
        "t": "text",
-       "v": "Get info"
+       "v": "Info"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in the right-click menu, or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same "
+     "v": " in the right-click menu (it reads "
+    },
+    {
+     "t": "strong",
+     "v": "Hide info",
+     "children": [
+      {
+       "t": "text",
+       "v": "Hide info"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " while the panel is open), or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same "
     },
     {
      "t": "link",
@@ -32371,6 +33122,51 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "A tag chip in a document has its own menu, with "
+    },
+    {
+     "t": "strong",
+     "v": "Open tag",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open tag"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove tag",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove tag"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "⇧F10"
+    },
+    {
+     "t": "text",
+     "v": " opens it from the keyboard."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it."
     }
    ]
@@ -32690,11 +33486,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Tag … cards…",
+      "v": "Tag…",
       "children": [
        {
         "t": "text",
-        "v": "Tag … cards…"
+        "v": "Tag…"
        }
       ]
      },
@@ -32772,11 +33568,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Tag this cluster…",
+      "v": "Tag cluster…",
       "children": [
        {
         "t": "text",
-        "v": "Tag this cluster…"
+        "v": "Tag cluster…"
        }
       ]
      },
@@ -32909,11 +33705,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Open tag page",
+     "v": "Open tag",
      "children": [
       {
        "t": "text",
-       "v": "Open tag page"
+       "v": "Open tag"
       }
      ]
     },
@@ -39838,6 +40634,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
+       "v": "Send to…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Send to…"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Sends the cluster to someone in Messages — clusters only"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
        "v": "Copy link",
        "children": [
         {
@@ -39977,6 +40793,20 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
+     "v": "Send to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
      "v": "Manage sharing…",
      "children": [
       {
@@ -40005,11 +40835,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Manage sharing…",
+     "v": "Share file…",
      "children": [
       {
        "t": "text",
-       "v": "Manage sharing…"
+       "v": "Share file…"
       }
      ]
     },
@@ -41234,6 +42064,92 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Right-click a pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "Right-click a pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for its own menu: "
+     },
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Resolve",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolve"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " (or "
+     },
+     {
+      "t": "strong",
+      "v": "Reopen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reopen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), "
+     },
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Drag a pin that sits on a point",
       "children": [
        {
@@ -41907,21 +42823,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A note with comments has "
+     "v": "A note with comments has a row in its right-click menu that reads like "
     },
     {
      "t": "strong",
-     "v": "Comments",
+     "v": "3 comments",
      "children": [
       {
        "t": "text",
-       "v": "Comments"
+       "v": "3 comments"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in its right-click menu, with a number: it lists the note's conversations, "
+     "v": ": it lists the note's conversations, "
     },
     {
      "t": "strong",
@@ -42770,21 +43686,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to send it to people in Messages. It's on any card on the canvas, on several selected cards at once ("
-    },
-    {
-     "t": "strong",
-     "v": "Send 3 cards to…",
-     "children": [
-      {
-       "t": "text",
-       "v": "Send 3 cards to…"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", up to 50), on a cluster's card, and on a cluster in the sidebar. On a phone or tablet, use a card's "
+     "v": " to send it to people in Messages. It's on any card on the canvas, on several selected cards at once (up to 50; the menu's title shows how many), on a cluster's card, and on a cluster in the sidebar. On a phone or tablet, use a card's "
     },
     {
      "t": "strong",
@@ -51807,7 +52709,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "On a phone, a row with a "
+     "v": "On a phone the menu is a sheet from the bottom. What you held is shown at its top, and a row of tiles holds the quick actions. A row with a "
     },
     {
      "t": "strong",
@@ -51905,7 +52807,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ") steps into the menu itself instead of opening beside it. The back row at its top goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls."
+     "v": ") steps into the menu itself instead of opening beside it. Inside a submenu a "
+    },
+    {
+     "t": "strong",
+     "v": "Back",
+     "children": [
+      {
+       "t": "text",
+       "v": "Back"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " row goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls."
     }
    ]
   },

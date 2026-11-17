@@ -65,7 +65,12 @@ test('the row opens a menu instead of leaving on a bare right-click, with confir
   const panel = read('../components/MessagesPanel.jsx');
   assert.doesNotMatch(panel, /onContextMenu=\{\(e\) => \{ e\.preventDefault\(\); onHide\(\); \}\}/);
   assert.match(panel, /onMenu\(x, y\)/);
-  assert.match(panel, /function ConversationRowMenu/);
+  // The menu is the app's one menu: Hide for a DM, Leave… (danger) for a group,
+  // both through handleHideRow (the confirm and the undo below).
+  assert.match(panel, /<CardContextMenu\s+open=\{!!rowMenu\}/);
+  assert.match(panel, /\? \[\{ id: 'hide', label: t`Hide conversation`, icon: 'EyeSlash', run: \(\) => handleHideRow\(rowMenu\.convId\) \}\]/);
+  assert.match(panel, /: \[\{ id: 'leave', label: t`Leave…`, icon: 'SignOut', danger: true, run: \(\) => handleHideRow\(rowMenu\.convId\) \}\]/);
+  assert.match(panel, /onClose=\{\(\) => setRowMenu\(null\)\}/);
   assert.match(panel, /if \(isGroup\) \{\s*const ok = await feedback\.confirm\(/);
   assert.match(panel, /undoToast\(feedback, \{[\s\S]*?rejoinConversation\(/);
   // Leaving from the thread's ⋯ menu gets the same Undo.

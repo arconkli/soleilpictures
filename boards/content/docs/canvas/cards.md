@@ -66,7 +66,7 @@ Every file in a cluster is listed in the sidebar's Files, on the board or not.
 ignore [snapping](/docs/canvas/snapping-and-alignment).
 
 **Layer order** — `[` and `]` send backward and forward. Also in the right-click
-menu.
+menu, under **Arrange ›**.
 
 **Duplicate** — `⌘D`.
 
@@ -78,7 +78,7 @@ the paste on the board it landed on.
 
 **Move to another cluster** — drag cards onto a cluster card, or onto a
 cluster's name in the [sidebar](/docs/clusters/sidebar#moving-and-copying-files)
-to put them in its Files, off its board, or right-click → **Move to cluster…** to
+to put them in its Files, off its board, or right-click → **Move to cluster** to
 send them to any cluster in the workspace, including one that isn't on this
 canvas. A move is one action: its toast undoes both sides at
 once. Moving cards doesn't change how many you have.
@@ -87,7 +87,7 @@ once. Moving cards doesn't change how many you have.
 
 **Tag** — right-click → tag. See [Tags](/docs/organize/tags).
 
-**Comment** — right-click → comment, which puts a pin at the corner of that card. See
+**Comment** — right-click → **Add comment**, which puts a pin at the corner of that card. See
 [Comments](/docs/collaborate/comments).
 
 **Copy link** — a deep link that opens the board with that card selected. Useful
@@ -103,7 +103,7 @@ corner to resize it; see
 ## Info
 
 Right-click anything — a card, several cards, a group, the empty board, a
-cluster in the sidebar or a folder in Files — and choose **Info**, or select it
+cluster in the sidebar or a folder in Files — and choose **Info** (**Cluster info** on a cluster card, **Group info** on a group), or select it
 and press `⌘I`. A panel opens at the right with what it is and where it came
 from:
 
@@ -125,7 +125,7 @@ dates but never names; a shared board itself has no right-click menu.
 ## Removing a card from the board
 
 Right-click a file — an image, video, audio clip, PDF, file, link, palette or
-note — and choose **Remove from board** to take it off the canvas without
+note — and choose **Move to cluster ›**, then **Keep in Files only**, to take it off the canvas without
 deleting it. It stays in the cluster, waiting in
 [Files](/docs/clusters/list-view) with a **Not on board** mark, until you drag
 it back onto the board or choose **Put on board** there. The toast that follows

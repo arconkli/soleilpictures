@@ -7,7 +7,7 @@
 //
 // ?mixqa=3 seeds a bare Studio holding three images (mixqa-0..2) and no other
 // cluster — the pile this feature exists for. The move itself is the one
-// "Move to cluster…" runs (move-to-cluster.spec.js); the local harness mirrors
+// "Move to cluster ›" runs (move-to-cluster.spec.js); the local harness mirrors
 // App.jsx's listener, so the undo that trashes the new cluster is checked on
 // the preview deploy.
 import { expect, test } from '@playwright/test';
@@ -16,6 +16,17 @@ import { readFileSync } from 'node:fs';
 const read = (rel) => readFileSync(new URL(rel, new URL('../', import.meta.url)), 'utf8');
 
 const card = (page, id) => page.locator(`.card[data-card-id="${id}"]`);
+const menuRow = (page, name) => page.locator('.ctx-menu:not(.ctx-submenu)').getByRole('menuitem', { name, exact: true });
+// "Move to a new cluster…" is now "New cluster…" at the head of the card's
+// Move to cluster › (plan.md §3 Card: "Move to cluster › = Find a cluster ·
+// New cluster… · …"), and "New cluster from 2 cards" is "New cluster from
+// these", the count in the menu's title (plan.md §3 Several cards).
+async function newClusterInMove(page) {
+  await menuRow(page, 'Move to cluster').hover();
+  const sub = page.locator('.ctx-submenu');
+  await expect(sub).toBeVisible();
+  return sub.getByRole('menuitem', { name: 'New cluster…', exact: true });
+}
 const optIn = (page) => page.addInitScript(() => {
   try { window.localStorage.setItem('soleil.dev.clusterNudges', '1'); } catch (_) {}
 });
@@ -59,22 +70,23 @@ test.describe('cluster nudges', () => {
     await expect(page.locator('.tb-newcluster')).toBeVisible();
     await card(page, 'mixqa-0').click({ button: 'right' });
     await expect(page.locator('.ctx-menu')).toBeVisible();
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to a new cluster…' })).toBeVisible();
+    await expect(await newClusterInMove(page)).toBeVisible();
     await page.keyboard.press('Escape');
     await card(page, 'mixqa-0').click();
     await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
     await card(page, 'mixqa-1').click({ button: 'right' });
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: /^New cluster from 2 cards/ })).toBeVisible();
+    await expect(page.locator('.ctx-menu .ctx-title')).toHaveText('2 cards');
+    await expect(menuRow(page, 'New cluster from these')).toBeVisible();
     await page.keyboard.press('Escape');
   });
 
 
-  test('one card with nowhere to go: "Move to a new cluster…" makes the cluster it goes into', async ({ page }) => {
+  test('one card with nowhere to go: Move to cluster › "New cluster…" makes the cluster it goes into', async ({ page }) => {
     await optIn(page);
     await studio(page);
     await recordMoves(page);
     await card(page, 'mixqa-0').click({ button: 'right' });
-    await page.locator('.ctx-menu .ctx-item', { hasText: 'Move to a new cluster…' }).click();
+    await (await newClusterInMove(page)).click();
     await nameIt(page, 'Kitchen refs', { expectMessage: 'The card moves into it. Undo puts it back.' });
 
     await expect(card(page, 'mixqa-0')).toHaveCount(0);
@@ -86,15 +98,17 @@ test.describe('cluster nudges', () => {
     expect(moves[0].created).toBeTruthy();
   });
 
-  test('a selection: "New cluster from 2 cards" sits beside Group, and cancelling makes nothing', async ({ page }) => {
+  test('a selection: "New cluster from these" sits beside Group, and cancelling makes nothing', async ({ page }) => {
     await optIn(page);
     await studio(page);
     await recordMoves(page);
     await card(page, 'mixqa-0').click();
     await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
     await card(page, 'mixqa-1').click({ button: 'right' });
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Group (2)' })).toBeVisible();
-    const item = page.locator('.ctx-menu .ctx-item', { hasText: 'New cluster from 2 cards' });
+    // No "(N)" on the labels: the count is the menu's title (plan.md §3 Several cards).
+    await expect(page.locator('.ctx-menu .ctx-title')).toHaveText('2 cards');
+    await expect(menuRow(page, 'Group')).toBeVisible();
+    const item = menuRow(page, 'New cluster from these');
     await expect(item).toBeVisible();
 
     // Cancel first: no cluster, nothing moved.
@@ -109,7 +123,7 @@ test.describe('cluster nudges', () => {
     await card(page, 'mixqa-0').click();
     await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
     await card(page, 'mixqa-1').click({ button: 'right' });
-    await page.locator('.ctx-menu .ctx-item', { hasText: 'New cluster from 2 cards' }).click();
+    await menuRow(page, 'New cluster from these').click();
     await nameIt(page, 'Diner', { expectMessage: 'The 2 cards move into it. Undo puts them back.' });
     await expect(card(page, 'mixqa-0')).toHaveCount(0);
     await expect(card(page, 'mixqa-1')).toHaveCount(0);

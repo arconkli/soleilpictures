@@ -188,7 +188,13 @@ export const CEILINGS = {
   // old comment look left styles.css. What a cluster shows at rest is
   // components/comments/commentPins.css; the rest loads with the comment
   // parts. CI-style builds read 99,510 B on main 72ffb4e4 and 98,215 B with it.
-  entryCss: 98_300,
+  // 2026-11-17: +0.4 KB for the right-click menus (styles.css, .ctx-*): the
+  // row of icon buttons on top, an icon on every row, keys drawn as caps,
+  // submenus that step in, and the phone sheet's tiles, less the rules of the
+  // old tag, group and toolbar menus. CI-style builds read 98,215 B on main
+  // ae51f319 and 98,603 B with it; the ceiling moves by the difference, 388 B,
+  // rounded up.
+  entryCss: 98_700,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -517,7 +523,23 @@ export const CEILINGS = {
   // commentPartsLazy.jsx).
   // CI-style builds read 816,045 B on main 72ffb4e4 and 820,112 B with it;
   // the ceiling moves by the difference, 4,067 B, rounded up.
-  appJs: 820_400,
+  // 2026-11-17: +1.7 KB for main's own JS since then. Send to… (ae51f319) and
+  // the work before it landed without moving it; a CI-style build here read
+  // main ae51f319 at 822,027 B.
+  // 2026-11-17: +11.8 KB for the right-click menus: one menu for every card,
+  // cluster, file, tag, comment and the canvas, built from shared rows
+  // (lib/menus/: rows.js, cardMenu.js, canvasMenu.js, moveMenu.js,
+  // clusterMenu.js, fileMenu.js), with the menu's keys (lib/menuKeys.js), its
+  // place on screen (lib/ctxMenuFit.js), its parts (ctxMenuParts.jsx) and a
+  // cluster's Color and cover (ClusterCoverHost.jsx). The old canvas, sidebar
+  // and tag menus left (CanvasSurface.jsx, BackgroundContextMenu.jsx,
+  // SidebarBoardTree.jsx, SidebarTags.jsx, lib/contextMenuSections.js,
+  // hooks/useClampedMenuPosition.js), and the menus' icons load once the app
+  // is idle (lib/menuIconsLoad.js, the vendor-icons-menu chunk), which keeps
+  // about 31 KB of them out of it. CI-style builds read 822,027 B on main
+  // ae51f319 and 833,820 B with it; the ceiling moves by the difference,
+  // 11,793 B, rounded up.
+  appJs: 833_900,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
@@ -535,14 +557,17 @@ export const CEILINGS = {
   // and the switcher's Show all and wrapping New workspace (workspaceMenuFind.css).
   // The old section's rules left styles.css, so the entry CSS is 63 B smaller.
   // 24,397 B on main 40837d92, 24,507 B with it.
-  appCss: 24_600,
+  // 2026-11-17: +0.1 KB for the grid cell, film and Messages card menus in the
+  // menus' look (cards/gridCard.css, film/film.css, messagesCard.css).
+  // 24,520 B on main ae51f319, 24,608 B with it.
+  appCss: 24_700,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
 // chunk's file name prefix (the part before the content hash).
 // three.js has its own chunk (vite.config.js), so it is named on its own.
 export const NEVER_IN_APP = [
-  'vendor-graph3d', 'vendor-three', 'vendor-cosmograph', 'vendor-charts', 'vendor-icons-lazy',
+  'vendor-graph3d', 'vendor-three', 'vendor-cosmograph', 'vendor-charts', 'vendor-icons-lazy', 'vendor-icons-menu',
   'AdminPage', 'DocsPage', 'jspdf', 'html2canvas', 'pdf',
 ];
 
@@ -561,6 +586,8 @@ export const LAZY_IN_APP = [
   'passkeyOffer',
   // App.jsx: the activity tray, drawn once the app is up
   'ActivityTray',
+  // lib/menuIconsLoad.js: the menus' icons, fetched once the app is idle
+  'menuIcons',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
@@ -575,9 +602,6 @@ export const LAZY_IN_APP = [
   'NoteBarA', 'CanvasBarsA',
   // CanvasSurface.jsx: the selection's bar in the toolbar look
   'SelectionBarA',
-  // SidebarTags.jsx (and the lazy TagDetailView): a tag's or an item's actions
-  // under a finger
-  'TagActionSheet',
   // FloatingChrome.jsx: ⋯'s menu in the top islands in the toolbar look
   'ChromeMoreA',
   // DocSurface.jsx: the doc look's frame, its bars, side panel and footer

@@ -3,8 +3,8 @@
 // Sits between the Messages / shared-boards section and the BOARDS
 // tree. Collapsible — expanded state persisted per-workspace in
 // localStorage. Each row shows a color dot + name + workspace-wide
-// count. Right-click opens a small management menu (Rename / Recolor
-// / Delete). The `+` button opens an inline input for fast tag
+// count. Right-click, ⇧F10 or the row's ⋯ opens the shared menu
+// (Rename / Recolor / Merge / Type / Delete). The `+` button opens an inline input for fast tag
 // creation (use case: "I want to start tagging things with this
 // label" without leaving the canvas).
 //
@@ -12,9 +12,10 @@
 // (anywhere that listens to ENTITY_REF_MIME) applies the tag via the
 // existing entity-ref drop handlers.
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, Tag as TagIcon, MoreHorizontal } from '../lib/icons.js';
-import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { radioRows } from '../lib/menus/rows.js';
 import { Icon } from './Icon.jsx';
 import { ensureTag, renameTag, recolorTag, deleteTag, restoreTag, listTagCounts, mergeTags, undoTagMerge, setTagEntityType, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { undoToast } from '../lib/undoToast.js';
@@ -23,7 +24,6 @@ import { coalesce, touchesAppliedTag, isDuplicateTagName, findTagByName } from '
 import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useCandidateNames } from '../hooks/useCandidateNames.js';
-import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition.js';
 import { ENTITY_TYPES, entityTypeLabel, entityTypePluralLabel, guessEntityType } from '../lib/entityTypes.js';
 import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
@@ -72,15 +72,6 @@ function findSimilarTags(draft, existingTags, max = 4) {
   return out.slice(0, max).map(x => x.tag);
 }
 
-// A row's actions under a finger (TagActionSheet), loaded the first time one
-// opens: the sidebar loads with every page, phones alone need the sheet.
-const TagActionSheet = lazyWithReload(() => import('./TagActionSheet.jsx').then(m => ({ default: m.TagActionSheet })));
-
-// True under a finger (no hover): the sheet, not the pointer menu.
-function prefersSheet() {
-  try { return window.matchMedia('(hover: none)').matches; } catch (_) { return false; }
-}
-
 export function SidebarTags({
   workspaceId, userId,
   tags = [],
@@ -94,9 +85,7 @@ export function SidebarTags({
   const [draftName, setDraftName] = useState('');
   const [counts, setCounts] = useState(new Map());
   const [tagFilter, setTagFilter] = useState(''); // filter the main tag list when there are many
-  const [menuFor, setMenuFor] = useState(null);  // { tag, x, y }
-  const menuRef = useRef(null);
-  const menuPos = useClampedMenuPosition(menuRef, menuFor?.x, menuFor?.y);
+  const [menuFor, setMenuFor] = useState(null);  // { tag, x, y, byKey?, returnEl? }
   // Merge picker — { fromTag, query } when user picks "Merge into…"
   const [mergePicker, setMergePicker] = useState(null);
   // Color picker for recolor — { tag, x, y } when active.
@@ -193,24 +182,6 @@ export function SidebarTags({
     };
   }, [workspaceId]);
 
-  // Outside-click + Escape close the per-row menu.
-  useEffect(() => {
-    if (!menuFor) return;
-    const onDown = (e) => {
-      if (e.target.closest && e.target.closest('.sb-tag-menu')) return;
-      setMenuFor(null);
-    };
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setMenuFor(null); };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuFor]);
-
   const toggle = () => {
     setOpen(v => { const next = !v; saveExpanded(workspaceId, next); return next; });
   };
@@ -234,22 +205,38 @@ export function SidebarTags({
     }
   };
 
-  const onContextMenuRow = (e, tag) => {
+  const onContextMenuRow = (e, tag, extra) => {
     e.preventDefault();
     e.stopPropagation();
-    setMenuFor({ tag, x: e.clientX, y: e.clientY });
+    setMenuFor({ tag, x: e.clientX, y: e.clientY, ...extra });
   };
-  // The row's ⋯: the same actions, as a sheet under a finger (the owner's
-  // direction A) or as the menu under a pointer.
-  const [sheetFor, setSheetFor] = useState(null);     // tag
-  const [typeSheetFor, setTypeSheetFor] = useState(null); // tag
+  // The row's ⋯: the same menu (a sheet on a phone), under the button.
   const openRowActions = (e, tag) => {
     e.preventDefault();
     e.stopPropagation();
-    if (prefersSheet()) { setSheetFor(tag); return; }
     const r = e.currentTarget.getBoundingClientRect();
-    setMenuFor({ tag, x: r.left, y: r.bottom + 4 });
+    setMenuFor({ tag, x: r.left, y: r.bottom + 4, byKey: e.detail === 0, returnEl: e.currentTarget });
   };
+
+  // The row's menu. Type › picks one entity type; choosing the current one
+  // clears it (setType), as the old type strip did.
+  const tagMenuItems = (tag) => [
+    { id: 'rename', label: tr`Rename…`, icon: 'PencilSimple', run: () => promptRename(tag) },
+    { id: 'recolor', label: tr`Recolor…`, icon: 'Palette', run: () => promptRecolor(tag) },
+    { id: 'merge', label: tr`Merge into…`, icon: 'ArrowsMerge', run: () => startMerge(tag) },
+    {
+      id: 'type', label: tr`Type`, icon: 'Tag',
+      submenu: radioRows(ENTITY_TYPES.map(et => ({ id: et.value, label: et.label, icon: et.Icon })), tag.entity_type, (v) => setType(tag, v)),
+    },
+    { divider: true },
+    { id: 'delete', label: tr`Delete tag`, icon: 'Trash', danger: true, run: () => promptDelete(tag) },
+  ];
+  // The phone sheet's header: the tag's colour, name, type and count.
+  const tagMenuPreview = (tag) => ({
+    tint: resolveTagColor(tag),
+    name: tag.name,
+    kind: [entityTypeLabel(tag.entity_type), counts.get(tag.id) ? plural(counts.get(tag.id), { one: '# thing', other: '# things' }) : null].filter(Boolean).join(' · ') || undefined,
+  });
 
   const promptRename = async (tag) => {
     setMenuFor(null);
@@ -334,6 +321,7 @@ export function SidebarTags({
   // The merge itself, shared by the Merge picker and by a rename that
   // collides with an existing tag's name.
   const runMerge = async (fromTag, intoTag) => {
+    const intoName = intoTag.name;
     try {
       const { mergeId } = await mergeTags({ fromTagId: fromTag.id, intoTagId: intoTag.id });
       try { logEvent(EV.TAG_MERGE, { from_tag_id: fromTag.id, into_tag_id: intoTag.id }); } catch (_) {}
@@ -583,15 +571,15 @@ export function SidebarTags({
                          if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
                            e.preventDefault();
                            const r = e.currentTarget.getBoundingClientRect();
-                           onContextMenuRow({ preventDefault() {}, stopPropagation() {}, clientX: r.left + 24, clientY: r.bottom }, tag);
+                           onContextMenuRow({ preventDefault() {}, stopPropagation() {}, clientX: r.left + 24, clientY: r.bottom }, tag, { byKey: true, returnEl: e.currentTarget });
                          }
                        }}
-                       title={c ? tr`${ph({ name: tag.name })} · ${c} applied · right-click to manage` : tr`${ph({ name: tag.name })} · right-click to manage`}>
+                       title={c ? tr`${ph({ name: tag.name })} · ${c} applied` : tag.name}>
                     <span className="sb-dot" style={{ background: dot }} />
                     <span className="sb-row-label sb-tag-row-label" dir="auto">{tag.name}</span>
                     {c > 0 && <span className="sb-tag-row-count">{c}</span>}
                     <button type="button" className="sb-tag-row-more" tabIndex={-1}
-                            aria-label={tr`${ph({ name: tag.name })}: actions`}
+                            aria-label={tr`More for ${ph({ name: tag.name })}`}
                             onClick={(e) => openRowActions(e, tag)}>
                       <Icon as={MoreHorizontal} size={14} />
                     </button>
@@ -632,59 +620,18 @@ export function SidebarTags({
         </div>
       )}
 
-      {sheetFor && (
-        <Suspense fallback={null}>
-          <TagActionSheet
-            title={sheetFor.name}
-            lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(sheetFor) }} />}
-            sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? plural(counts.get(sheetFor.id), { one: '# thing', other: '# things' }) : null].filter(Boolean).join(' · ') || null}
-            onClose={() => setSheetFor(null)}
-            actions={[
-              { id: 'rename', label: tr`Rename`, run: () => promptRename(sheetFor) },
-              { id: 'recolor', label: tr`Recolor`, swatch: resolveTagColor(sheetFor), more: true, run: () => promptRecolor(sheetFor) },
-              { id: 'merge', label: tr`Merge into…`, run: () => startMerge(sheetFor) },
-              { id: 'type', label: tr`Type`, value: entityTypeLabel(sheetFor.entity_type) || tr`None`, more: true, run: () => setTypeSheetFor(sheetFor) },
-              { id: 'delete', label: tr`Delete tag`, danger: true, run: () => promptDelete(sheetFor) },
-            ]}
-          />
-        </Suspense>
-      )}
-      {typeSheetFor && (
-        <Suspense fallback={null}>
-          <TagActionSheet
-            title={typeSheetFor.name}
-            lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(typeSheetFor) }} />}
-            sub={tr`What kind of thing is it?`}
-            onClose={() => setTypeSheetFor(null)}
-            actions={ENTITY_TYPES.map(t => ({
-              id: t.value, label: t.label,
-              value: typeSheetFor.entity_type === t.value ? tr({ message: 'Current', context: 'type' }) : null,
-              run: () => setType(typeSheetFor, t.value),
-            }))}
-          />
-        </Suspense>
-      )}
-      {menuFor && (
-        <div className="sb-tag-menu"
-             ref={menuRef}
-             style={{ position: 'fixed', left: menuPos.left, top: menuPos.top }}
-             role="menu">
-          <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}><Trans>Rename</Trans></button>
-          <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}><Trans>Recolor</Trans></button>
-          <button className="sb-tag-menu-item" onClick={() => startMerge(menuFor.tag)}><Trans>Merge into…</Trans></button>
-          <div className="sb-tag-menu-types" role="group" aria-label={tr`Entity type`}>
-            {ENTITY_TYPES.map(t => (
-              <button key={t.value}
-                      className={`sb-tag-menu-type ${menuFor.tag.entity_type === t.value ? 'is-on' : ''}`}
-                      title={tr`Mark as ${ph({ label: t.label })}`}
-                      onClick={() => setType(menuFor.tag, t.value)}>
-                <Icon as={t.Icon} size={11} />
-              </button>
-            ))}
-          </div>
-          <button className="sb-tag-menu-item danger" onClick={() => promptDelete(menuFor.tag)}><Trans>Delete tag</Trans></button>
-        </div>
-      )}
+      <CardContextMenu
+        open={!!menuFor}
+        x={menuFor?.x ?? 0}
+        y={menuFor?.y ?? 0}
+        items={menuFor ? tagMenuItems(menuFor.tag) : []}
+        preview={menuFor ? tagMenuPreview(menuFor.tag) : undefined}
+        label={menuFor?.tag.name}
+        root="menu"
+        byKey={!!menuFor?.byKey}
+        returnFocus={menuFor?.returnEl}
+        onClose={() => setMenuFor(null)}
+      />
 
       {mergePicker && (
         <MergePicker

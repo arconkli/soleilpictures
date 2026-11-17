@@ -3,7 +3,7 @@
 // is marked; Make current swaps it in; Delete keeps it for a month under
 // Recently deleted; Upload new version adds one (so does dropping a file onto
 // the card). All the logic is lib/cardVersions.js; this lays it out.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { liveVersions, versionsOf, currentOf, versionLabel, DELETED_KEEP_DAYS } from '../../lib/cardVersions.js';
 import { formatSize, formatWhen, sizeProgress } from '../../lib/cardInfo.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
@@ -12,6 +12,8 @@ import { Upload, Download, MoreHorizontal } from '../../lib/icons.js';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { transferForCard } from '../../lib/activity.js';
 import { useCardTransferKey } from '../../hooks/useActivity.js';
+import { useLongPress } from '../../hooks/useLongPress.js';
+import { swallowNextClick } from '../../lib/swallowClick.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -21,6 +23,18 @@ export function VersionsSection({
 }) {
   const [menu, setMenu] = useState(null);       // { x, y, v }
   const [showDeleted, setShowDeleted] = useState(false);
+  // A hold on a version row (touch) opens its menu; iOS never raises contextmenu.
+  // The list mounts after this hook runs (no versions, no list), so it is tracked as state.
+  const [listEl, setListEl] = useState(null);
+  const listRef = useMemo(() => ({ current: listEl }), [listEl]);
+  useLongPress(listRef, (x, y, e) => {
+    const li = e.target?.closest?.('li[data-version-id]');
+    const v = li && !li.classList.contains('is-deleted') ? liveVersions(card).find((c) => c.id === li.dataset.versionId) : null;
+    if (!v) return false;
+    swallowNextClick({ held: true });
+    setMenu({ x, y, v });
+    return true;
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   // A version this tab is uploading: a row on top until it lands (the count in the head stays the landed ones).
   useCardTransferKey(card?.id);
   const up = card?.id ? transferForCard(card.id) : null;
@@ -48,7 +62,8 @@ export function VersionsSection({
     const name = personName(who.by);
     const when = formatWhen(who.at);
     return (
-      <li key={v.id} className={`cbd-ver${isCur ? ' is-current' : ''}${isDeleted ? ' is-deleted' : ''}`} data-version-id={v.id}>
+      <li key={v.id} className={`cbd-ver${isCur ? ' is-current' : ''}${isDeleted ? ' is-deleted' : ''}`} data-version-id={v.id}
+          onContextMenu={isDeleted ? undefined : (e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, v }); }}>
         <button type="button" className="cbd-ver-main" onClick={() => onOpen?.(v)} disabled={!onOpen || isDeleted}
                 title={onOpen && !isDeleted ? t`Look at this version` : undefined}>
           <span className="cbd-ver-n">{versionLabel(v)}</span>
@@ -72,12 +87,12 @@ export function VersionsSection({
   };
 
   const menuItems = (v) => [
-    canEdit && v.id !== cur?.id && { id: 'cur', label: t`Make current`, run: () => onMakeCurrent?.(v) },
-    onOpen && { id: 'open', label: t`Look at it`, run: () => onOpen(v) },
-    onDownload && { id: 'dl', label: t`Download`, run: () => onDownload(v) },
-    canEdit && onLabel && { id: 'label', label: v.label ? t`Rename label…` : t`Add a label…`, run: () => onLabel(v) },
+    canEdit && v.id !== cur?.id && { id: 'cur', label: t`Make current`, icon: 'CheckCircle', run: () => onMakeCurrent?.(v) },
+    onOpen && { id: 'open', label: t`Look at it`, icon: 'Eye', run: () => onOpen(v) },
+    onDownload && { id: 'dl', label: t`Download`, icon: 'DownloadSimple', run: () => onDownload(v) },
+    canEdit && onLabel && { id: 'label', label: v.label ? t`Rename label…` : t`Add a label…`, icon: 'PencilSimple', run: () => onLabel(v) },
     canEdit && live.length > 1 && { divider: true },
-    canEdit && live.length > 1 && { id: 'del', label: t`Delete version`, danger: true, run: () => onDelete?.(v) },
+    canEdit && live.length > 1 && { id: 'del', label: t`Delete version`, icon: 'Trash', danger: true, run: () => onDelete?.(v) },
   ].filter(Boolean);
 
   const uploadRow = () => {
@@ -114,7 +129,7 @@ export function VersionsSection({
           </button>
         )}
       </div>
-      <ol className="cbd-ver-list">{upload && uploadRow()}{[...live].reverse().map((v) => row(v))}</ol>
+      <ol className="cbd-ver-list" ref={setListEl}>{upload && uploadRow()}{[...live].reverse().map((v) => row(v))}</ol>
       {deleted.length > 0 && (
         <div className="cbd-ver-deleted">
           <button type="button" className="cbd-linkbtn" onClick={() => setShowDeleted((s) => !s)} aria-expanded={showDeleted}>
@@ -129,7 +144,7 @@ export function VersionsSection({
         </div>
       )}
       {menu && (
-        <CardContextMenu open x={menu.x} y={menu.y} items={menuItems(menu.v)} onClose={() => setMenu(null)} card={null} />
+        <CardContextMenu open x={menu.x} y={menu.y} items={menuItems(menu.v)} onClose={() => setMenu(null)} card={null} root="menu" />
       )}
     </section>
   );

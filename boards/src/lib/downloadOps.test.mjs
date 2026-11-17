@@ -47,7 +47,13 @@ test('ListSurface goes through the helpers', () => {
 });
 
 test('the sidebar Files menu goes through the helpers', () => {
-  const item = side.slice(side.indexOf("{ id: 'download'"), side.indexOf("...(shareable"));
+  // The menu's acts (fileMenuModel); the Download row itself comes from src/lib/menus/fileMenu.js.
+  const model = side.slice(side.indexOf('const fileMenuModel = () => {'));
+  const item = model.slice(model.indexOf('      download: () => {'), model.indexOf("      'move-file':"));
+  assert.ok(item.length > 0, 'the sidebar Files menu has a download act');
+  const fm = read('./menus/fileMenu.js');
+  assert.match(fm, /\['send', 'copy-link', 'share-file', 'share-doc', 'download'\]/, 'one file: Download');
+  assert.match(fm, /\['put-on-canvas', 'send', 'download'\]/, 'several files: Download');
   assert.match(item, /downloadOneTracked\(/);
   assert.match(item, /downloadManyTracked\(/);
   assert.match(item, /zipName: 'files\.zip'/);

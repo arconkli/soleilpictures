@@ -205,5 +205,15 @@ test('App.setView shows the view on this device first, then asks viewWrite befor
   assert.ok(body.indexOf('setViewOverride(') < gate, 'this device is shown the view either way');
   assert.ok(gate < body.indexOf('updateBoardMeta('), 'before anything reaches the board');
   // The cluster menu's item is the one way to write it with the files sidebar on.
-  assert.match(app, /onSetOpensAs=\{\(id, v\) => setView\(v, 'sidebar_menu', id\)\}/);
+  // Its act is the one cluster action set's (hooks/useClusterActions.js, built in App.jsx)…
+  assert.match(app, /setOpensInFiles: \(id, on\) => A\(\)\.setView\(on \? 'list' : 'canvas', 'sidebar_menu', id\),/);
+  assert.equal(app.match(/setView\([^)]*'sidebar_menu'/g)?.length, 1, 'no other caller writes as the cluster menu');
+  // …the row is Always open in Files (src/lib/menus), a check that flips it…
+  const menus = readFileSync(new URL('./menus/clusterMenu.js', import.meta.url), 'utf8');
+  assert.match(menus, /acts\['opens-in-files'\] = \{ run: \(\) => cc\.setOpensInFiles\(id, !on\), checked: on \};/);
+  const rows = readFileSync(new URL('./menus/rows.js', import.meta.url), 'utf8');
+  assert.match(rows, /'opens-in-files': R\('FolderOpen', \(\) => t`Always open in Files`\)/);
+  // …and the sidebar offers it with the files sidebar on, to an editor.
+  const tree = readFileSync(new URL('../components/SidebarBoardTree.jsx', import.meta.url), 'utf8');
+  assert.match(tree, /clusterActsFrom\(cc, board, \{ surface: 'sidebar_menu', star: files, opensInFiles: files && canEdit \}\)/);
 });

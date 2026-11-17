@@ -3,8 +3,10 @@
 // two or more cards picked on a desktop canvas get, on the bottom row, what
 // right-clicking one of them offers, each control the card menu's own item:
 // Tidy up, Align (and Distribute), Group, Tag (its picker, 2026-10-26), New
-// cluster from N cards, Move N cards to…; ⋯ is that menu itself, over the bar,
-// and Delete is ⌫'s, with its undo.
+// cluster from these, Move to cluster; ⋯ is that menu itself, over the bar,
+// and Delete is ⌫'s, with its undo. The words are the right-click rework's
+// (plan.md §3 Several cards): no "(N)" on a label, the count is the menu's
+// title, and Align's rows say "Align left", "Distribute horizontally".
 //
 // On the real canvas, through ?local=1 (the home cluster's cards).
 import { expect, test } from '@playwright/test';
@@ -40,7 +42,7 @@ test('three cards picked: the count, then Tidy up, Align, Group, Tag, New cluste
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).toContainText('3 selected');
   await expect(page.locator('.cnv-selcount')).toHaveCount(0);
-  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'Tag', 'New cluster from 3 cards', 'Move 3 cards to…',
+  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'Tag', 'New cluster from these', 'Move to cluster',
     'More', 'Delete']);
   await expect(button(page, 'Group')).toHaveAttribute('aria-keyshortcuts', /^(Meta|Control)\+G$/);
   await expect(button(page, 'Delete')).toHaveAttribute('aria-keyshortcuts', 'Backspace');
@@ -62,10 +64,10 @@ test('Tidy up\'s and Align\'s menus are the card menu\'s, and Align lines the ca
   await expect(tidy).toHaveCount(0);
   await button(page, 'Align').click();
   const align = page.getByRole('menu', { name: 'Align' });
-  await expect(align.getByRole('menuitem')).toHaveText(['Left', 'Center', 'Right', 'Top', 'Middle', 'Bottom',
-    'Horizontally', 'Vertically']);
+  await expect(align.getByRole('menuitem')).toHaveText(['Align left', 'Align center', 'Align right', 'Align top',
+    'Align middle', 'Align bottom', 'Distribute horizontally', 'Distribute vertically']);
   expect(new Set(await lefts(page)).size).toBeGreaterThan(1);
-  await align.getByRole('menuitem', { name: 'Left', exact: true }).click();
+  await align.getByRole('menuitem', { name: 'Align left', exact: true }).click();
   await expect.poll(async () => new Set(await lefts(page)).size).toBe(1);
   // Still picked, so the bar stays for the next step.
   await expect(bar(page)).toContainText('3 selected');
@@ -132,7 +134,7 @@ test('Align lines dozens of pictures up without piling them: Left makes one colu
   const before = await boxes(page);
   const reading = [...before].sort((a, b) => a.y - b.y || a.x - b.x).map((b) => b.id);
   await button(page, 'Align').click();
-  await page.getByRole('menu', { name: 'Align' }).getByRole('menuitem', { name: 'Left', exact: true }).click();
+  await page.getByRole('menu', { name: 'Align' }).getByRole('menuitem', { name: 'Align left', exact: true }).click();
   await expect.poll(async () => new Set((await boxes(page)).map((b) => b.x)).size).toBe(1);
   const after = await boxes(page);
   expect(piledPairs(after)).toBe(0);
@@ -165,7 +167,10 @@ test('More opens the right-click menu itself, over the bar', async ({ page }) =>
   await button(page, 'More').click();
   const menu = page.locator('.ctx-menu').first();
   await expect(menu).toBeVisible();
-  await expect(menu).toContainText('Delete (3)');
+  // The count is the title, and Delete is the quick row's (plan.md §3 Several
+  // cards, §2.3).
+  await expect(menu.locator('.ctx-title')).toHaveText('3 cards');
+  await expect(menu.locator('.ctx-quick').getByRole('menuitem', { name: 'Delete', exact: true })).toBeVisible();
   const [m, b] = await Promise.all([menu.boundingBox(), bar(page).boundingBox()]);
   expect(m.y + m.height).toBeLessThanOrEqual(b.y + 1);
 });

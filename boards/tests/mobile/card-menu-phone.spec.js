@@ -21,6 +21,9 @@ const phoneOnly = () => test.skip(test.info().project.name === 'tablet', 'phone-
 const card = (page, id) => page.locator(`[data-card-id="${id}"]`);
 const menu = (page) => page.locator('.ctx-menu');
 const row = (page, name) => menu(page).getByRole('menuitem', { name, exact: true });
+// Cut, Copy, Duplicate and Delete are the sheet's labelled tiles above the
+// list now, not rows in it (plan.md §2.3, Phone sheet).
+const tile = (page, name) => page.locator('.ctx-quick').getByRole('menuitem', { name, exact: true });
 
 async function boot(page, { width, height, blank = false } = {}) {
   if (width) await page.setViewportSize({ width, height });
@@ -108,7 +111,7 @@ for (const size of [null, [390, 844], [375, 667], [320, 568]]) {
     await menu(page).locator('.ctx-item.is-back').tap();
     await expect(menu(page)).not.toHaveClass(/is-step/);
     await expect(menu(page).locator('.ctx-item.is-back')).toHaveCount(0);
-    await expect(menu(page).getByRole('menuitem', { name: /^Duplicate/ })).toHaveCount(1);
+    await expect(tile(page, 'Duplicate')).toHaveCount(1);
     // Back on the row that stepped in.
     await expect(menu(page).locator('.ctx-has-submenu', { hasText: 'Arrange' }).first()).toBeFocused();
     await expectOnScreen(page);
@@ -136,8 +139,11 @@ test('a group\'s Outline shape steps a level deeper, ‹ comes back a level at a
   await expect(page.locator('.group-label').first()).toBeVisible();
   const hugOutline = page.locator('.group-outline.group-hug');
   await expect(hugOutline).toHaveCount(0);
-  await page.locator('.sel-menu .card-menu-btn').tap();
-  await expect(menu(page)).toBeVisible();
+  // One card's menu, not the selection's: the menu of several cards has no
+  // Group "Name" › (plan.md §3, Several cards), so the selection goes first.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.card.is-selected')).toHaveCount(0);
+  await openCardMenu(page, 'home-image');
 
   const groupRow = () => menu(page).locator('.ctx-has-submenu', { hasText: /^Group "/ });
   const shapeRow = () => menu(page).locator('.ctx-has-submenu', { hasText: 'Outline shape' });
@@ -158,8 +164,9 @@ test('a group\'s Outline shape steps a level deeper, ‹ comes back a level at a
   // ‹ carries this level's name, and says it goes back to the submenu above.
   await expect(back()).toHaveText('Outline shape');
   await expect(back()).toHaveAccessibleName('Outline shape, back to Group "Group"');
-  await expect(menu(page).getByRole('menuitem', { name: /^Box/ })).toBeVisible();
-  await expect(menu(page).getByRole('menuitem', { name: /^Hug/ })).toBeVisible();
+  // Box and Hug are a choice of one, checked (plan.md §3, Group: "Box / Hug, checked").
+  await expect(menu(page).getByRole('menuitemradio', { name: /^Box/ })).toBeVisible();
+  await expect(menu(page).getByRole('menuitemradio', { name: /^Hug/ })).toBeVisible();
   await expect(menu(page).locator('.ctx-step-body button.ctx-item')).toHaveCount(2);
   // The same box, where the level above was.
   const deep = await menu(page).boundingBox();
@@ -197,7 +204,7 @@ test('a group\'s Outline shape steps a level deeper, ‹ comes back a level at a
   // Two levels in, a row runs and the menu closes.
   await groupRow().tap();
   await shapeRow().tap();
-  await menu(page).getByRole('menuitem', { name: /^Hug/ }).tap();
+  await menu(page).getByRole('menuitemradio', { name: /^Hug/ }).tap();
   await expect(menu(page)).toHaveCount(0);
   await expect(hugOutline).toHaveCount(1);
 });
@@ -233,21 +240,30 @@ for (const id of ['home-note', 'home-image']) {
       phoneOnly();
       await boot(page, { width, height });
       await openCardMenu(page, id);
-      const del = menu(page).getByRole('menuitem', { name: /^Delete/ });
+      // Delete is the last of the sheet's tiles now, above the list (plan.md
+      // §2.3, Phone sheet: Cut, Copy, Duplicate, Delete as labelled tiles).
+      const del = tile(page, 'Delete');
       await expect(del).toBeVisible();
       // Right after Duplicate.
-      const names = await menu(page).locator('button.ctx-item').allTextContents();
-      const at = names.findIndex((n) => n.startsWith('Duplicate'));
+      const names = await page.locator('.ctx-quick .ctx-quick-btn').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+      const at = names.indexOf('Duplicate');
       expect(at).toBeGreaterThan(-1);
-      expect(names[at + 1]).toMatch(/^Delete/);
-      // Inside the menu with nothing scrolled, and clear of the fade at its
-      // foot (36px, styles.css).
+      expect(names[at + 1]).toBe('Delete');
+      // Inside the window with nothing scrolled, above the list (so clear of
+      // the fade at its foot, 36px, styles.css), and nothing over it.
       await expectOnScreen(page);
       expect(await menu(page).evaluate((m) => m.scrollTop)).toBe(0);
       const d = await del.boundingBox();
       const m = await menu(page).boundingBox();
-      expect(d.y).toBeGreaterThanOrEqual(m.y);
-      expect(d.y + d.height).toBeLessThanOrEqual(m.y + m.height - 36);
+      const v = page.viewportSize();
+      expect(d.y).toBeGreaterThanOrEqual(0);
+      expect(d.y + d.height).toBeLessThanOrEqual(v.height);
+      expect(d.y + d.height).toBeLessThanOrEqual(m.y + 0.5);
+      expect(await del.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!hit && el.contains(hit);
+      })).toBe(true);
     });
   }
 }
@@ -314,9 +330,9 @@ test('a photo\'s menu opens it full size', async ({ page }) => {
 });
 
 // The signed-in phone shell has a tab bar fixed to the foot of the screen
-// (.mb-nav); ?local=1 has none. The menu ends over it, and its last row can be
-// reached.
-test('signed in, a card\'s menu ends above the tab bar and its last row can be tapped', async ({ page }) => {
+// (.mb-nav); ?local=1 has none. The menu is a sheet that covers it (plan.md,
+// steps 2-3: "covers the tab bar"), and its last row can be reached.
+test('signed in, a card\'s menu covers the tab bar and its last row can be tapped', async ({ page }) => {
   phoneOnly();
   await page.setViewportSize({ width: 375, height: 667 });
   await page.addInitScript(() => { try { sessionStorage.setItem('soleil.revealSession', '1'); } catch (_) {} });
@@ -345,11 +361,16 @@ test('signed in, a card\'s menu ends above the tab bar and its last row can be t
   await more.tap();
   await expect(menu(page)).toBeVisible();
 
-  const navTop = (await nav.boundingBox()).y;
+  // The sheet is on top where the tab bar is: a finger there lands in the
+  // sheet, not on a tab.
+  const n = await nav.boundingBox();
+  const v = page.viewportSize();
   await expect.poll(async () => {
     const m = await menu(page).boundingBox();
-    return !!m && m.y >= 0 && m.y + m.height <= navTop + 0.5;
+    return !!m && m.y >= 0 && m.y + m.height <= v.height + 0.5;
   }).toBe(true);
+  expect(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.sheet-panel'),
+    { x: n.x + n.width / 2, y: n.y + n.height / 2 })).toBe(true);
 
   await menu(page).evaluate((m) => { m.scrollTop = m.scrollHeight; });
   await expect(menu(page)).not.toHaveClass(/has-more-below/);

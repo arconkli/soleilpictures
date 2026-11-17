@@ -32,15 +32,18 @@ const find = (items, id) => (items || []).find((it) => it && it.id === id) || nu
 // Align's rows drawn as the edge they line the cards up on, and Distribute's
 // as the way they spread (the card menu's ids).
 const EDGES = {
-  left: AlignCardsLeft, 'center-x': AlignCardsCenter, right: AlignCardsRight,
-  top: AlignCardsTop, middle: AlignCardsMiddle, bottom: AlignCardsBottom,
-  horizontal: DistributeAcross, vertical: DistributeDown,
+  'align-left': AlignCardsLeft, 'align-center': AlignCardsCenter, 'align-right': AlignCardsRight,
+  'align-top': AlignCardsTop, 'align-middle': AlignCardsMiddle, 'align-bottom': AlignCardsBottom,
+  'distribute-h': DistributeAcross, 'distribute-v': DistributeDown,
 };
 
 function Rows({ rows, icons = null, onPick }) {
-  return rows.map((r, i) => (r.divider
+  // A row with a submenu or a search field, and the recent block (the bar has
+  // no captions), stays in the menu. A row's aside (a cluster's parent path)
+  // leads its label, as main's move list had it, so same-named clusters differ.
+  return rows.filter((r) => r.divider || (r.id && !r.submenu && !r.search && !r.id.startsWith('recent-'))).map((r, i) => (r.divider
     ? <MenuSep key={`sep${i}`} />
-    : <MenuItem key={r.id} icon={icons?.[r.id]} label={r.label} disabled={!!r.disabled} onSelect={() => onPick(r.id)} />));
+    : <MenuItem key={r.id} icon={icons?.[r.id]} label={r.aside ? `${r.aside} / ${r.label}` : r.label} disabled={!!r.disabled} onSelect={() => onPick(r.id)} />));
 }
 
 function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
@@ -52,12 +55,14 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
     (sub ? find(it?.submenu, sub) : it)?.run?.();
   };
   const tidy = find(items, 'tidy');
-  const align = find(items, 'align');
-  const spread = find(items, 'distribute');
-  const group = find(items, 'group');
+  // The card menu's Align › holds the edges, then (three or more) Distribute.
+  const alignAll = find(items, 'align');
+  const align = alignAll && { ...alignAll, submenu: alignAll.submenu.filter((r) => r.id?.startsWith('align-')) };
+  const spread = alignAll && { submenu: alignAll.submenu.filter((r) => r.id?.startsWith('distribute-')) };
+  const group = find(items, 'group-these');
   const cluster = find(items, 'new-cluster-from');
-  const move = find(items, 'move-cards-to-board');
-  const tagMany = find(items, 'tag-many');
+  const move = find(items, 'move');
+  const tagMany = find(items, 'tag');
   return (
     <Toolbar label={t`Selection`} barRef={barRef} className="sel-a" onPointerDown={(e) => e.stopPropagation()}>
       <Group><span className="sel-count">{plural(count, { one: '# selected', other: '# selected' })}</span></Group>
@@ -68,14 +73,14 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
               <Rows rows={tidy.submenu} onPick={(sub) => run('tidy', sub)} />
             </MenuButton>
           )}
-          {align && (
+          {align && align.submenu.length > 0 && (
             <MenuButton icon={AlignCardsLeft} label={t`Align`} caret side="above" menuClassName="sel-a-menu">
               <Rows rows={align.submenu} icons={EDGES} onPick={(sub) => run('align', sub)} />
-              {spread && (
+              {spread && spread.submenu.length > 0 && (
                 <>
                   <MenuSep />
                   <MenuHead>{t`Distribute`}</MenuHead>
-                  <Rows rows={spread.submenu} icons={EDGES} onPick={(sub) => run('distribute', sub)} />
+                  <Rows rows={spread.submenu} icons={EDGES} onPick={(sub) => run('align', sub)} />
                 </>
               )}
             </MenuButton>
@@ -84,15 +89,15 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
       )}
       {(group || cluster || move || tagMany) && (
         <Group>
-          {group && <Btn icon={BoundingBox} text={t({ message: 'Group', context: 'verb' })} keys="Mod+G" onClick={() => run('group')} />}
+          {group && <Btn icon={BoundingBox} text={t({ message: 'Group', context: 'verb' })} keys="Mod+G" onClick={() => run('group-these')} />}
           {tagMany && (
             <Btn icon={Tag} text={t({ message: 'Tag', context: 'verb' })} aria-haspopup="dialog" aria-expanded={tagOpen} data-tag-many-trigger=""
-                 onClick={(e) => find(api.items(), 'tag-many')?.run?.(e.currentTarget.getBoundingClientRect())} />
+                 onClick={(e) => find(api.items(), 'tag')?.run?.(e.currentTarget.getBoundingClientRect())} />
           )}
           {cluster && <Btn icon={FolderSimplePlus} label={cluster.label} onClick={() => run('new-cluster-from')} />}
           {move && (
             <MenuButton icon={ArrowBendUpRight} label={move.label} caret side="above" menuClassName="sel-a-menu sel-a-move">
-              <Rows rows={move.submenu} onPick={(sub) => run('move-cards-to-board', sub)} />
+              <Rows rows={move.submenu} onPick={(sub) => run('move', sub)} />
             </MenuButton>
           )}
         </Group>

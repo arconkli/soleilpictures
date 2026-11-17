@@ -8,7 +8,7 @@
 // so never scrolled. The guess still seeds the first render; this corrects it
 // from the rendered box before paint.
 
-import { useLayoutEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 export const MENU_PAD = 8;
 
@@ -84,6 +84,161 @@ export function useFitMenuToViewport(ref, open, y, reserve = 0, above = false) {
       el.removeEventListener('scroll', mark);
       body?.removeEventListener('scroll', mark);
       window.removeEventListener('resize', fit);
+    };
+  });
+}
+
+// ── The one menu's placement (pure: numbers in, numbers out) ──────────────
+// `x`,`y` the pointer; `w`,`h` the menu's measured box; `vw`,`vh` the window.
+// `top`/`bottom` bound the room (bottom already excludes the phone's tab bar
+// and the home-bar inset). Opens right of the pointer, else to its left (the
+// origin is then the right edge); below it, else flipped up (origin bottom),
+// else pinned to the foot, else from the top, scrolling (maxHeight). The press
+// point is first pulled inside the margin, so a press near an edge still
+// leaves the menu at least `pad` from every window edge.
+export function placeMenu({ x, y, w, h, vw, vh, pad = MENU_PAD, top = pad, bottom = vh - pad, above = false }) {
+  const px = Math.min(Math.max(x, pad), vw - pad);
+  const py = Math.min(Math.max(y, top), bottom);
+  let left;
+  let originX = 'left';
+  if (px + w <= vw - pad) left = px;
+  else if (px - w >= pad) { left = px - w; originX = 'right'; }
+  else left = Math.max(pad, vw - w - pad);
+
+  let t;
+  let maxHeight;
+  let originY = 'top';
+  if (above) {
+    t = Math.max(top, py - h);
+    originY = 'bottom';
+    if (h > py - top) maxHeight = py - t;
+  } else if (py + h <= bottom) {
+    t = py;
+  } else if (py - h >= top) {
+    t = py - h;
+    originY = 'bottom';
+  } else if (h <= bottom - top) {
+    t = bottom - h;
+    originY = 'bottom';
+  } else {
+    t = top;
+    maxHeight = bottom - top;
+  }
+  return { left, top: t, maxHeight, originX, originY };
+}
+
+// A flyout for a row of a menu at `menu` ({left,right,top,bottom}); `row.top`
+// the row's top. 2px off the menu's edge, its first row lined up with the row
+// (4px up for the menu's padding), moved up to fit. `side` null: no room on
+// either side (the caller steps in, or clamps inside the window).
+export function placeFlyout({ menu, row, w, h, vw, vh, pad = MENU_PAD, prefer = 'right' }) {
+  const GAP = 2;
+  const fitsRight = menu.right + GAP + w <= vw - pad;
+  const fitsLeft = menu.left - GAP - w >= pad;
+  let side = null;
+  if (prefer === 'left') side = fitsLeft ? 'left' : fitsRight ? 'right' : null;
+  else side = fitsRight ? 'right' : fitsLeft ? 'left' : null;
+  let left;
+  if (side === 'right') left = menu.right + GAP;
+  else if (side === 'left') left = menu.left - GAP - w;
+  else left = Math.max(pad, Math.min(menu.right + GAP, vw - w - pad));
+  const room = vh - 2 * pad;
+  let t = row.top - 4;
+  let maxHeight;
+  if (h > room) { t = pad; maxHeight = room; } else t = Math.max(pad, Math.min(t, vh - h - pad));
+  return { left, top: t, maxHeight, side };
+}
+
+// The room a menu may use: the window down to the phone shell's tab bar
+// (.mb-nav, fixed to the foot) when it shows, else down to the home bar's
+// inset. Measured the way useFitMenuToViewport does.
+function viewRoom() {
+  const nav = document.querySelector('.mb-nav')?.getBoundingClientRect();
+  const navTop = nav && nav.height > 0 ? nav.top : Infinity;
+  let bottom = Math.min(window.innerHeight, navTop);
+  if (!(navTop < window.innerHeight)) {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:0;top:0;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom,0px)';
+    document.body.appendChild(probe);
+    bottom -= probe.offsetHeight;
+    probe.remove();
+  }
+  return { vw: window.innerWidth, vh: window.innerHeight, bottom: bottom - MENU_PAD };
+}
+
+// Measures the menu and places it with placeMenu, after every render (rows
+// load while it is open). Hidden until its first placement, so nothing jumps.
+// Writes left/top/maxHeight, --ctx-ox/--ctx-oy (the animation grows from the
+// pointer's corner) and has-more-below (the foot fades while rows wait below
+// the fold; so does a stepped-in .ctx-step-body). Re-places on resize.
+export function useMenuPlacement(ref, open, { x, y, above = false } = {}) {
+  const placed = useRef(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!open) placed.current = false;
+    if (!open || !el || typeof window === 'undefined') return undefined;
+    const body = el.querySelector(':scope > .ctx-step-body');
+    const mark = () => {
+      for (const s of [el, body]) {
+        if (s) s.classList.toggle('has-more-below', s.scrollTop + s.clientHeight < s.scrollHeight - 1);
+      }
+    };
+    const fit = () => {
+      if (!placed.current) el.style.visibility = 'hidden';
+      // A fixed box shrinks toward the window's edge: measure from the left
+      // edge, and with no cap from the last fit (a stepped-in menu shrinks to it).
+      el.style.left = '0px';
+      if (el.classList.contains('is-step')) el.style.maxHeight = '';
+      const w = el.offsetWidth;
+      const h = el.scrollHeight + (el.offsetHeight - el.clientHeight);
+      const { vw, vh, bottom } = viewRoom();
+      const p = placeMenu({ x, y, w, h, vw, vh, bottom, above });
+      el.style.left = `${p.left}px`;
+      el.style.top = `${p.top}px`;
+      el.style.maxHeight = p.maxHeight != null ? `${p.maxHeight}px` : '';
+      el.style.setProperty('--ctx-ox', p.originX === 'right' ? '100%' : '0%');
+      el.style.setProperty('--ctx-oy', p.originY === 'bottom' ? '100%' : '0%');
+      if (!placed.current) { placed.current = true; el.style.visibility = ''; }
+      mark();
+    };
+    fit();
+    el.addEventListener('scroll', mark, { passive: true });
+    body?.addEventListener('scroll', mark, { passive: true });
+    window.addEventListener('resize', fit);
+    return () => {
+      el.removeEventListener('scroll', mark);
+      body?.removeEventListener('scroll', mark);
+      window.removeEventListener('resize', fit);
+    };
+  });
+}
+
+// The phone sheet's list scrolls inside the sheet (.ctx-menu.is-sheet); while
+// rows wait below its fold it carries has-more-below (so does a stepped-in
+// .ctx-step-body), which fades its foot. Marked after every render (a step in
+// or out changes what scrolls), on scroll and on a resize.
+export function useMoreBelow(ref, active) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!active || !el || typeof window === 'undefined') return undefined;
+    const body = el.querySelector(':scope > .ctx-step-body');
+    const mark = () => {
+      for (const s of [el, body]) {
+        if (s) s.classList.toggle('has-more-below', s.scrollTop + s.clientHeight < s.scrollHeight - 1);
+      }
+    };
+    mark();
+    el.addEventListener('scroll', mark, { passive: true });
+    body?.addEventListener('scroll', mark, { passive: true });
+    window.addEventListener('resize', mark);
+    // The sheet slides up and its panel is capped after layout: re-mark on a box change.
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(mark) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener('scroll', mark);
+      body?.removeEventListener('scroll', mark);
+      window.removeEventListener('resize', mark);
+      ro?.disconnect();
     };
   });
 }

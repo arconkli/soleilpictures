@@ -444,7 +444,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I change the background?",
-        "a": "Yes. Right-click the canvas and pick a background colour — seven presets plus a custom picker. The setting is per cluster."
+        "a": "Yes. Right-click the canvas, choose Background and pick a colour — seven presets plus a custom picker. The setting is per cluster."
       },
       {
         "q": "Does the canvas work on a tablet?",
@@ -875,7 +875,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can several grids share a layout?",
-        "a": "Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out."
+        "a": "Yes. Right-click a grid and choose Templates › Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Templates › Unlink layout takes a grid back out."
       }
     ]
   },
@@ -1035,7 +1035,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I align a selection all at once?",
-        "a": "Yes. Select several cards, right-click, and use Arrange → Align or Distribute. To repack a whole board, Arrange → Tidy up."
+        "a": "Yes. Select several cards, right-click, and use Align › (Distribute is inside it, for three or more cards). Arrange › sets front-to-back order. To repack a whole board, Tidy up ›."
       }
     ]
   },
@@ -1171,7 +1171,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I upload a new version of a file?",
-        "a": "Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again."
+        "a": "Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version… (on the board, under Edit ›; in Files, a top-level row). Info lists every version, and any of them can be made current again."
       }
     ]
   },
@@ -1275,7 +1275,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can a video loop like a GIF?",
-        "a": "Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen."
+        "a": "Yes. Right-click the card, then Edit ›, for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen."
       },
       {
         "q": "What formats work?",
@@ -1513,7 +1513,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does opening Files change my board?",
-        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched, and opening the full Files page never changes how anyone else sees the cluster — only Always open in Files, in the cluster's menu in the sidebar, does that."
+        "a": "No. It is a different view of the same contents. Positions on the canvas are untouched, and opening the full Files page never changes how anyone else sees the cluster — only Always open in Files, under More › in the cluster's menu, does that."
       },
       {
         "q": "Can I see my files and my board at the same time?",
@@ -1529,7 +1529,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I make Files the default?",
-        "a": "Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone."
+        "a": "Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, under More › in a cluster's menu, makes that cluster open in Files for everyone."
       },
       {
         "q": "Can I use Clusters like Google Drive?",

@@ -14,6 +14,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
+import { swallowNextClick } from '../../lib/swallowClick.js';
 import { Icon } from '../Icon.jsx';
 import { ArrowClockwise, ArrowsOutSimple, ChevronRight, GridFour, Scribble, Check } from '../../lib/icons.js';
 import { R2Image } from '../R2Image.jsx';
@@ -147,6 +148,8 @@ function useHoldForMenu(item, onMenu) {
     if (!onMenu) return false;
     held.current = true;
     onMenu(item, x, y, { viaTouch: true });
+    // On a phone the sheet opens under the finger, so the lift's click would run the sheet's row under it.
+    swallowNextClick({ held: true });
   }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   const swallow = () => {
     if (!held.current) return false;

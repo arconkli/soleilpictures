@@ -54,6 +54,13 @@ test.describe('grids — local interaction', () => {
     expect(afterBox.width).toBeLessThan(beforeBox.width - 30);
   });
 
+  // Share layout / Unlink layout sit in the grid's Templates ›, and Duplicate is
+  // the quick row's (plan.md §3, the grid row of the kind table, and §2.3).
+  const templatesRow = async (page, name) => {
+    await page.locator('.ctx-menu:not(.ctx-submenu)').getByRole('menuitem', { name: 'Templates', exact: true }).hover();
+    return page.locator('.ctx-submenu').getByRole('menuitem', { name, exact: true });
+  };
+
   test('linked Grids reflow together — global sync + unlink round-trip', async ({ page }) => {
     await addGrid(page);
     const first = page.locator('.card-kind-grid').first();
@@ -62,12 +69,12 @@ test.describe('grids — local interaction', () => {
 
     // Share layout → this Grid becomes linked to a shared template.
     await first.dispatchEvent('contextmenu');
-    await page.locator('.ctx-menu').getByText('Share layout', { exact: true }).click();
+    await (await templatesRow(page, 'Share layout')).click();
     await expect(first.locator('.gridc-linked-badge')).toBeVisible();
 
     // Duplicate → a second Grid linked to the SAME template.
     await first.dispatchEvent('contextmenu');
-    await page.locator('.ctx-menu').getByText('Duplicate', { exact: true }).click();
+    await page.locator('.ctx-quick').getByRole('menuitem', { name: 'Duplicate', exact: true }).click();
     await expect(page.locator('.card-kind-grid')).toHaveCount(2);
 
     const cellOf = (n) => page.locator('.card-kind-grid').nth(n).locator('.gridc-cell').nth(1);
@@ -91,7 +98,7 @@ test.describe('grids — local interaction', () => {
     // Unlink the duplicate → it keeps the (resized) layout independently.
     const dupe = page.locator('.card-kind-grid').nth(1);
     await dupe.dispatchEvent('contextmenu');
-    await page.locator('.ctx-menu').getByText('Unlink layout', { exact: true }).click();
+    await (await templatesRow(page, 'Unlink layout')).click();
     await expect(dupe.locator('.gridc-linked-badge')).toHaveCount(0);
     const afterUnlink = await cellOf(1).boundingBox();
     expect(Math.abs(afterUnlink.width - after1.width)).toBeLessThan(4);
@@ -735,16 +742,17 @@ test.describe('grids — boxes, spacing, swap, keys', () => {
       await gridOf(page).dispatchEvent('contextmenu');
       const menu = page.locator('.ctx-menu').first();
       await expect(menu).toBeVisible();
-      await menu.locator('.ctx-submenu-wrap', { hasText: 'Spacing' }).hover();
+      await menu.getByRole('menuitem', { name: 'Spacing', exact: true }).hover();
     };
     await openSpacing();
-    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Large', exact: true }).click();
+    await page.locator('.ctx-submenu').getByRole('menuitemradio', { name: 'Large', exact: true }).click();
     await expect(gridc).toHaveClass(/is-spaced/);
     await expect(gridc).toHaveAttribute('style', /--gridc-gap: 14px/);
 
     await openSpacing();
-    await expect(page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Large ✓' })).toBeVisible();
-    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'None', exact: true }).click();
+    // The pick is a checked choice now, not a "✓" in its name (plan.md §1.10).
+    await expect(page.locator('.ctx-submenu').getByRole('menuitemradio', { name: 'Large', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await page.locator('.ctx-submenu').getByRole('menuitemradio', { name: 'None', exact: true }).click();
     await expect(gridc).not.toHaveClass(/is-spaced/);
   });
 

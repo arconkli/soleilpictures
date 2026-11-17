@@ -102,7 +102,7 @@ that sequence is what exports and what a reader follows.
 A family is a **live link** between grids on one board: change the layout in one
 and the change carries to the others — the mechanism that keeps a twelve-page
 storyboard from drifting into twelve slightly different layouts. Right-click a
-grid and choose **Share layout** to start one, **Unlink layout** to leave.
+grid and choose **Templates ›**, then **Share layout** to start one, **Unlink layout** to leave.
 
 ## Discovering grids
 

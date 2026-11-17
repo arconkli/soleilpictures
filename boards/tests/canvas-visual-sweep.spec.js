@@ -56,8 +56,9 @@ test.describe('VS-CANVAS-01 shape labels', () => {
 // The full menu, measured: its box, whether the last row is inside the window
 // after scrolling it to the end, and its row texts.
 const menuState = (page) => page.locator('.ctx-menu:not(.ctx-submenu)').first().evaluate(async (el) => {
-  // The open animation slides the menu 4px; measure where it comes to rest.
-  await Promise.all(el.getAnimations().map((a) => a.finished));
+  // The open animation slides the menu 4px (a touch tablet's sheet rises from
+  // the foot); measure where it comes to rest.
+  await Promise.all(document.getAnimations().map((a) => a.finished));
   el.scrollTop = el.scrollHeight;
   const r = el.getBoundingClientRect();
   const rows = [...el.querySelectorAll(':scope > .ctx-item, :scope > .ctx-submenu-wrap > .ctx-item')];
@@ -75,7 +76,16 @@ test.describe('VS-CANVAS-02/03 context menus stay inside the window', () => {
     await page.mouse.click(card.x + 20, Math.min(card.y + 10, 600), { button: 'right' });
     await expect(page.locator('.ctx-menu:not(.ctx-submenu)')).toBeVisible();
     const m = await menuState(page);
-    expect(m.text.at(-1)).toContain('Delete');
+    // Delete is the quick row's last button, above the list (plan.md §2.3:
+    // "These four leave the list"; a 1024px touch tablet gets the sheet, its
+    // tiles over the list), so it is in the window from the start; the list's
+    // last row (Info) is reachable once scrolled.
+    const del = page.locator('.ctx-quick').getByRole('menuitem', { name: 'Delete', exact: true });
+    await expect(del).toBeVisible();
+    const db = await del.boundingBox();
+    expect(db.y).toBeGreaterThanOrEqual(8);
+    expect(db.y + db.height).toBeLessThanOrEqual(m.ih - 8);
+    expect(m.text.at(-1)).toContain('Info');
     expect(m.top).toBeGreaterThanOrEqual(8);
     expect(m.bottom).toBeLessThanOrEqual(m.ih - 8 + 0.5);
     expect(m.lastBottom).toBeLessThanOrEqual(m.ih);
@@ -361,7 +371,7 @@ const menuShortcuts = (page) => page.locator('.ctx-menu:not(.ctx-submenu)').firs
   ])));
 
 test.describe('VS-CANVAS-11 menu shortcuts follow the platform', () => {
-  test('off a Mac the card and canvas menus read Ctrl+X, and Reset zoom says Ctrl+0', async ({ page }) => {
+  test('off a Mac the card and canvas menus read Ctrl+X, and Fit everything says Shift+1', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await plant(page, [{ id: 'sh1', kind: 'shape', shape: 'rect', x: 120, y: 120, w: 160, h: 90 }]);
     const isMac = await page.evaluate(() => /mac/i.test(navigator.platform || ''));
@@ -370,9 +380,13 @@ test.describe('VS-CANVAS-11 menu shortcuts follow the platform', () => {
     const card = await rect(page, '[data-card-id="sh1"]');
     await page.mouse.click(card.x + 20, card.y + 20, { button: 'right' });
     const c = await menuShortcuts(page);
-    expect(c.Cut).toBe(mod('X'));
-    expect(c.Copy).toBe(mod('C'));
-    expect(c.Duplicate).toBe(mod('D'));
+    // Cut, Copy and Duplicate are the quick row's buttons (plan.md §2.3): their
+    // keys are in aria-keyshortcuts and the tooltip, for this platform.
+    const aria = (k) => (isMac ? `Meta+${k}` : `Control+${k}`);
+    const quick = (name) => page.locator('.ctx-menu:not(.ctx-submenu) .ctx-quick').getByRole('menuitem', { name, exact: true });
+    await expect(quick('Cut')).toHaveAttribute('aria-keyshortcuts', aria('X'));
+    await expect(quick('Copy')).toHaveAttribute('aria-keyshortcuts', aria('C'));
+    await expect(quick('Duplicate')).toHaveAttribute('aria-keyshortcuts', aria('D'));
     expect(c.Info).toBe(mod('I'));
     await page.keyboard.press('Escape');
 
@@ -380,7 +394,9 @@ test.describe('VS-CANVAS-11 menu shortcuts follow the platform', () => {
     await page.mouse.move(1300, 120);
     const b = await menuShortcuts(page);
     expect(b['Select all']).toBe(mod('A'));
-    expect(b['Reset zoom']).toBe(mod('0'));
+    expect(b['Paste here']).toBe(mod('V'));
+    // Reset zoom left the canvas menu for Fit everything ⇧1 (plan.md §1.14).
+    expect(b['Fit everything']).toBe(isMac ? '⇧1' : 'Shift+1');
     // One platform's notation per menu.
     const all = Object.values(b).filter(Boolean).join(' ');
     if (!isMac) expect(all).not.toContain('⌘');

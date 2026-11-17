@@ -34,7 +34,8 @@ test('a video added in Files knows its frame rate, codec, resolution and length'
   const tile = panel.locator('.ct-jg [data-item-id]', { hasText: 'frames' });
   await expect(tile).toBeVisible();
   await tile.click({ button: 'right' });
-  await page.locator('.ctx-menu .ctx-item', { hasText: 'Get info' }).click();
+  // "Get info" is "Info" now (plan.md §3 File: "Info ⌘I · Delete").
+  await page.locator('.ctx-menu').getByRole('menuitem', { name: 'Info', exact: true }).click();
   await expect(row(page, 'Frame rate').locator('.cbd-meta-v')).toHaveText('24 fps');
   await expect(row(page, 'Codec').locator('.cbd-meta-v')).toHaveText('VP9');
   await expect(row(page, 'Resolution').locator('.cbd-meta-v')).toHaveText('64 × 36');

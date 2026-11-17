@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 const PREFIX = 'soleil.boards.recents.';
 const MAX = 5;
 
-function readRecents(workspaceId) {
+export function readRecents(workspaceId) {
   if (!workspaceId || typeof localStorage === 'undefined') return [];
   try {
     const raw = localStorage.getItem(PREFIX + workspaceId);

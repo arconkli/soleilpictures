@@ -130,6 +130,7 @@ test('Copy link by keyboard puts focus back on the row\'s ⋯ button', async ({ 
   const more = rows(page).filter({ hasText: 'Reel two' }).getByRole('button', { name: 'More for Reel two' });
   await more.focus();
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: 'Open', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitem', { name: 'Copy link' })).toBeFocused();
   await page.keyboard.press('Enter');
@@ -142,11 +143,13 @@ test('Remove from my list by keyboard leaves focus on the section, not the page'
   const more = rows(page).filter({ hasText: 'Reel one' }).getByRole('button', { name: 'More for Reel one' });
   await more.focus();
   await page.keyboard.press('Enter');
+  await expect(page.getByRole('menuitem', { name: 'Open', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('menuitem', { name: 'Remove from my list' })).toBeFocused();
   await page.keyboard.press('Enter');
   expect((await calls(page)).removed).toEqual(['m1']);
+  // The row and its ⋯ are gone, so focus goes to the section, never the page.
   await expect.poll(() => page.evaluate(() => document.activeElement?.className || '')).toMatch(/swy-head-toggle|swy-all/);
 });
 

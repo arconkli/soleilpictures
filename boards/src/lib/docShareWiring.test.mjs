@@ -42,10 +42,23 @@ test('every way in is held: the open doc’s header, the canvas menu, the list m
   const head = src('../components/doc/DocFrameA.jsx');
   assert.match(head, /const share = !isPublic && canEdit && scope\?\.boardId && docSharesAllowed\(\) && isShareableDoc\(card\) \? \(\s+<FileShareButton variant="doc" surface="doc" boardId=\{scope\.boardId\}/);
   const canvas = src('../components/CanvasSurface.jsx');
-  assert.match(canvas, /const shareDoc = !multi && canEdit && !isPublic \? docShareLabel\(c\) : null;/);
-  assert.match(canvas, /items\.push\(\{ id: 'share-doc', label: shareDoc,\s+run: \(\) => openFileShare\(\{ boardId: board\.id, cardId: c\.id, card: c, boardName: board\.name, surface: 'canvas' \}\) \}\);/);
+  // The canvas menu (src/lib/menus): the surface hands the act only when held,
+  // and the row's words are the catalogue's.
+  assert.match(canvas, /if \(!isPublic && docShareLabel\(c\)\) \{\s+acts\['share-doc'\] = \(\) => openFileShare\(\{ boardId: board\.id, cardId: c\.id, card: c, boardName: board\.name, surface: 'canvas' \}\);/);
+  // Editors only: a viewer's menu is built and returned before any editing act…
+  const at = canvas.indexOf("acts['share-doc'] =");
+  const viewer = canvas.lastIndexOf('    if (!canEdit) {', at);
+  assert.ok(viewer > 0 && /return finish\(multi\s+\? multiMenu\(selected\.size, \{ canEdit: false \}, acts\)\s+: cardMenu\(c, \{ canEdit: false, title: name \}, acts\)\);/.test(canvas.slice(viewer, at)), 'a viewer never reaches Share doc…');
+  // …and one card only: the act sits inside the 4-space `if (!multi) {` whose else is the selection's.
+  const one = canvas.lastIndexOf('\n    if (!multi) {\n', at);
+  assert.ok(one > viewer && !/\n    \}/.test(canvas.slice(one + 1, at)), 'Share doc… is a one-card row');
+  assert.match(canvas.slice(at), /^[\s\S]*?\n    \} else if \(!isPublic\) \{/);
+  const rows = src('./menus/rows.js');
+  assert.match(rows, /'share-doc': R\('ShareNetwork', \(\) => t`Share doc…`\)/);
+  assert.match(src('./menus/cardMenu.js'), /const SHARE = \[[^\]]*'share-doc'/);
   const list = src('../components/ListSurface.jsx');
-  assert.match(list, /canEdit && docShareLabel\(card\) && \{ id: 'share-doc', label: docShareLabel\(card\), run: \(\) => openFileShare\(\{ boardId: board\.id, cardId: card\.id, card, boardName: board\.name, surface: 'list' \}\) \}/);
+  assert.match(list, /'share-doc': canEdit && docShareLabel\(card\)\s+\? \{ label: docShareLabel\(card\), run: \(\) => openFileShare\(\{ boardId: board\.id, cardId: card\.id, card, boardName: board\.name, surface: 'list' \}\) \} : null,/);
+  assert.match(src('./menus/fileMenu.js'), /'share-doc'/);
 });
 
 test('the dialog speaks a doc’s roles and wakes its rooms after a confirmed write', () => {

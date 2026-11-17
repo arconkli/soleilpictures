@@ -299,7 +299,8 @@ test('Back cancels a delete question: nothing is deleted and the cluster stays; 
   await openAlphaFromHome(page);
   // Beta's cluster card on Alpha: deleting a cluster asks first.
   await openCardMenu(page);
-  await menu(page).getByRole('menuitem', { name: /^Delete/ }).tap();
+  // Delete is a tile of the sheet's quick row now (plan.md §2.3, Phone sheet).
+  await page.locator('.ctx-quick').getByRole('menuitem', { name: 'Delete', exact: true }).tap();
   await expect(menu(page)).toHaveCount(0);
   const question = page.locator('.feedback-dialog');
   await expect(question).toBeVisible();

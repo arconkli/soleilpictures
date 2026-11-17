@@ -84,7 +84,7 @@ The current look (`body[data-sb-files]`) floats the sidebar as two glass cards, 
 - **Island** (a sidebar card): glass, `--sbf-glass` (`--bg-1` at 88%; token `glass`), an inset `--sbf-glass-line` hairline and `--sbf-glass-shadow`, `0 1px 1px`, "and nothing softer".
 - **Toast**: nearly solid `--sbf-solid` (`--bg-1` at 96%; token `glass-solid`), blurred 14px, 12px radius, a hairline and a lift, top right under the right island (`boards/src/components/feedbackLook.css`).
 - **Notices and the command bar**: the same `--sbf-solid` (`boards/src/components/smallThingsLook.css`, `boards/src/components/commandPaletteLook.css`).
-- **Menu**: solid `--bg-3` with a hairline, 8px radius and 32px rows, because it opens over photos.
+- **Menu**: nearly solid `--menu-bg` (`--bg-1` at 96%; token `glass-solid`), blurred 14px, an inset `--menu-line` hairline (token `menu-line`) and the `menu` lift, 10px radius and 32px rows, because it opens over photos.
 - **Dialog**: the confirm and prompt dialogs are opaque, `--bg-1` in dark and a near-white in light, with an inset hairline and a 14px radius ("glass over the dimmed, blurred room came out the room's own tone"). Behind it a scrim, black at .45 on dark and near-black at .28 on light.
 
 The canvas ground is depth dots with very faint lines (`boards/src/lib/canvasGround.js`). Disabled is `--disabled-opacity` .4. The two toast rules that still disagree are in [drift.md](drift.md).

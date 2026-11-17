@@ -119,16 +119,21 @@ test('bend dot reveals on hover, drag bends, context menu toggles straight and r
   // Now selected → the dot is fully solid.
   await expect.poll(() => bendVisOpacity(page)).toBe(1);
 
-  // Right-click the arrow line → arrow menu → "Straight arrow" → goes straight.
+  // Right-click the arrow line → arrow menu → "Curved" unchecked → goes straight.
+  // (The Straight arrow / Curved arrow pair is one checked toggle now, plan.md
+  // §1.10 and §3 Arrow: "Curved ✓".)
   await rightClickArrowLine(page);
-  await page.getByRole('menuitem', { name: 'Straight arrow' }).click();
+  const curved = page.getByRole('menuitemcheckbox', { name: 'Curved', exact: true });
+  await expect(curved).toHaveAttribute('aria-checked', 'true');
+  await curved.click();
   await expect.poll(() => arrowPathD(page)).toContain('L');
   expect(await arrowPathD(page)).not.toContain('Q');
 
   // Back to curved → the earlier bend is restored (survives the straight
   // round-trip, so 'Q' again, not the auto 'C').
   await rightClickArrowLine(page);
-  await page.getByRole('menuitem', { name: 'Curved arrow' }).click();
+  await expect(curved).toHaveAttribute('aria-checked', 'false');
+  await curved.click();
   await expect.poll(() => arrowPathD(page)).toContain('Q');
 
   // Reset curve → back to the auto route (cubic again).

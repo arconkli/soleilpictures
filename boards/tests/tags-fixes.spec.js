@@ -83,8 +83,12 @@ test('TAGS-15: the sidebar tag menu opened near the bottom of the window stays o
   const box = await last.boundingBox();
   // Right-click the bottom row a few px above the window's bottom edge.
   await last.click({ button: 'right', position: { x: 20, y: Math.max(2, box.height - 4) } });
-  const menu = page.locator('.sb-tag-menu');
+  // The tag's menu is the one menu every right-click opens now (plan.md §1.1;
+  // §3, everything else on the same component).
+  const menu = page.locator('.ctx-menu');
   await expect(menu).toBeVisible();
+  // It opens with a short scale, so measure it once it has settled.
+  await menu.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
   const m = await menu.boundingBox();
   expect(m.y).toBeGreaterThanOrEqual(0);
   expect(m.y + m.height, 'menu bottom inside the viewport').toBeLessThanOrEqual(700);

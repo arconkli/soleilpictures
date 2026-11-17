@@ -41,7 +41,7 @@ stays in that scheme without anybody maintaining a system.
 | [Arrows](/docs/canvas/arrows) | Line colour |
 | [Groups](/docs/canvas/groups) | Outline colour |
 | Canvas | Background — seven presets plus custom |
-| Clusters | Cover colour |
+| Clusters | Cover colour (**Color and cover** in the cluster's menu) |
 | You | Your [presence colour](/docs/collaborate/presence) |
 
 ## Readability

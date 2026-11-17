@@ -75,9 +75,10 @@ makes drawing on touch unusable.
 
 ## Menus under a finger
 
-On a phone, a row with a **›** (**Arrange**, **Edit**, **Background**,
+On a phone the menu is a sheet from the bottom. What you held is shown at its
+top, and a row of tiles holds the quick actions. A row with a **›** (**Arrange**, **Edit**, **Background**,
 **Export**, **Tidy up**, **Move to cluster**) steps into the menu itself instead
-of opening beside it. The back row at its top goes back a level, and a list
+of opening beside it. Inside a submenu a **Back** row goes back a level, and a list
 inside a list works the same way, one level at a time. A menu taller than the
 screen stops above the bottom bar and scrolls.
 

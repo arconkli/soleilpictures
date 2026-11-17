@@ -1,55 +1,87 @@
-// Card right-click menu — supports flat items, dividers, and nested submenus
-// (item.submenu = [...]). Hover an item with a submenu to expand.
+// The one right-click menu (a card's, the canvas's, a cluster's...): rows with
+// icons, hints, asides, shortcuts and checks, dividers, a quick row of icon
+// buttons, and nested submenus (item.submenu = [...]) that fly out beside it.
+// BackgroundContextMenu.jsx is a thin wrapper over this. The row shape and the
+// props are written up in ctxMenuParts.jsx and the step-2 spec.
 //
-// Submenus render through a body portal so position:fixed actually pins to
-// the viewport — the parent .ctx-menu has a CSS transform (open animation),
-// which would otherwise turn it into the containing block for any fixed
-// descendant and send the submenu somewhere off-screen.
+// On a phone's shell it is a bottom sheet instead (shell/Sheet.jsx): a header
+// from `preview`, the quick row as labelled tiles, the list in a .ctx-menu.is-sheet
+// whose submenus step in.
+//
+// Flyouts render through a body portal so position:fixed actually pins to the
+// viewport: the parent .ctx-menu has a CSS transform (open animation), which
+// would otherwise turn it into the containing block for any fixed descendant.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
-import { tagFallbackColor } from '../lib/tagColor.js';
-import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
-import { CtxShortcut, CtxStepView, CtxSubmenu, rowKeys, stepMenuKeys, useCtxStep, walkMenu } from './ctxMenuParts.jsx';
+import { useMenuPlacement, useMoreBelow } from '../lib/ctxMenuFit.js';
+import {
+  CtxContext, CtxList, CtxQuick, CtxSheetHeader, CtxStepRow, CtxStepView, CtxSubmenu,
+  handleMenuKeys, menuHasIcons, useCtxStep,
+} from './ctxMenuParts.jsx';
+import { Sheet } from './shell/Sheet.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
-import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
 import { useBackLayer } from '../hooks/useBackLayer.js';
-import { t as tr, ph, plural } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
+import { t, plural } from '@lingui/core/macro';
 
-export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
+// "Linked from N" counts, per card, for 60 s: a reopen shows the row at once.
+const LINKED_TTL = 60000;
+const linkedCache = new Map(); // `${boardId}:${cardId}` -> { n, at }
+function linkedCached(key) {
+  const hit = key && linkedCache.get(key);
+  return hit && Date.now() - hit.at < LINKED_TTL ? hit.n : null;
+}
+
+export function CardContextMenu({
+  open, x, y, above = false, items, onClose, workspaceId, boardId, card,
+  title, quick, label, preview, root = 'card', byKey = false, returnFocus,
+}) {
+  const { mobileShell } = shellOf(useBreakpoint());
+  const sheet = mobileShell;
   // Single-flight guard: one action per menu open. The menu closes on the
   // first click, but a double-click can land two events before unmount —
   // which used to double-fire async actions (double delete/duplicate).
   const firedRef = useRef(false);
   useEffect(() => { if (open) firedRef.current = false; }, [open]);
-  // Under a finger, the phone's Back closes the menu.
-  useBackLayer(open, onClose);
+  // Under a finger, the phone's Back closes the popover (a sheet has its own layer).
+  useBackLayer(open && !sheet, onClose);
   const claimFire = () => {
     if (firedRef.current) return false;
     firedRef.current = true;
     return true;
   };
-  // Combined count from BOTH manual entity_links targeting the card
-  // AND text occurrences of the card's name across docs / messages /
-  // other cards. Drives the "Linked from N places" menu label so the
-  // user sees how rich the backlinks panel will be before opening it.
-  const [refCount, setRefCount] = useState(null);
 
-  // Tags currently applied to this card. Shown at the top of the menu
-  // so the user knows what concepts the system has attached before they
-  // pick an action.
-  const [appliedTags, setAppliedTags] = useState([]);
+  // Where the focus goes back to on Esc, Tab and a chosen row.
+  const returnRef = useRef(null);
+  const refocus = () => {
+    const el = returnRef.current;
+    if (el && el.isConnected) { try { el.focus({ preventScroll: true }); } catch (_) { /* noop */ } }
+  };
+  const closeAll = () => { refocus(); onClose(); };
+  const choose = (row) => {
+    if (row.disabled) return;
+    if (!claimFire()) return;
+    if (row.danger) haptic('delete');
+    refocus();
+    onClose();
+    row.run && row.run();
+  };
 
-  // A different card's menu must not show the last card's count and tags
-  // while its own load.
-  useEffect(() => { setRefCount(null); setAppliedTags([]); }, [card?.id]);
-  // Fetched when the menu OPENS (and fresh on every open), not whenever a card
-  // was once right-clicked — the menu stays mounted and these ran on mount and
-  // on every card/title change for a menu that may never be shown.
+  // Count from BOTH manual entity_links targeting the card AND text
+  // occurrences of its name across docs / messages / other cards. Drives the
+  // "Linked from N places" row, shown only when N > 0.
+  const linkKey = card?.id && boardId ? `${boardId}:${card.id}` : null;
+  const [linked, setLinked] = useState(null); // { key, n }
+  const cachedN = linkedCached(linkKey);
+  const linkedN = linked && linked.key === linkKey ? linked.n : cachedN;
+  // Fetched when the menu OPENS, not whenever a card was once right-clicked
+  // (the menu stays mounted); skipped while the card's last count is fresh.
   useEffect(() => {
     if (!open || !supabase || !workspaceId || !boardId || !card?.id) return;
+    if (linkedCached(linkKey) != null) return;
     let cancelled = false;
     (async () => {
       let n = 0;
@@ -71,178 +103,156 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
           n += (data?.total_appears || 0);
         } catch (_) {}
       }
-      if (!cancelled) setRefCount(n);
-
-      // Tags applied directly to this card. Hydrate color + name.
-      try {
-        const { data: links } = await supabase.from('entity_links')
-          .select('target_id, source')
-          .eq('source_kind', 'card')
-          .eq('source_id', String(card.id))
-          .eq('source_board_id', boardId)
-          .eq('target_kind', 'tag')
-          .eq('link_kind', 'applied');
-        const tagIds = Array.from(new Set((links || []).map(r => r.target_id).filter(Boolean)));
-        if (tagIds.length === 0) {
-          if (!cancelled) setAppliedTags([]);
-          return;
-        }
-        const { data: tags } = await supabase.from('tags')
-          .select('id, name, color')
-          .in('id', tagIds);
-        const sourceById = new Map((links || []).map(r => [r.target_id, r.source]));
-        const hydrated = (tags || []).map(t => ({
-          id: t.id,
-          name: t.name || tr`Tag`,
-          color: t.color || tagFallbackColor(t.name || t.id),
-          source: sourceById.get(t.id) || 'user',
-        }));
-        if (!cancelled) setAppliedTags(hydrated);
-      } catch (_) { if (!cancelled) setAppliedTags([]); }
+      linkedCache.set(linkKey, { n, at: Date.now() });
+      if (!cancelled) setLinked({ key: linkKey, n });
     })();
     return () => { cancelled = true; };
-  }, [open, workspaceId, boardId, card?.id, card?.title, card?.name]);
+  }, [open, workspaceId, boardId, card?.id, card?.title, card?.name, linkKey]);
 
-  // A submenu stepped into the menu's own box (a phone: ctxMenuParts.jsx).
-  const menuRef = useRef(null);
-  const step = useCtxStep(open, items, menuRef);
-  const stepBackRef = useRef(step.back);
-  stepBackRef.current = step.back;
-
-  const openTag = (tagId) => {
-    onClose();
-    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onDocDown = (e) => {
-      // Submenus portal to <body> with the same .ctx-menu class, so a class
-      // check (not a ref contains) keeps a submenu tap from closing the menu.
-      const inside = e.target.closest?.('.ctx-menu');
-      if (!inside) onClose();
-    };
-    // Escape in a stepped-in submenu goes back a level first.
-    const onKey = (e) => {
-      if (isComposingKey(e) || e.key !== 'Escape') return;
-      if (stepBackRef.current()) { e.preventDefault(); e.stopPropagation(); return; }
-      onClose();
-    };
-    // Capture phase + both pointer and mouse so a card's stopPropagation can't
-    // swallow the outside-tap on touch (pointerdown fires before mousedown).
-    document.addEventListener('pointerdown', onDocDown, true);
-    document.addEventListener('mousedown', onDocDown, true);
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('pointerdown', onDocDown, true);
-      document.removeEventListener('mousedown', onDocDown, true);
-      window.removeEventListener('keydown', onKey, true);
-    };
-  }, [open, onClose]);
-
-  // The TAGS block (head + chip row + divider) is ~44px on top of the rows.
-  // Reserved whenever the tags fetch runs, not once tags arrive: they load
-  // after the menu opens, and a menu near the bottom jumped up 44px then.
-  const canHaveTags = !!(supabase && workspaceId && boardId && card?.id);
-  const tagReserve = canHaveTags && appliedTags.length === 0 ? 44 : 0;
-  // The row-count guess below only seeds the first render; this measures the
-  // rendered menu and re-fits it before paint (see lib/ctxMenuFit.js).
-  // `above`: opened from the selection bar's ⋯, it ends at `y`, over the bar.
-  // Stepped in, the submenu starts where the menu did, and moves up only if
-  // it is the taller.
-  const stepped = !!step.item;
-  useFitMenuToViewport(menuRef, open, stepped && !above ? step.top : y, stepped ? 0 : tagReserve, above);
-  // The width is the content's (a translated label can be wider than the
-  // guess below), so the left edge is clamped after it renders: 8px inside.
-  useLayoutEffect(() => {
-    const el = menuRef.current;
-    if (!open || !el) return;
-    el.style.left = `${Math.max(8, Math.min(el.offsetLeft, window.innerWidth - el.offsetWidth - 8))}px`;
-  });
-
-  if (!open) return null;
-  const w = 220, hEst = items.length * 30 + 8 + (canHaveTags ? 44 : 0);
-  const px = Math.max(8, Math.min(x, window.innerWidth  - w  - 8));
-  // Floored at the top edge: on a short window (a landscape phone, or an image
-  // card's ~20 rows) this went negative and the first rows started above the
-  // viewport. A menu taller than the window scrolls instead (.is-scrollable).
-  const py = above ? Math.max(8, y - hEst) : Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
-
-  // "Linked from N places" row. Callers can position it explicitly by placing a
-  // { backlinks: true } item in their menu (preferred — keeps Delete last); if
-  // none is present we fall back to auto-appending it at the very bottom.
-  const backlinksButton = (key) => (
-    <button key={key} className="ctx-item" role="menuitem" onClick={() => {
-      onClose();
+  // The list: the caller's rows, then "Linked from N places" as the last row
+  // when N > 0 (a caller's { backlinks: true } marker is only a marker).
+  // Icons or not is the caller's rows' call; the Linked row arriving late
+  // must not shift every label.
+  const iconsOn = menuHasIcons(items);
+  const linkedRow = card?.id && linkedN > 0 ? {
+    id: '__linked',
+    icon: iconsOn ? 'ArrowBendUpLeft' : undefined,
+    label: plural(linkedN, { one: 'Linked from # place', other: 'Linked from # places' }),
+    run: () => {
       document.dispatchEvent(new CustomEvent('soleil-open-backlinks', {
         detail: {
           ref: { kind: 'card', boardId, cardId: card.id },
           name: card.title || card.name || null,
         },
       }));
-    }}>
-      <span className="ctx-label">
-        {refCount === null ? tr`Linked from…` : refCount === 0 ? tr`Not linked anywhere` : plural(refCount, { one: 'Linked from # place', other: 'Linked from # places' })}
-      </span>
-    </button>
-  );
-  const hasBacklinksPlaceholder = items.some(it => it.backlinks);
+    },
+  } : null;
+  const listItems = [...(items || []).filter((it) => it && !it.backlinks), ...(linkedRow ? [linkedRow] : [])];
 
-  if (stepped) {
+  // A submenu stepped into the menu's own box (a phone's sheet, or no room beside).
+  const menuRef = useRef(null);
+  const step = useCtxStep(open, listItems, menuRef);
+  const stepBackRef = useRef(step.back);
+  stepBackRef.current = step.back;
+  const closeAllRef = useRef(closeAll);
+  closeAllRef.current = closeAll;
+
+  useEffect(() => {
+    if (!open) return;
+    // A sheet's scrim, grip and header are Sheet's: it closes itself.
+    const onDocDown = (e) => {
+      // Flyouts portal to <body> with the same .ctx-menu class, so a class
+      // check (not a ref contains) keeps a flyout tap from closing the menu.
+      const inside = e.target.closest?.('.ctx-menu, .ctx-quick-tip');
+      if (!inside) onClose();
+    };
+    // Escape: a search field with text clears first (its own handler); in a
+    // stepped-in submenu it goes back a level first; then it closes the whole
+    // menu, every flyout with it, the focus going back to where it was.
+    const onKey = (e) => {
+      if (isComposingKey(e) || e.key !== 'Escape') return;
+      const tgt = e.target;
+      if (tgt?.tagName === 'INPUT' && tgt.value && tgt.closest?.('.ctx-menu')) return;
+      if (stepBackRef.current()) { e.preventDefault(); e.stopPropagation(); return; }
+      // Claimed, so a layer below that checks defaultPrevented (a doc, the Messages panel) stays open.
+      if (!sheet) { e.preventDefault(); closeAllRef.current(); }
+    };
+    // Capture phase + both pointer and mouse so a card's stopPropagation can't
+    // swallow the outside-tap on touch (pointerdown fires before mousedown).
+    if (!sheet) {
+      document.addEventListener('pointerdown', onDocDown, true);
+      document.addEventListener('mousedown', onDocDown, true);
+    }
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDocDown, true);
+      document.removeEventListener('mousedown', onDocDown, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [open, onClose, sheet]);
+
+  // Measured and placed after every render (lib/ctxMenuFit.js), hidden until
+  // placed. `above`: opened from the selection bar's ⋯, it ends at `y`.
+  // Stepped in, the submenu starts where the menu did.
+  const stepped = !!step.item;
+  useMenuPlacement(menuRef, open && !sheet, {
+    x: stepped ? step.left : x,
+    y: stepped && !above ? step.top : y,
+    above,
+  });
+
+  // Focus: from the keys the first stop, else the menu itself (↓ → first stop,
+  // ↑ → last row). The opener is remembered for the way back.
+  useLayoutEffect(() => {
+    if (!open) { returnRef.current = null; return; }
+    const a = document.activeElement;
+    returnRef.current = returnFocus
+      || (a && a !== document.body && !a.closest?.('.ctx-menu') && a.isConnected ? a : null);
+    const el = menuRef.current;
+    if (!el) return;
+    const place = () => {
+      if (byKey) (el.querySelector('button.ctx-quick-btn, button.ctx-item') || el).focus({ preventScroll: true });
+      else el.focus({ preventScroll: true });
+    };
+    if (!sheet) { place(); return undefined; }
+    // The sheet puts the focus on its first control in the next frame; ours is
+    // queued first, so the list itself holds it and no row looks focused.
+    const raf = requestAnimationFrame(place);
+    return () => cancelAnimationFrame(raf);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useMoreBelow(menuRef, open && sheet);
+
+  if (!open) return null;
+
+  const rows = stepped ? step.item.submenu : items;
+  const noIcons = !menuHasIcons(rows);
+  const ariaLabel = stepped ? step.item.label : (label || card?.title || card?.name || t`Menu`);
+  const hasQuick = !!quick && quick.length > 0;
+  const ctx = { choose, closeAll: sheet ? null : closeAll, stepIn: step.stepIn, root };
+  const stepView = stepped
+    ? <CtxStepView item={step.item} parent={step.parent} root={root} onBack={step.back} />
+    : null;
+  const keyDown = (e) => handleMenuKeys(e, { closeAll: sheet ? null : closeAll, back: step.back });
+
+  if (sheet) {
+    const nest = (sub, key, icons) => <CtxStepRow key={key} it={sub} hasIcons={icons} />;
     return (
-      <div ref={menuRef} className="ctx-menu is-step" style={{ left: px, top: py, width: step.width }}
-           role="menu" aria-label={step.item.label} onKeyDown={stepMenuKeys(step)}>
-        <CtxStepView item={step.item} parent={step.parent} root="card" onBack={step.back} onStep={step.stepIn} onClose={onClose} claimFire={claimFire} />
-      </div>
+      <Sheet open onClose={onClose} className="ctx-sheet-root">
+        <CtxContext.Provider value={ctx}>
+          <div className="ctx-sheet-wrap" onKeyDown={keyDown}>
+            {!stepped && <CtxSheetHeader preview={preview} title={title} />}
+            {!stepped && hasQuick && <CtxQuick quick={quick} tiles />}
+            <div ref={menuRef} className={`ctx-menu is-sheet${noIcons ? ' no-icons' : ''}${stepped ? ' is-step' : ' is-scrollable'}`}
+                 role="menu" aria-label={ariaLabel} tabIndex={-1}>
+              {stepView || <CtxList rows={listItems} hasIcons={iconsOn} nest={nest} />}
+            </div>
+          </div>
+        </CtxContext.Provider>
+      </Sheet>
     );
   }
 
+  const nest = (sub, key, icons) => <CtxSubmenu key={key} item={sub} hasIcons={icons} canStep />;
+  const cls = `ctx-menu ${stepped ? 'is-step' : 'is-scrollable'}${noIcons ? ' no-icons' : ''}${hasQuick && !stepped ? ' has-quick' : ''}`;
   return (
-    <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={walkMenu}>
-      {card?.id && appliedTags.length > 0 && (
-        <>
-          <div className="ctx-tags-head"><Trans>TAGS</Trans></div>
-          <div className="ctx-tags-row">
-            {appliedTags.map(t => (
-              <button key={t.id}
-                      className={`ctx-tag-chip ${t.source && t.source !== 'user' ? 'is-' + t.source : ''}`}
-                      style={{ '--tag-c': t.color }}
-                      title={tr`Open tag "${ph({ name: t.name })}"` + (t.source && t.source !== 'user' ? ' · ' + t.source : '')}
-                      onClick={() => openTag(t.id)}>
-                <span className="ctx-tag-dot" aria-hidden="true" />
-                <span className="ctx-tag-name">{t.name}</span>
-              </button>
-            ))}
-          </div>
-          <div className="ctx-divider" />
-        </>
-      )}
-      {items.map((it, i) => {
-        if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
-        if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
-        if (it.backlinks) return card?.id ? backlinksButton(it.id || `bl-${i}`) : null;
-        if (it.submenu) return <CtxSubmenu key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} onStep={step.stepIn} />;
-        return (
-          <button
-            key={it.id || i}
-            className={`ctx-item ${it.danger ? 'danger' : ''}`}
-            disabled={it.disabled}
-            onClick={async () => { if (!claimFire()) return; if (it.danger) haptic('delete'); onClose(); it.run && await it.run(); }}
-            role="menuitem"
-            {...rowKeys(it.shortcut)}
-          >
-            <span className="ctx-label">{it.label}</span>
-            <CtxShortcut keys={it.shortcut} />
-            {it.danger && <HapticTap />}
-          </button>
-        );
-      })}
-      {card?.id && !hasBacklinksPlaceholder && (
-        <>
-          {items.length > 0 && items[items.length - 1].divider !== true && <div className="ctx-divider" />}
-          {backlinksButton('backlinks-fallback')}
-        </>
-      )}
-    </div>
+    <CtxContext.Provider value={ctx}>
+      <div ref={menuRef} className={cls} role="menu" aria-label={ariaLabel} tabIndex={-1}
+           style={stepped ? { width: step.width } : undefined}
+           onKeyDown={keyDown}>
+        {stepView || (
+          <>
+            {title && <div className="ctx-title">{title}</div>}
+            {hasQuick && (
+              <>
+                <CtxQuick quick={quick} />
+                {listItems.length > 0 && <div className="ctx-divider" role="separator" />}
+              </>
+            )}
+            <CtxList rows={listItems} hasIcons={iconsOn} nest={nest} />
+          </>
+        )}
+      </div>
+    </CtxContext.Provider>
   );
 }

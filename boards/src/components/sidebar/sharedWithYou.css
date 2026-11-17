@@ -33,7 +33,6 @@
 .swy-row:hover .swy-more, .swy-row:focus-within .swy-more, .swy-more.is-open { opacity: 1; }
 .swy-more:hover, .swy-more.is-open { background: var(--bg-3); color: var(--ink-0); }
 @media (hover: none) { .swy-more { opacity: 1; } }
-.swy-menu { z-index: 1300; }
 
 /* All shared: a way to the page, quieter than a cluster. */
 .swy-all { gap: 6px; color: var(--ink-2); }

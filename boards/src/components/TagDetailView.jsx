@@ -33,7 +33,8 @@ import {
   getRelatedEntities, TAG_LINKS_CHANGED,
 } from '../lib/tagsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
-import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { row as menuRow } from '../lib/menus/rows.js';
 import { undoToast } from '../lib/undoToast.js';
 import { getKind } from '../lib/entityKinds.js';
 import { ImageLightbox } from './ImageLightbox.jsx';
@@ -43,12 +44,12 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { openInfo } from '../lib/infoBus.js';
 import { shareTargetForRef } from '../lib/fileShareBus.js';
-import { TagActionSheet } from './TagActionSheet.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownError } from '../lib/errorWords.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -173,21 +174,6 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   };
   // Right-click menu state.
   const [menu, setMenu] = useState(null); // { x, y, kind, id, boardId, source }
-  const menuRef = useRef(null);
-  const menuPos = useClampedMenuPosition(menuRef, menu?.x, menu?.y);
-  useEffect(() => {
-    if (!menu) return;
-    const onAway = (e) => { if (!e.target.closest?.('.tag-detail-menu')) setMenu(null); };
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setMenu(null); };
-    window.addEventListener('pointerdown', onAway, { capture: true });
-    window.addEventListener('mousedown', onAway, { capture: true });
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('pointerdown', onAway, { capture: true });
-      window.removeEventListener('mousedown', onAway, { capture: true });
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [menu]);
 
   // ── Entity identity (hero) ────────────────────────────────────────────
   // The visual payoff (cross-board images + palettes) that makes a tag read
@@ -702,12 +688,10 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     setMenu({ ...target, x: e.clientX, y: e.clientY });
   };
 
-  // Phones (the owner's direction A): a long press on an item opens its
-  // actions in a sheet. iOS never raises contextmenu, so the right-click menu
-  // was out of reach there; Android's own long-press menu lands here too.
-  const [itemSheet, setItemSheet] = useState(null); // a menu target
+  // Under a finger: a long press on an item opens the same menu (a sheet on a
+  // phone). iOS never raises contextmenu, so the right-click menu was out of
+  // reach there; Android's own long-press menu lands here too.
   const pressRef = useRef(null);
-  const swallowClickRef = useRef(false);
   const onItemPressStart = (e) => {
     if (e.pointerType !== 'touch') return;
     const el = e.target.closest?.('[data-tag-item]');
@@ -717,8 +701,10 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     const start = { x: e.clientX, y: e.clientY };
     const timer = setTimeout(() => {
       pressRef.current = null;
-      swallowClickRef.current = true;
-      setItemSheet(target);
+      setMenu({ ...target, x: start.x, y: start.y });
+      // The finger is still down: the click it leaves when it lifts would land on
+      // the menu (on a phone, the sheet's backdrop, or one of its rows).
+      swallowNextClick({ held: true });
     }, 480);
     pressRef.current = { timer, start };
   };
@@ -732,6 +718,32 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   const onItemPressEnd = () => {
     const p = pressRef.current;
     if (p) { clearTimeout(p.timer); pressRef.current = null; }
+  };
+  // The menu of one tagged item: Open, Info, then Confirm / Remove by how the
+  // tag got there, or a line saying why it can't be removed here.
+  const itemMenuItems = (m) => {
+    const auto = !!m.source && m.source !== 'user';
+    const out = [
+      menuRow('open', () => openItem(m)),
+      // Info (lib/infoBus.js): the live card when its cluster is open in a
+      // pane, else what the tag index knows about it.
+      menuRow('info', () => {
+        if (m.kind === 'board') openInfo({ clusterId: m.id });
+        else if (m.kind === 'group') openInfo({ boardId: m.boardId, groupId: m.id });
+        else openInfo({ boardId: m.boardId, cardIds: [m.id], cards: [{ id: m.id, kind: m.kind, title: m.title || undefined }] });
+      }, { shortcut: null }),
+    ];
+    if (auto) out.push({ id: 'confirm', label: tr`Confirm tag`, icon: 'CheckCircle', run: () => confirmTag(m) });
+    if (m.source) {
+      out.push({
+        id: 'remove', label: tr`Remove tag`, icon: 'X',
+        hint: tr`Removes this tag and won't auto-apply it here again. Drag it back to undo.`,
+        run: () => removeTag(m),
+      });
+    } else {
+      out.push({ caption: tr`This card isn't tagged directly — it shows here because its board/group is.` });
+    }
+    return out;
   };
   const openItem = (m) => {
     if (m.kind === 'doc' && m.pageId) {
@@ -1217,13 +1229,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
            onPointerDown={onItemPressStart}
            onPointerMove={onItemPressMove}
            onPointerUp={onItemPressEnd}
-           onPointerCancel={onItemPressEnd}
-           onClickCapture={(e) => {
-             if (!swallowClickRef.current) return;
-             swallowClickRef.current = false;
-             e.preventDefault();
-             e.stopPropagation();
-           }}>
+           onPointerCancel={onItemPressEnd}>
         {loading && <div className="tag-detail-empty"><Trans>Looking up…</Trans></div>}
         {!loading && rows.length === 0 && (
           <div className="tag-detail-empty">
@@ -1372,77 +1378,16 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         )}
       </div>
 
-      {itemSheet && (() => {
-        const auto = !!itemSheet.source && itemSheet.source !== 'user';
-        const r = rows.find(x => isRowFor(x, itemSheet.kind, itemSheet)) || null;
-        const visual = r && (r.kind === 'image' || r.kind === 'palette');
-        const pic = visual ? (getKind(r.kind)?.previewMini?.(r) || null) : null;
-        return (
-          <TagActionSheet
-            title={itemSheet.title || tr`Item`}
-            lead={(
-              <span className={`tag-sheet-thumb${pic ? ' has-pic' : ''}`}>
-                {pic || <Icon as={kindIcon(itemSheet.kind)} size={18} />}
-              </span>
-            )}
-            sub={(
-              <>
-                <span className={`card-tag-chip tag-sheet-chip${auto ? ' is-auto' : ''}`}
-                      style={{ '--tag-c': resolveTagColor(tag) }}>
-                  <span className="card-tag-chip-dot" />
-                  <span className="card-tag-chip-name" dir="auto">{tag.name}</span>
-                </span>
-                {auto && tr`added automatically`}
-              </>
-            )}
-            onClose={() => setItemSheet(null)}
-            actions={[
-              auto ? { id: 'confirm', label: tr`Confirm tag`, run: () => confirmTag(itemSheet) } : null,
-              itemSheet.source ? { id: 'remove', label: tr`Remove tag`, run: () => removeTag(itemSheet) } : null,
-            ]}
-          />
-        );
-      })()}
-      {menu && (
-        <div className="tag-detail-menu" role="menu"
-             ref={menuRef}
-             style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, zIndex: 60 }}
-             onMouseDown={(e) => e.stopPropagation()}>
-          <button className="tag-detail-menu-item" role="menuitem"
-                  onClick={() => { const m = menu; setMenu(null); openItem(m); }}>
-            <Trans>Open</Trans>
-          </button>
-          {/* Info (lib/infoBus.js): the live card when its cluster is open in
-              a pane, else what the tag index knows about it. */}
-          <button className="tag-detail-menu-item" role="menuitem"
-                  onClick={() => {
-                    const m = menu; setMenu(null);
-                    if (m.kind === 'board') openInfo({ clusterId: m.id });
-                    else if (m.kind === 'group') openInfo({ boardId: m.boardId, groupId: m.id });
-                    else openInfo({ boardId: m.boardId, cardIds: [m.id], cards: [{ id: m.id, kind: m.kind, title: m.title || undefined }] });
-                  }}>
-            <Trans>Info</Trans>
-          </button>
-          {menu.source && menu.source !== 'user' && (
-            <button className="tag-detail-menu-item" role="menuitem"
-                    onClick={() => { const m = menu; setMenu(null); confirmTag(m); }}>
-              <Trans>Confirm tag</Trans>
-            </button>
-          )}
-          {menu.source && (
-            <button className="tag-detail-menu-item" role="menuitem"
-                    title={tr`Removes this tag and won't auto-apply it here again. Drag it back to undo.`}
-                    onClick={() => { const m = menu; setMenu(null); removeTag(m); }}>
-              <Trans>Remove tag</Trans>
-            </button>
-          )}
-          {!menu.source && (
-            <span className="tag-detail-menu-hint">
-              <Trans>This card isn't tagged directly — it shows here because its board/group is.</Trans>
-            </span>
-          )}
-        </div>
-      )}
+      <CardContextMenu
+        open={!!menu}
+        x={menu?.x ?? 0}
+        y={menu?.y ?? 0}
+        items={menu ? itemMenuItems(menu) : []}
+        label={menu?.title || tr`Item`}
+        preview={menu ? { name: menu.title || tr`Item`, kind: tag.name } : undefined}
+        root="menu"
+        onClose={() => setMenu(null)}
+      />
 
       {lightboxIdx != null && imageCardsFlat[lightboxIdx] && (
         <ImageLightbox

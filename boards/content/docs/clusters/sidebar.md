@@ -43,9 +43,12 @@ The top card:
   you are in and shows an unread count.
 - **Your clusters** — the cluster tree, with **Shared with you** and your
   [tags](/docs/organize/tags) below it. Click a cluster to open it; the chevron
-  shows the clusters inside it. Right-click a cluster for its menu, which adds
-  **Star** and, if you can edit it, **Always open in Files** to the
-  [usual cluster actions](/docs/clusters).
+  shows the clusters inside it. Right-click a cluster for its menu: **Open**,
+  **Send to…**, **Share…**, **Copy link**; **Rename…**, **New cluster
+  inside**, **Move to…**, **Color and cover ›**; **Star** (or **Unstar**),
+  **Info**, **More ›** (**Copy**, **Paste into this cluster**, **Always open
+  in Files**); and **Delete** (or **Remove from my list** for a cluster shared
+  with you). See the [usual cluster actions](/docs/clusters).
 
 ### Shared with you
 
@@ -61,8 +64,8 @@ and file shared with you or by you, and counts what you haven't opened yet.
 Once more are shared with you than the list shows, the magnifying glass
 beside **Shared with you** opens that page ready to search.
 
-A cluster's **⋯** menu has **Open**, **Copy link** and **Remove from my
-list**. Removing one takes it off your list, with an undo, and changes nothing
+A cluster's **⋯** menu has **Open**, **Send to…**, **Copy link** and
+**Remove from my list**. Removing one takes it off your list, with an undo, and changes nothing
 for the person who shared it. Opening it again, from a link or a search, puts
 it back, and so does their sharing it with you again. When someone stops
 sharing a cluster with you, it leaves the list and a note says so.
@@ -117,8 +120,8 @@ parts:
   and selects it, or, for a file that isn't on the board, the full Files page
   opens with it picked out.
 - **Right-click** it, or press `⇧F10`, for its menu: Quick look, Show on board
-  (or Show in Files), Put on board, Star, Download, Share file…, Move to…,
-  Copy to… and Delete. Delete has an undo.
+  (or Show in Files), Put on board, Send to…, Copy link, Share file…,
+  Download, Move to…, Copy to…, Star, Info and Delete. Delete has an undo.
 
 ### Selecting several
 
@@ -136,7 +139,7 @@ folders, a grid or a list, Info and downloads. While it's open, this card
 folds to a bar, **Files · full screen**, so the files are listed once; its
 **Shrink**, `F` again or `⌘\` brings the board back. Opening the page this way is yours alone; it never changes how
 the cluster opens for anyone else. To make a cluster open in Files for
-everyone, choose **Always open in Files** from its menu in the sidebar.
+everyone, choose **More ›**, then **Always open in Files**, from its menu in the sidebar.
 
 ## Moving and copying files
 

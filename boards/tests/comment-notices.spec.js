@@ -224,7 +224,7 @@ test('a database without the notice function: the comment is written and nothing
   await page.waitForTimeout(500);
   await expect(page.locator('.toast-msg')).toHaveCount(0);
   await noteBody(page).click({ button: 'right' });
-  await expect(page.locator('.ctx-menu').getByRole('menuitem', { name: 'Comments (1)' })).toBeVisible();
+  await expect(page.locator('.ctx-menu').getByRole('menuitem', { name: '1 comment', exact: true })).toBeVisible();
   expect(a.errors).toEqual([]);
 });
 

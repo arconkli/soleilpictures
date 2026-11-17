@@ -51,7 +51,10 @@ import { uiLocale } from '../../lib/uiLocale.js';
 import { putFailReason, putFailToast } from '../../lib/putRefusal.js';
 import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
-import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
+import { fileMenu as buildFileMenu, filesMenu } from '../../lib/menus/fileMenu.js';
+import { copyCardLink } from '../../lib/cardLink.js';
+import { openInfo } from '../../lib/infoBus.js';
+import { openSend, sendAvailable, SEND_MAX_CARDS } from '../../lib/sendBus.js';
 import { Icon } from '../Icon.jsx';
 import { Search, X, Columns2, ArrowsOutSimple, ArrowsInSimple, ChevronDown, ChevronLeft } from '../../lib/icons.js';
 import { SidebarBoardsSection } from '../SidebarBoardsSection.jsx';
@@ -175,7 +178,6 @@ export function ClusterSidebar({
   // folder or zips dropped on a cluster: a bulk import into it (null where
   // bulk import is off). Loose files beside them go in as any drop does.
   onImportTreeOnCluster = null,
-  onSetOpensAs = null,    // (boardId, 'list' | 'canvas') => void — the cluster's view, for everyone
   onDropFilesOnCluster = null,  // (boardId, File[]) => void — desktop files dropped on a row
   uploadsByBoard = null,  // { boardId: n } — files still going up into a cluster
   liveMutators = null,    // the open cluster's mutators (deleteCards, undo, undoManager)
@@ -814,58 +816,66 @@ export function ClusterSidebar({
   // On a file that is part of a selection it acts on the whole selection.
   const [fileMenu, setFileMenu] = useState(null);   // { x, y, item, siblings }
   const onItemMenu = useCallback((item, siblings, x, y, opts) => setFileMenu({ item, siblings, x, y, viaTouch: !!opts?.viaTouch }), []);
-  const fileMenuItems = () => {
+  // The menu of one file, or of the selection it is part of: the Files menus
+  // (lib/menus/fileMenu.js). Counts live in the title, not in the labels.
+  const fileMenuModel = () => {
     const m = fileMenu;
-    if (!m) return [];
+    if (!m) return { items: [] };
     const group = selected.has(m.item.key) ? selItems : [m.item];
     const many = group.length > 1;
-    const starredNow = files.isStarred(m.item.boardId, m.item.cardId);
     // One file at a time, by an editor of its cluster, as on the canvas and
     // in the list (the server refuses anyone else anyway).
     const card = many ? null : cardFromItem(m.item);
     const shareable = !many && fileSharesAllowed() && isShareableCard(card)
       && !!boardsSectionProps?.canEditBoard?.(m.item.boardId);
-    // Select, first in a hold's menu: a check on every file, for a finger to
-    // pick several. The one held starts picked.
-    const select = m.viaTouch && touchPass && !selecting && { id: 'select', label: tr`Select`, run: () => {
-      setSelected((cur) => (cur.has(m.item.key) ? cur : new Map([[m.item.key, m.item]])));
-      setSelecting(true);
-      logEvent(EV.TOUCH_SELECT, { where: 'sidebar', via: 'menu', n: group.length });
-    } };
     // Files waiting in Files go on their board from here too: a finger can't
     // drag them there.
-    const put = onPutOnBoard && group.every((x) => x.unplaced) && movable(group)
-      && new Set(group.map((x) => x.boardId)).size === 1
-      && { id: 'put', label: many ? tr`Put ${ph({ count: group.length })} on board` : tr`Put on board`, run: () => putItems(group, 'menu') };
-    return composeMenuSections([
-      { items: [select] },
-      { items: [
-        { id: 'quick', label: tr`Quick look`, run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
-        { id: 'show', label: m.item.unplaced ? tr`Show in Files` : tr`Show on board`, run: () => openItem(m.item) },
-        put,
-        { id: 'star', label: starredNow ? tr`Unstar` : tr`Star`, run: () => {
-          files.toggleStar(m.item.boardId, m.item.cardId);
-          logEvent(EV.FILES_STAR, { on: !starredNow, what: 'file' });
-        } },
-      ] },
-      { header: SECTION.EDIT, items: [
-        { id: 'download', label: many ? tr`Download ${ph({ count: group.length })}` : tr`Download`, run: () => {
-          const cards = group.map((x) => cardFromItem(x));
-          // Name the cluster on the tray row only when the whole group is from one.
-          const from = new Set(group.map((x) => x.boardId));
-          const one = from.size === 1 ? [...from][0] : null;
-          const where = { boardId: one, boardName: one ? nameOf(one) : null, surface: 'sidebar', toast };
-          if (cards.length === 1) downloadOneTracked(cards[0], cards[0].kind, where);
-          else downloadManyTracked(cards.map((c) => ({ card: c, kind: c.kind })), { ...where, zipName: 'files.zip' });
-        } },
-        ...(shareable ? [{ id: 'share', label: tr`Share file…`, run: () => openFileShare({
-          boardId: m.item.boardId, cardId: m.item.cardId, card, boardName: nameOf(m.item.boardId), surface: 'sidebar',
-        }) }] : []),
-        ...(onPickCluster && movable(group) ? [{ id: 'move', label: many ? tr`Move ${ph({ count: group.length })} to…` : tr`Move to…`, run: () => sendTo(group, false) }] : []),
-        ...(onPickCluster ? [{ id: 'copy', label: many ? tr`Copy ${ph({ count: group.length })} to…` : tr`Copy to…`, run: () => sendTo(group, true) }] : []),
-        { id: 'delete', label: many ? tr`Delete ${ph({ count: group.length })}` : tr`Delete`, danger: true, run: () => { deleteItems(group, 'menu'); clearSelection(); } },
-      ] },
-    ]);
+    const fromOne = new Set(group.map((x) => x.boardId));
+    const canPut = !!onPutOnBoard && group.every((x) => x.unplaced) && movable(group) && fromOne.size === 1;
+    const sendable = sendAvailable() && fromOne.size === 1 && group.length <= SEND_MAX_CARDS;
+    const acts = {
+      'put-on-canvas': canPut ? () => putItems(group, 'menu') : null,
+      send: sendable ? () => openSend({
+        boardId: m.item.boardId, boardTitle: nameOf(m.item.boardId),
+        cards: group.map((x) => cardFromItem(x)), surface: 'files_menu',
+      }) : null,
+      download: () => {
+        const cards = group.map((x) => cardFromItem(x));
+        // Name the cluster on the tray row only when the whole group is from one.
+        const one = fromOne.size === 1 ? [...fromOne][0] : null;
+        const where = { boardId: one, boardName: one ? nameOf(one) : null, surface: 'sidebar', toast };
+        if (cards.length === 1) downloadOneTracked(cards[0], cards[0].kind, where);
+        else downloadManyTracked(cards.map((c) => ({ card: c, kind: c.kind })), { ...where, zipName: 'files.zip' });
+      },
+      'move-file': onPickCluster && movable(group) ? () => sendTo(group, false) : null,
+      'copy-file': onPickCluster ? () => sendTo(group, true) : null,
+      info: { run: () => openInfo({ boardId: m.item.boardId, cardIds: group.map((x) => x.cardId) }), shortcut: null },
+      delete: { run: () => { deleteItems(group, 'menu'); clearSelection(); } },
+    };
+    if (many) return filesMenu(group.length, {}, acts);
+    const starredNow = files.isStarred(m.item.boardId, m.item.cardId);
+    return buildFileMenu(m.item, { touch: m.viaTouch && touchPass, selecting, delKey: selected.has(m.item.key) }, {
+      ...acts,
+      // Select, first in a hold's menu: a check on every file, for a finger to
+      // pick several. The one held starts picked.
+      select: () => {
+        setSelected((cur) => (cur.has(m.item.key) ? cur : new Map([[m.item.key, m.item]])));
+        setSelecting(true);
+        logEvent(EV.TOUCH_SELECT, { where: 'sidebar', via: 'menu', n: group.length });
+      },
+      'quick-look': { run: () => openQuick(m.item, m.siblings, { detail: 0 }), shortcut: null },
+      ...(m.item.unplaced
+        ? { 'show-in-files': () => openItem(m.item) }
+        : { 'show-on-canvas': () => openItem(m.item) }),
+      'copy-link': m.item.unplaced ? null : () => copyCardLink(m.item.cardId, m.item.boardId, feedback),
+      'share-file': shareable ? () => openFileShare({
+        boardId: m.item.boardId, cardId: m.item.cardId, card, boardName: nameOf(m.item.boardId), surface: 'sidebar',
+      }) : null,
+      star: { starred: starredNow, run: () => {
+        files.toggleStar(m.item.boardId, m.item.cardId);
+        logEvent(EV.FILES_STAR, { on: !starredNow, what: 'file' });
+      } },
+    });
   };
 
   // ── The tree's hook-in ────────────────────────────────────────────────────
@@ -884,19 +894,7 @@ export function ClusterSidebar({
     onDrop: onDropOnCluster,
     springOpen,
     springLeave,
-    menuItems: (board, canEdit) => [
-      { id: 'star', label: files.isStarred(board.id) ? tr`Unstar` : tr`Star`, run: () => {
-        const on = !files.isStarred(board.id);
-        files.toggleStar(board.id);
-        logEvent(EV.FILES_STAR, { on, what: 'cluster' });
-      } },
-      ...(canEdit && onSetOpensAs ? [{
-        id: 'opens-as',
-        label: board.view === 'list' ? tr`Open on the board by default` : tr`Always open in Files`,
-        run: () => onSetOpensAs(board.id, board.view === 'list' ? 'canvas' : 'list'),
-      }] : []),
-    ],
-  }), [expand, files, uploadsByBoard, dropEffect, onDropOnCluster, springOpen, springLeave, onSetOpensAs]);
+  }), [expand, files, uploadsByBoard, dropEffect, onDropOnCluster, springOpen, springLeave]);
 
   // ↑/↓ walk the rows of whichever part has focus (the clusters, or the
   // files), in the order they appear; the rows keep their own Enter, →/←, F2
@@ -926,6 +924,7 @@ export function ClusterSidebar({
   };
 
   const nameOf = (id) => allBoards?.[id]?.name || tr`a cluster`;
+  const fileMenuShown = fileMenuModel();
 
   // ── The files section's subject ───────────────────────────────────────────
   const shownBoard = view === 'cluster' ? allBoards?.[shownId] : null;
@@ -1041,7 +1040,7 @@ export function ClusterSidebar({
       </nav>
 
       <div className="sb-list sbf-nav" ref={navRef} onKeyDown={onListKeyDown}>
-        <SidebarBoardsSection {...boardsSectionProps} filesView={filesView} />
+        <SidebarBoardsSection {...boardsSectionProps} filesView={filesView} starStore={{ isStarred: files.isStarred, toggleStar: files.toggleStar }} />
         {sharedSection}
         {tagsSection}
       </div>
@@ -1260,7 +1259,8 @@ export function ClusterSidebar({
       <DragLabel resolve={resolveDrop} />
       {createPortal(
         <CardContextMenu open={!!fileMenu} x={fileMenu?.x || 0} y={fileMenu?.y || 0}
-                         items={fileMenuItems()} onClose={() => setFileMenu(null)}
+                         items={fileMenuShown.items} label={fileMenuShown.label} title={fileMenuShown.title}
+                         root="menu" onClose={() => setFileMenu(null)}
                          workspaceId={workspaceId} boardId={fileMenu?.item?.boardId} card={null} />,
         document.body,
       )}

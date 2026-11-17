@@ -13,7 +13,7 @@ faq:
   - q: How do I change the layout after I have made it?
     a: Drag the dividers between cells. Cells split and merge as you go, and the rest of the grid reflows around what you changed.
   - q: Can several grids share a layout?
-    a: Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out.
+    a: Yes. Right-click a grid and choose Templates › Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Templates › Unlink layout takes a grid back out.
 related:
   - /docs/canvas/cards
   - /docs/canvas/images
@@ -117,7 +117,7 @@ that sequence is what exports and what a reader follows.
 A family is a **live link** between grids on one board: change the layout in one
 and the change carries to the others — the mechanism that keeps a twelve-page
 storyboard from drifting into twelve slightly different layouts. Right-click a
-grid and choose **Share layout** to start one, **Unlink layout** to leave.
+grid and choose **Templates ›**, then **Share layout** to start one, **Unlink layout** to leave.
 
 ## Discovering grids
 

@@ -400,21 +400,32 @@ test.describe('Phase 7 — arrows + export + docs', () => {
     expect(await hasCssRule(page, /\.arrow-label/)).toBe(true);
   });
 
-  test('right-click empty canvas → Save as template + Export entries', async ({ page }) => {
+  // The canvas menu is plan.md §3 Canvas: "Background › · Export ›", and no
+  // "Save board as template…" (it had already left the canvas menu on main).
+  // Export › holds the two formats.
+  test('right-click empty canvas → Export › with PNG and PDF', async ({ page }) => {
     await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
-    const menu = page.locator('.ctx-menu');
+    const menu = page.locator('.ctx-menu:not(.ctx-submenu)');
     await expect(menu).toBeVisible();
-    await expect(menu.getByText('Save board as template…')).toBeVisible();
-    await expect(menu.getByText('Export', { exact: true })).toBeVisible();
+    await expect(page.locator('.ctx-menu').getByText('Save board as template…')).toHaveCount(0);
+    await menu.getByRole('menuitem', { name: 'Export', exact: true }).hover();
+    const sub = page.locator('.ctx-submenu');
+    await expect(sub.getByRole('menuitem', { name: 'PNG image', exact: true })).toBeVisible();
+    await expect(sub.getByRole('menuitem', { name: /^PDF/ })).toBeVisible();
   });
 
-  test('right-click → Add link… entry', async ({ page }) => {
+  // "Add link…" is now Link in Add › and "Add a link" in the quick row
+  // (plan.md §3 Canvas, "Add › = … — Link · Comment · Vote", and §2.3).
+  test('right-click → Add › Link entry', async ({ page }) => {
     await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
-    await expect(page.locator('.ctx-menu').getByText('Add link…')).toBeVisible();
+    const menu = page.locator('.ctx-menu:not(.ctx-submenu)');
+    await expect(menu.locator('.ctx-quick').getByRole('menuitem', { name: /^Add a link/ })).toBeVisible();
+    await menu.getByRole('menuitem', { name: 'Add', exact: true }).hover();
+    await expect(page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Link', exact: true })).toBeVisible();
   });
 
   test('Grammarly enable attributes are wired on the doc editor', async ({ page }) => {
@@ -598,17 +609,31 @@ test.describe('Integration — new right-click items don\'t conflict', () => {
     await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
-    const menu = page.locator('.ctx-menu');
+    const menu = page.locator('.ctx-menu:not(.ctx-submenu)');
     await expect(menu).toBeVisible();
-    // Old items still present.
-    await expect(menu.getByText('Add', { exact: true })).toBeVisible();
-    await expect(menu.getByText('Background')).toBeVisible();
-    await expect(menu.getByText('Reset zoom', { exact: true })).toBeVisible();
-    // New items present.
-    await expect(menu.getByText('Add comment', { exact: true })).toBeVisible();
-    await expect(menu.getByText('Add link…')).toBeVisible();
-    await expect(menu.getByText('Save board as template…')).toBeVisible();
-    await expect(menu.getByText('Export', { exact: true })).toBeVisible();
+    const row = (name) => menu.getByRole('menuitem', { name, exact: true });
+    // Old items still present. "Reset zoom" left for "Fit everything ⇧1"
+    // (plan.md §1.14; ⌘0 and the zoom button still reset).
+    await expect(row('Add')).toBeVisible();
+    await expect(row('Background')).toBeVisible();
+    await expect(row('Fit everything')).toBeVisible();
+    await expect(menu.getByText('Reset zoom', { exact: true })).toHaveCount(0);
+    await expect(row('Export')).toBeVisible();
+    // In the right order (plan.md §3 Canvas).
+    const order = await menu.locator('button.ctx-item .ctx-label').allTextContents();
+    const at = (name) => order.indexOf(name);
+    expect(at('Add')).toBeGreaterThanOrEqual(0);
+    expect(at('Add')).toBeLessThan(at('Fit everything'));
+    expect(at('Fit everything')).toBeLessThan(at('Background'));
+    expect(at('Background')).toBeLessThan(at('Export'));
+    // The adds that were rows of their own now sit in Add › (Comment, Link)
+    // and the quick row (plan.md §3 Canvas, §2.3); no "Save board as template…".
+    await expect(menu.locator('.ctx-quick').getByRole('menuitem', { name: /^Add a link/ })).toBeVisible();
+    await row('Add').hover();
+    const add = page.locator('.ctx-submenu');
+    await expect(add.getByRole('menuitem', { name: 'Comment', exact: true })).toBeVisible();
+    await expect(add.getByRole('menuitem', { name: 'Link', exact: true })).toBeVisible();
+    await expect(page.locator('.ctx-menu').getByText('Save board as template…')).toHaveCount(0);
   });
 
   test('no console errors after triggering the new bg menu', async ({ page }) => {

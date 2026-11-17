@@ -25,7 +25,7 @@ import { useBackLayer } from './hooks/useBackLayer.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { OPEN_PROFILE_EVENT } from './lib/openProfile.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
-import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
+import { setBoardClipboard, getBoardClipboard, boardClipboardSize } from './lib/boardClipboard.js';
 import { useMyTier, expectIndexChange } from './hooks/useMyTier.js';
 import { useTogether } from './lib/useTogether.js';
 import { setHereBoard } from './lib/yPartyKit.js';
@@ -187,6 +187,8 @@ import { useAllWorkspaces } from './hooks/useAllWorkspaces.js';
 import { invitedStartWorkspace } from './lib/startWorkspace.js';
 import { useBoardList } from './hooks/useBoardList.js';
 import { useIdlePrefetch } from './hooks/useIdlePrefetch.js';
+import { idlePrefetch } from './lib/idlePrefetch.js';
+import { loadMenuIcons } from './lib/menuIconsLoad.js';
 import { useYBoard } from './hooks/useYBoard.js';
 import { useOrphanedDocResets } from './hooks/useOrphanedDocResets.js';
 import { RENDER_VERSION as THUMB_VERSION, renderMosaicBlob } from './lib/renderThumbnail.js';
@@ -347,6 +349,12 @@ import { ProjectsHome } from './components/ProjectsHome.jsx';
 import { ClustersHome } from './components/home/ClustersHome.jsx';
 import { useHomeRail, loadClusterPhotos } from './hooks/useHomeRail.js';
 import { useClusterStars } from './hooks/useClusterStars.js';
+import { ClusterActionsContext } from './hooks/useClusterActions.js';
+import { ClusterCoverHost } from './components/ClusterCoverHost.jsx';
+import { openClusterColor, openClusterThumb } from './lib/clusterCoverBus.js';
+import { openInfo } from './lib/infoBus.js';
+import { openSend, sendAvailable } from './lib/sendBus.js';
+import { copyClusterLink as copyClusterLinkToClipboard } from './lib/cardLink.js';
 import { canManageWorkspace, canWriteWorkspace } from './lib/workspaceRoles.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
@@ -854,6 +862,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return arr;
   }, [boards]);
   useIdlePrefetch(idlePrefetchList);
+  // The menus’ icons, once the page is idle (lib/menuIconsLoad.js). TWIN in LocalBoardsApp.
+  useEffect(() => idlePrefetch([loadMenuIcons]), []);
   const feedback = useFeedback();
   // "Skip the code next time?" — right after a code sign-in, once per device,
   // never on an account's first day (lib/passkeyOffer.js, lazy). A few seconds
@@ -6255,16 +6265,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } },
     });
   }, [patchSharedMeta, settleSharedMeta, feedback, sharedRoots]);
-  const copyClusterLink = useCallback(async (id) => {
-    if (!id) return;
-    const url = `${window.location.origin}${entityUrl({ kind: 'board', id }, { pathname: '/' })}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      feedback.toast({ type: 'success', message: tr`Link copied` });
-    } catch (_) {
-      feedback.toast({ type: 'error', code: 'cluster_link_copy_failed', message: tr`Couldn't copy the link.` });
-    }
-  }, [feedback]);
+  const copyClusterLink = useCallback((id) => copyClusterLinkToClipboard(id, feedback), [feedback]);
   const manageClusterSharing = useCallback(async (id) => {
     if (!id) return;
     const r = await openBoardAnywhere(id);
@@ -10378,7 +10379,66 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // (hooks/useClusterStars.js). Off elsewhere.
   const homeOn = filesSidebar && currentSurface === 'home';
   const homeRail = useHomeRail({ enabled: homeOn, selfId: user.id, wsPeers, boards });
-  const homeStars = useClusterStars(workspace.id, { enabled: homeOn });
+  // Always on: the cluster menu's Star row (hooks/useClusterActions.js) reads
+  // it on every surface, not only Home. Away from Home it loads once the boot
+  // has settled, so it adds nothing to the boot itself.
+  const homeStars = useClusterStars(workspace.id, { enabled: true, defer: !homeOn });
+
+  // One action set for every cluster menu (hooks/useClusterActions.js). The
+  // handlers above are rebuilt each render, so the memoised value reads the
+  // latest through a ref and keeps its identity.
+  const clusterActsRef = useRef(null);
+  clusterActsRef.current = {
+    openSidebarCluster, openShareForBoard, manageClusterSharing, copyClusterLink, createBoardInside,
+    requestClusterPick, boards, setTint: mainMutators.setBoardCover, resetBoardThumbById,
+    homeStars, copyBoard, pasteBoardInto, setView, deleteBoardsById, removeSharedCluster,
+    canEditBoard, sharedRoots, rootBoardId: rootBoard?.id,
+  };
+  const clusterActions = useMemo(() => {
+    const A = () => clusterActsRef.current;
+    return {
+      open: (id, via) => A().openSidebarCluster(id, via),
+      share: (id, via) => (via === 'shared_page' ? A().manageClusterSharing(id) : A().openShareForBoard(id)),
+      copyLink: (id) => A().copyClusterLink(id),
+      newInside: (id) => A().createBoardInside(id),
+      moveTo: async (id) => {
+        const bs = A().boards;
+        const exclude = [id, ...collectDescendantIds(bs, id)];
+        const moveName = bs[id]?.name || tr`cluster`;
+        const target = await A().requestClusterPick({ placeholder: tr`Move “${moveName}” into…`, excludeIds: exclude });
+        if (!target?.id) return;
+        document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', { detail: { childIds: [id], targetId: target.id } }));
+      },
+      setTint: (id, tint) => A().setTint(id, tint),
+      pickColor: (id, { x, y } = {}) => openClusterColor({ id, x, y }),
+      pickThumb: (id) => openClusterThumb({ id }),
+      resetThumb: (id) => A().resetBoardThumbById(id),
+      isStarred: (id) => A().homeStars.isStarred(id),
+      toggleStar: (id) => A().homeStars.toggle(id),
+      info: (id) => openInfo({ clusterId: id }),
+      copy: (id) => { const b = A().boards[id]; if (b) A().copyBoard(b); },
+      pasteInto: (id) => A().pasteBoardInto(id),
+      canPaste: () => boardClipboardSize() > 0,
+      opensInFiles: (id) => A().boards[id]?.view === 'list',
+      setOpensInFiles: (id, on) => A().setView(on ? 'list' : 'canvas', 'sidebar_menu', id),
+      remove: (id) => A().deleteBoardsById([id]),
+      removeFromList: (id) => A().removeSharedCluster(id),
+      can: (board) => {
+        const a = A();
+        if (!board) return { edit: false, isLastTop: false, isRoot: false, sharedWithMe: false, canRemoveFromList: false };
+        const isLastTop = !board.parent_board_id
+          && Object.values(a.boards || {}).filter((b) => (
+            b && b.workspace_id === board.workspace_id && !b.parent_board_id && !b.deleted_at
+          )).length <= 1;
+        const sharedWithMe = a.sharedRoots.some((r) => r.id === board.id);
+        // The workspace's root (the top of the workspace, as Home calls it) never moves or goes.
+        const isRoot = !!a.rootBoardId && board.id === a.rootBoardId;
+        return { edit: !!a.canEditBoard(board.id), isLastTop, isRoot, sharedWithMe, canRemoveFromList: sharedWithMe };
+      },
+      canSend: () => sendAvailable(),
+      send: (id, surface) => openSend({ boardId: id, boardTitle: clusterActsRef.current.boards[id]?.name || '', surface }),
+    };
+  }, []);
 
   // Collaboration, as opposed to invitations. Everything about ASKING someone
   // to join was measured; whether two people were ever on a board together was
@@ -12365,6 +12425,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   return (
     <EntityNavigateContext.Provider value={navHandlers}>
+    <ClusterActionsContext.Provider value={clusterActions}>
     <OpenDmContext.Provider value={openDmWith}>
     <MessagesUiContext.Provider value={messagesUi}>
     <AppTrieProvider workspaceId={workspace.id}>
@@ -12466,8 +12527,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 renameRequest: projectRenameRequest,
                 onCreateBoardInside: createBoardInside,
                 onSetBoardCover: mainMutators.setBoardCover,
-                onSetBoardBgColor: setBoardBgColorById,
-                onSetBoardThumb: setBoardCustomThumbById,
                 onResetBoardThumb: resetBoardThumbById,
                 onCopyBoard: copyBoard,
                 onPasteBoardInto: pasteBoardInto,
@@ -12525,7 +12584,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               onOpenPalette={(q) => { setPaletteQuery(q || ''); setPaletteOpen(true); }}
               feedback={feedback}
               onPickCluster={requestClusterPick}
-              onSetOpensAs={(id, v) => setView(v, 'sidebar_menu', id)}
               onDropFilesOnCluster={dropFilesOnCluster}
               onImportTreeOnCluster={bulkImportAllowed() ? (boardId, input) => importFolder({
                 ...input, boardId, canAttemptFiles: bulkImportEnv().who(boardId).plan !== 'free', boardWasEmpty: false,
@@ -12558,8 +12616,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             renameRequest={projectRenameRequest}
             onCreateBoardInside={createBoardInside}
             onSetBoardCover={mainMutators.setBoardCover}
-            onSetBoardBgColor={setBoardBgColorById}
-            onSetBoardThumb={setBoardCustomThumbById}
             onResetBoardThumb={resetBoardThumbById}
             onCopyBoard={copyBoard}
             onPasteBoardInto={pasteBoardInto}
@@ -13476,6 +13532,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
       {/* Info for anything, from any right-click or ⌘I (lib/infoBus.js). It
           reads the open panes' live cards, so it changes as the file does. */}
+      <ClusterCoverHost boards={boards} onSetBoardBgColor={setBoardBgColorById} onSetBoardThumb={setBoardCustomThumbById} />
       <InfoHost
         boards={boards}
         selfId={user.id}
@@ -13851,6 +13908,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     </AppTrieProvider>
     </MessagesUiContext.Provider>
     </OpenDmContext.Provider>
+    </ClusterActionsContext.Provider>
     </EntityNavigateContext.Provider>
   );
 }

@@ -209,26 +209,6 @@ msgstr "{0, plural, =0 {カードのオプション} =1 {カードのオプシ�
 
 #. placeholder {0}: ids.length
 #: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Copy to cluster…} =1 {Copy to cluster…} other {Copy # cards to…}}"
-msgstr "{0, plural, =0 {クラスターにコピー…} =1 {クラスターにコピー…} other {#枚のカードのコピー先…}}"
-
-#. placeholder {0}: ids.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Move to cluster…} =1 {Move to cluster…} other {Move # cards to…}}"
-msgstr "{0, plural, =0 {クラスターに移動…} =1 {クラスターに移動…} other {#枚のカードの移動先…}}"
-
-#. placeholder {0}: actingBoardIds.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Move to cluster…} =1 {Move to cluster…} other {Move # clusters to…}}"
-msgstr "{0, plural, =0 {クラスターに移動…} =1 {クラスターに移動…} other {#件のクラスターの移動先…}}"
-
-#. placeholder {0}: offIds.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Remove from board} =1 {Remove from board} other {Remove # from board}}"
-msgstr "{0, plural, =0 {キャンバスから外す} =1 {キャンバスから外す} other {#件をキャンバスから外す}}"
-
-#. placeholder {0}: ids.length
-#: src/components/CanvasSurface.jsx
 msgid "{0, plural, =1 {Card deleted} other {# cards deleted}}"
 msgstr "{0, plural, =1 {カードを削除しました} other {#枚のカードを削除しました}}"
 
@@ -246,11 +226,6 @@ msgstr "{0, plural, =1 {{cutFrom}から切り取ったカードを貼り付け�
 #: src/components/CanvasSurface.jsx
 msgid "{0, plural, =1 {Put on the board} other {# put on the board}}"
 msgstr "{0, plural, =1 {キャンバスに配置しました} other {#件をキャンバスに配置しました}}"
-
-#. placeholder {0}: list.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =1 {Removed from board — it’s still in Files} other {# removed from board — still in Files}}"
-msgstr "{0, plural, =1 {キャンバスから外しました。ファイルにはまだあります} other {#件をキャンバスから外しました。ファイルにはまだあります}}"
 
 #. placeholder {0}: mine.length
 #: src/components/ShareModal.jsx
@@ -333,6 +308,7 @@ msgstr "{0, plural, other {プランの空きを超えた#枚のカードは除�
 #. placeholder {0}: cards.length
 #. placeholder {0}: cardsOf(b)
 #: src/auth/AuthGate.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
@@ -569,7 +545,7 @@ msgstr "{0, plural, other {#本のストロークが削除されます。元に�
 msgid "{0, plural, one {# TARGETS} other {# TARGETS}}"
 msgstr "{0, plural, other {リンク先#件}}"
 
-#. placeholder {0}: counts.get(sheetFor.id)
+#. placeholder {0}: counts.get(tag.id)
 #: src/components/SidebarTags.jsx
 msgid "{0, plural, one {# thing} other {# things}}"
 msgstr "{0, plural, other {#件のもの}}"
@@ -687,11 +663,6 @@ msgstr "{0, plural, other {下の人と、有効なリンク#件を使う人の�
 msgid "{0, plural, one {Preview: nobody was emailed. # invite added to People.} other {Preview: nobody was emailed. # invites added to People.}}"
 msgstr "{0, plural, other {プレビュー: メールは送信されていません。招待#件を「メンバー」に追加しました。}}"
 
-#. placeholder {0}: offSel.length
-#: src/components/ListSurface.jsx
-msgid "{0, plural, one {Put # on board} other {Put # on board}}"
-msgstr "{0, plural, other {#件をキャンバスに配置}}"
-
 #. placeholder {0}: plan.length
 #: src/App.jsx
 msgid "{0, plural, one {Put on the board · {left} still in Files} other {# put on the board · {left} still in Files}}"
@@ -743,6 +714,11 @@ msgstr "{0, plural, other {さらに#件を表示}}"
 msgid "{0, plural, one {Show all #} other {Show all #}}"
 msgstr "{0, plural, other {すべて表示(#)}}"
 
+#. placeholder {0}: list.length
+#: src/components/CanvasSurface.jsx
+msgid "{0, plural, one {Taken off the canvas. It’s still in Files.} other {# taken off the canvas. They’re still in Files.}}"
+msgstr "{0, plural, other {#件をキャンバスから外しました。ファイルには残っています。}}"
+
 #. placeholder {0}: chosen.length
 #: src/components/team/TeamSetup.jsx
 msgid "{0, plural, one {Team · # workspace moving in · {editors, plural, one {# person who edit} other {# people who edit}}} other {Team · # workspaces moving in · {editors, plural, one {# person who edit} other {# people who edit}}}}"
@@ -777,11 +753,6 @@ msgstr "{0, plural, other {招待済み#人}}"
 #: src/components/CanvasSurface.jsx
 msgid "{0, plural, other {# versions — Info shows them all}}"
 msgstr "{0, plural, other {#件のバージョン。情報ですべて確認できます}}"
-
-#. placeholder {0}: plan.ids.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, other {New cluster from # cards}}"
-msgstr "{0, plural, other {#枚のカードから新規クラスター}}"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "{activeCount, plural, one {View, # filter on} other {View, # filters on}}"
@@ -1014,9 +985,14 @@ msgstr "{count, plural, other {#枚のカード · {board}}}"
 
 #: src/components/entityPreviews/GroupPreview.jsx
 #: src/components/MessageSharedCard.jsx
+#: src/lib/menus/cardMenu.js
 #: src/lib/messageThing.js
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, other {#枚のカード}}"
+
+#: src/lib/menus/rows.js
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, other {#件のコメント}}"
 
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is coming in} other {# files are coming in}}"
@@ -1025,6 +1001,10 @@ msgstr "{count, plural, other {ファイル#件を取り込み中です}}"
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is in Files} other {# files are in Files}}"
 msgstr "{count, plural, other {ファイル#件がファイルにあります}}"
+
+#: src/lib/menus/fileMenu.js
+msgid "{count, plural, one {# file} other {# files}}"
+msgstr "{count, plural, other {#件のファイル}}"
 
 #: src/components/SidebarTags.jsx
 msgid "{count, plural, one {# item are tagged with \"{name}\". Delete the tag and all of its applications?\n"
@@ -1041,6 +1021,7 @@ msgid "{count, plural, one {# item on {when}} other {# items on {when}}}"
 msgstr "{count, plural, other {{when}に#件}}"
 
 #: src/components/cards/ScheduleRail.jsx
+#: src/lib/menus/fileMenu.js
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, other {#件}}"
 
@@ -1516,6 +1497,10 @@ msgstr "{label}、キャンバスのメニューに戻る"
 msgid "{label}, back to the card menu"
 msgstr "{label}、カードのメニューに戻る"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the menu"
+msgstr "{label}、メニューに戻る"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, other {「{name}」をラベル#件付きで保存しました。}}"
@@ -1583,6 +1568,10 @@ msgstr "{limit, plural, other {この無料クラスターにはあと**{take}**
 #: src/lib/notificationWords.js
 msgid "{limit, plural, one {Your plan has # person who can edit, the most it allows.} other {Your plan has # people who can edit, the most it allows.}}"
 msgstr "{limit, plural, other {お使いのプランでは、編集できる人が#人で、上限に達しています。}}"
+
+#: src/components/CardContextMenu.jsx
+msgid "{linkedN, plural, one {Linked from # place} other {Linked from # places}}"
+msgstr "{linkedN, plural, other {#か所からリンク}}"
 
 #: src/lib/sendTo.js
 msgid "{list} can't open it yet: only editors can let people in."
@@ -1951,10 +1940,6 @@ msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them
 msgstr "{n, plural, other {管理者に追加してもらってください。}}"
 
 #: src/components/CanvasSurface.jsx
-msgid "{n, plural, one {Comments (#)} other {Comments (#)}}"
-msgstr "{n, plural, other {コメント（#）}}"
-
-#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
 msgstr "{n, plural, other {#枚のカードをコピーしました · ⌘Zで元に戻せます}}"
 
@@ -2117,9 +2102,9 @@ msgstr "{n}/{total}"
 msgid "{n} people who can edit"
 msgstr "編集できる人{n}人"
 
-#: src/components/ListSurface.jsx
-msgid "{n} selected"
-msgstr "{n}件選択中"
+#: src/lib/menus/rows.js
+msgid "{n} px"
+msgstr "{n} px"
 
 #: src/components/DocBookmarkList.jsx
 msgid "{name} — {page}"
@@ -2159,8 +2144,8 @@ msgid "{name} — Soleil Clusters"
 msgstr "{name} — Soleil Clusters"
 
 #: src/components/SidebarTags.jsx
-msgid "{name} · {c} applied · right-click to manage"
-msgstr "{name} · {c}件に適用 · 右クリックで管理"
+msgid "{name} · {c} applied"
+msgstr "{name} · {c}件に適用"
 
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{name} · {where}"
@@ -2197,10 +2182,6 @@ msgstr "{name}・キャンバスにありません"
 #: src/components/clusterBrowser/FilesPageHead.jsx
 msgid "{name} · press to see another cluster’s files"
 msgstr "{name}・押すと別のクラスターのファイルを表示"
-
-#: src/components/SidebarTags.jsx
-msgid "{name} · right-click to manage"
-msgstr "{name} · 右クリックで管理"
 
 #: src/components/SidebarSharedBoards.jsx
 msgid "{name} · view only"
@@ -2337,10 +2318,6 @@ msgstr "{name}、プロフィールを編集"
 #: src/components/team/TeamPage.jsx
 msgid "{name}, team"
 msgstr "{name}、チーム"
-
-#: src/components/SidebarTags.jsx
-msgid "{name}: actions"
-msgstr "{name}：操作"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "{name}: go to where they are"
@@ -2625,11 +2602,6 @@ msgstr "{px} px"
 #: src/lib/importCopy.js
 msgid "{readyCount, plural, one {Put # on the board} other {Put # on the board}}"
 msgstr "{readyCount, plural, other {#件をキャンバスに置く}}"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "{refCount, plural, one {Linked from # place} other {Linked from # places}}"
-msgstr "{refCount, plural, other {#か所からリンクされています}}"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{removed, plural, one {# file} other {# files}}"
@@ -3039,10 +3011,6 @@ msgstr "未読{unreadCount}件"
 #: src/components/MessageThread.jsx
 msgid "{unseenCount, plural, one {# new message} other {# new messages}}"
 msgstr "{unseenCount, plural, other {新着メッセージ#件}}"
-
-#: src/components/ColorPicker.jsx
-msgid "{upperCase} — right-click to remove"
-msgstr "{upperCase}：右クリックで削除"
 
 #: src/components/sidebar/SidebarMeter.jsx
 msgid "{used} of {cardLimit} cards"
@@ -3920,6 +3888,12 @@ msgstr "実際のサイズ、{pct}%"
 msgid "Add"
 msgstr "追加"
 
+#: src/lib/menus/canvasMenu.js
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Add"
+msgstr "追加"
+
 #: src/lib/billingCopyWords.js
 msgid "Add {block} — {then}"
 msgstr "{block}を追加・{then}"
@@ -3959,6 +3933,7 @@ msgstr "1TBを追加・月額{price}"
 msgid "Add a card"
 msgstr "カードを追加"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 msgid "Add a cluster"
 msgstr "クラスターを追加"
@@ -3984,6 +3959,10 @@ msgstr "日を追加"
 #: src/components/cards/ScheduleRail.jsx
 msgid "Add a day here"
 msgstr "ここに日を追加"
+
+#: src/components/CanvasSurface.jsx
+msgid "Add a doc"
+msgstr "ドキュメントを追加"
 
 #: src/lib/workspaceSetup.js
 msgid "Add a few emails, or share one link with everyone."
@@ -4072,6 +4051,10 @@ msgstr "縦線を追加(列に分割)"
 msgid "Add a web link"
 msgstr "ウェブリンクを追加"
 
+#: src/components/CanvasSurface.jsx
+msgid "Add an image"
+msgstr "画像を追加"
+
 #: src/components/setup/InviteStep.jsx
 msgid "Add another"
 msgstr "もう1つ追加"
@@ -4093,10 +4076,6 @@ msgid "Add bookmark"
 msgstr "ブックマークを追加"
 
 #: src/components/CanvasSurface.jsx
-msgid "Add caption"
-msgstr "キャプションを追加"
-
-#: src/components/CanvasSurface.jsx
 msgid "Add cluster"
 msgstr "クラスターを追加"
 
@@ -4116,15 +4095,11 @@ msgstr "左に列を追加"
 msgid "Add column right"
 msgstr "右に列を追加"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Add comment"
 msgstr "コメントを追加"
-
-#: src/components/CanvasSurface.jsx
-msgid "Add comment to group"
-msgstr "グループにコメントを追加"
 
 #: src/components/cards/GridCard.jsx
 #: src/components/cards/ScheduleCard.jsx
@@ -4171,10 +4146,6 @@ msgid "Add grid tool"
 msgstr "グリッド追加ツール"
 
 #: src/components/CanvasSurface.jsx
-msgid "Add hyperlink"
-msgstr "ハイパーリンクを追加"
-
-#: src/components/CanvasSurface.jsx
 msgid "Add image"
 msgstr "画像を追加"
 
@@ -4195,9 +4166,9 @@ msgstr "画像を追加"
 msgid "Add item"
 msgstr "項目を追加"
 
-#: src/components/CanvasSurface.jsx
-msgid "Add label"
-msgstr "ラベルを追加"
+#: src/lib/menus/rows.js
+msgid "Add label…"
+msgstr "ラベルを追加…"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "Add layer"
@@ -4307,7 +4278,6 @@ msgstr "追加"
 msgid "Add this TXT record to its DNS, then check."
 msgstr "このTXTレコードをDNSに追加してから、確認してください。"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "Add title"
 msgstr "タイトルを追加"
@@ -4325,7 +4295,7 @@ msgstr "クラスターに追加"
 msgid "Add to Cursor"
 msgstr "Cursorに追加"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Add to group"
 msgstr "グループに追加"
 
@@ -4341,13 +4311,13 @@ msgstr "VS Codeに追加"
 msgid "Add to workspace"
 msgstr "ワークスペースに追加"
 
+#: src/lib/menus/rows.js
+msgid "Add vote"
+msgstr "投票を追加"
+
 #: src/components/CanvasSurface.jsx
 msgid "Add vote failed: {reason}"
 msgstr "投票の追加に失敗しました：{reason}"
-
-#: src/components/CanvasSurface.jsx
-msgid "Add vote to card"
-msgstr "カードに投票を追加"
 
 #: src/components/ImportCapDialog.jsx
 msgid "Add what fits"
@@ -4451,10 +4421,6 @@ msgstr "{only}を「{name}」に追加しました。"
 msgid "Added {versionLabel} of “{nameOf}”"
 msgstr "「{nameOf}」の{versionLabel}を追加しました"
 
-#: src/components/TagDetailView.jsx
-msgid "added automatically"
-msgstr "自動で追加"
-
 #: src/lib/cardInfo.js
 msgid "Added here"
 msgstr "追加先"
@@ -4551,20 +4517,26 @@ msgstr "AIによる提案"
 msgid "Aileron (default)"
 msgstr "Aileron(デフォルト)"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align"
 msgstr "揃える"
 
+#: src/lib/menus/rows.js
+msgid "Align bottom"
+msgstr "下揃え"
+
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align center"
 msgstr "中央揃え"
 
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align left"
 msgstr "左揃え"
 
@@ -4572,10 +4544,19 @@ msgstr "左揃え"
 msgid "Align left · center · right"
 msgstr "左揃え · 中央揃え · 右揃え"
 
+#: src/lib/menus/rows.js
+msgid "Align middle"
+msgstr "上下中央揃え"
+
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align right"
 msgstr "右揃え"
+
+#: src/lib/menus/rows.js
+msgid "Align top"
+msgstr "上揃え"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Align: {label}"
@@ -4606,6 +4587,7 @@ msgstr "すべての変更を保存しました"
 
 #: src/components/CommandPalette.jsx
 #: src/components/SidebarBoardsSection.jsx
+#: src/lib/menus/moveMenu.js
 msgid "All clusters"
 msgstr "すべてのクラスター"
 
@@ -4696,7 +4678,7 @@ msgstr "すでにそこにあります"
 msgid "Also share sub-clusters"
 msgstr "サブクラスターも共有"
 
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Always open in Files"
 msgstr "常にファイルで開く"
 
@@ -4747,10 +4729,6 @@ msgstr "角度（度）：0は右、90は真下"
 
 #: src/components/CanvasSurface.jsx
 msgid "Annotate"
-msgstr "注釈"
-
-#: src/lib/contextMenuSections.js
-msgid "ANNOTATE"
 msgstr "注釈"
 
 #: src/auth/PricingSuccess.jsx
@@ -4938,7 +4916,7 @@ msgstr "次に作成するリンクに適用されます。既存のリンクは
 msgid "Apply"
 msgstr "適用"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Apply template…"
 msgstr "テンプレートを適用…"
 
@@ -4970,19 +4948,17 @@ msgstr "アプリ"
 msgid "Archive"
 msgstr "アーカイブ"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Arrange"
 msgstr "配置"
-
-#: src/lib/contextMenuSections.js
-msgid "ARRANGE"
-msgstr "整列"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/shapeOptions.js
 msgid "Arrow"
 msgstr "矢印"
@@ -5151,6 +5127,7 @@ msgstr "音声"
 #: src/lib/importJob.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/sharedFiles.js
 #: src/lib/sidebarShelves.js
 msgid "Audio"
@@ -5185,9 +5162,9 @@ msgstr "自動({autoName})"
 msgid "Automatic follows this browser. Cards, clusters and comments stay in the language they were written in."
 msgstr "「自動」はこのブラウザの設定に従います。カード、クラスター、コメントは、書かれた言語のままです。"
 
-#: src/components/CanvasSurface.jsx
-msgid "Autoplay (muted)"
-msgstr "自動再生（ミュート）"
+#: src/lib/menus/rows.js
+msgid "Autoplay"
+msgstr "自動再生"
 
 #: src/lib/billingCopyWords.js
 msgid "Awaiting payment"
@@ -5260,8 +5237,8 @@ msgstr "キャンバスに戻る（F）"
 msgid "Back to your workspace"
 msgstr "ワークスペースに戻る"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
+#: src/lib/menus/rows.js
 msgid "Background"
 msgstr "背景"
 
@@ -5384,7 +5361,6 @@ msgstr "クラスター"
 msgid "Board"
 msgstr "クラスター"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/docExtensions/BoardEmbed.js
 msgid "BOARD"
@@ -5460,11 +5436,8 @@ msgstr "この位置をブックマーク"
 msgid "Bookmarks"
 msgstr "ブックマーク"
 
-#: src/components/CanvasSurface.jsx
-msgid "Bottom"
-msgstr "下"
-
 #: src/components/cards/GridCard.jsx
+#: src/lib/menus/rows.js
 msgid "Box"
 msgstr "セル"
 
@@ -5488,10 +5461,6 @@ msgstr "ボックススタイル"
 #: src/lib/importGuide.js
 msgid "Box, Notion, an old hard drive and a camera card all work this way."
 msgstr "Box、Notion、古いハードドライブ、カメラのカードも、この方法で取り込めます。"
-
-#: src/components/CanvasSurface.jsx
-msgid "Box{value}"
-msgstr "四角{value}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Boxes"
@@ -5558,7 +5527,7 @@ msgstr "別のアプリからファイルを取り込む…"
 msgid "Bring files in from a computer: download them, unzip, and drop them on Clusters."
 msgstr "パソコンからファイルを取り込めます。ダウンロードして展開し、Clustersにドロップしてください。"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Bring forward"
 msgstr "前面へ"
 
@@ -5566,7 +5535,7 @@ msgstr "前面へ"
 msgid "Bring in a folder"
 msgstr "フォルダを取り込む"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Bring to front"
 msgstr "最前面へ"
 
@@ -5771,7 +5740,6 @@ msgstr "保存できません・アクセス権が終了しました"
 #: src/components/SaveTemplateDialog.jsx
 #: src/components/settings/DeleteAccount.jsx
 #: src/components/SketchPadOverlay.jsx
-#: src/components/TagActionSheet.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamBilling.jsx
 #: src/components/team/TeamConfirm.jsx
@@ -5847,6 +5815,10 @@ msgstr "キャンバスクラスター"
 msgid "Canvas groups"
 msgstr "キャンバスのグループ"
 
+#: src/lib/menus/canvasMenu.js
+msgid "Canvas menu"
+msgstr "キャンバスメニュー"
+
 #: src/lib/filesView.js
 msgid "Canvas order"
 msgstr "キャンバス順"
@@ -5858,6 +5830,10 @@ msgstr "上限は{MAX_SHOOT_DAYS_PER_ADD}です。残りは2回目に追加し�
 #: src/components/cards.jsx
 msgid "Caption"
 msgstr "キャプション"
+
+#: src/lib/menus/rows.js
+msgid "Caption…"
+msgstr "キャプション…"
 
 #: src/components/capture/CaptureHud.jsx
 #: src/components/SettingsPanel.jsx
@@ -5886,6 +5862,7 @@ msgstr "キャプチャ、スクリーンショット、録画、デモ、マー
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/messageThing.js
 msgid "Card"
 msgstr "カード"
@@ -5936,7 +5913,6 @@ msgstr "カードのタイトル"
 msgid "Card, invoices and receipts are in Stripe."
 msgstr "カード、請求書、領収書はStripeにあります。"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/TagDetailView.jsx
 #: src/lib/billingCopyWords.js
 msgid "Cards"
@@ -5966,10 +5942,6 @@ msgstr "キャスティング"
 msgid "Caveat (handwritten)"
 msgstr "Caveat(手書き)"
 
-#: src/components/CanvasSurface.jsx
-msgid "Center"
-msgstr "中央"
-
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Center in the box"
 msgstr "セル内で中央揃え"
@@ -5990,10 +5962,6 @@ msgstr "中央の十字"
 #: src/components/team/TeamBilling.jsx
 msgid "Change card"
 msgstr "カードを変更"
-
-#: src/components/SidebarBoardTree.jsx
-msgid "Change color"
-msgstr "色を変更"
 
 #: src/components/settings/fields.jsx
 msgid "Change picture"
@@ -6040,7 +6008,8 @@ msgstr "人物名"
 msgid "Characters"
 msgstr "キャラクター"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Charcoal"
 msgstr "チャコール"
 
@@ -6188,7 +6157,7 @@ msgstr "クリア(esc)"
 msgid "Clear {label}"
 msgstr "{label}をクリア"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Clear all drawings"
 msgstr "すべての描画を消去"
 
@@ -6245,6 +6214,10 @@ msgstr "選択を解除"
 #: src/components/ListSurface.jsx
 msgid "Clear selection (Esc)"
 msgstr "選択を解除（Esc）"
+
+#: src/lib/menus/rows.js
+msgid "Clear start point"
+msgstr "開始位置を解除"
 
 #: src/components/CanvasSurface.jsx
 msgid "Clear start point ({clipTime})"
@@ -6377,10 +6350,6 @@ msgstr "クリック：100% · ダブルクリック：クラスター全体"
 #: src/components/film/FilmPlayer.jsx
 msgid "Clip timecode"
 msgstr "クリップのタイムコード"
-
-#: src/lib/contextMenuSections.js
-msgid "CLIPBOARD"
-msgstr "クリップボード"
 
 #: src/App.jsx
 #: src/components/cards/SchedulePeek.jsx
@@ -6541,6 +6510,8 @@ msgstr "クラスター"
 #: src/lib/entityKinds.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 #: src/pages/KeepPage.jsx
 msgid "Cluster"
@@ -6558,7 +6529,7 @@ msgstr "{parent}内のクラスター"
 msgid "Cluster in {ws}"
 msgstr "{ws}のクラスター"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Cluster info"
 msgstr "クラスター情報"
 
@@ -6722,12 +6693,19 @@ msgstr "色{custom}"
 msgid "Color {k}"
 msgstr "色{k}"
 
+#: src/lib/menus/rows.js
+msgid "Color and cover"
+msgstr "色とカバー"
+
 #: src/components/CanvasSurface.jsx
 #: src/lib/helpHub.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Color palette"
 msgstr "カラーパレット"
 
 #: src/components/cards.jsx
+#: src/components/ColorPicker.jsx
 msgid "Color removed"
 msgstr "色を削除しました"
 
@@ -6784,6 +6762,8 @@ msgstr "Google DriveやDropboxから移行しますか？"
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/commentAuthor.js
 #: src/lib/commentPins.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Comment"
 msgstr "コメント"
 
@@ -6804,6 +6784,7 @@ msgid "Comment by {author}"
 msgstr "{author}さんのコメント"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/CommentRow.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
@@ -6831,6 +6812,7 @@ msgid "Comment replies"
 msgstr "コメントへの返信"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 msgid "Comment resolved"
@@ -7073,6 +7055,11 @@ msgstr "会話を非表示にしました"
 msgid "Conversations you resolve are kept here."
 msgstr "解決した会話はここに残ります。"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Cool"
+msgstr "クール"
+
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
 #: src/components/setup/InviteStep.jsx
@@ -7137,13 +7124,16 @@ msgstr "コピーしました。"
 msgid "Copies the existing link when one is already live."
 msgstr "有効なリンクがすでにある場合は、そのリンクをコピーします。"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/ShareModal.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/team/TeamJoining.jsx
 #: src/components/team/TeamSetup.jsx
+msgid "Copy"
+msgstr "コピー"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Copy"
 msgstr "コピー"
 
@@ -7154,14 +7144,6 @@ msgstr "コピー · 切り取り · 貼り付け"
 #: src/App.jsx
 msgid "Copy \"{name}\" to your personal workspace?"
 msgstr "「{name}」を個人用ワークスペースにコピーしますか？"
-
-#: src/components/CanvasSurface.jsx
-msgid "Copy ({size})"
-msgstr "コピー（{size}）"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Copy {count} to…"
-msgstr "{count}件をコピー…"
 
 #: src/lib/dropRules.js
 msgid "Copy {what} to {name}"
@@ -7198,14 +7180,12 @@ msgstr "ファイルを移動せずコピー"
 #: src/components/comments/CommentRow.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
-#: src/components/ListSurface.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/setup/InviteStep.jsx
-#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/menus/rows.js
 msgid "Copy link"
 msgstr "リンクをコピー"
 
@@ -7243,16 +7223,21 @@ msgstr "今すぐコピーしてください。再び表示されることはあ
 msgid "Copy timecode"
 msgstr "タイムコードをコピー"
 
+#: src/lib/menus/rows.js
+msgid "Copy to cluster"
+msgstr "クラスターにコピー"
+
 #: src/components/ListSurface.jsx
 msgid "Copy to cluster…"
 msgstr "クラスターにコピー…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Copy to my workspace"
 msgstr "自分のワークスペースにコピー"
 
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Copy to…"
 msgstr "コピー先…"
 
@@ -7333,6 +7318,7 @@ msgid "Could not change their access: {reason}"
 msgstr "アクセス権を変更できませんでした：{reason}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 #: src/lib/cardLink.js
@@ -7646,6 +7632,7 @@ msgid "Couldn’t be uploaded"
 msgstr "アップロードできませんでした"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't bring it back: {why}"
 msgstr "元に戻せませんでした：{why}"
 
@@ -7682,7 +7669,7 @@ msgstr "コメントをカードと一緒にコピーできませんでした：
 msgid "Couldn't copy the link — your browser blocked the clipboard."
 msgstr "リンクをコピーできませんでした。ブラウザがクリップボードをブロックしました。"
 
-#: src/App.jsx
+#: src/lib/cardLink.js
 msgid "Couldn't copy the link."
 msgstr "リンクをコピーできませんでした。"
 
@@ -7711,6 +7698,7 @@ msgid "Couldn't create the group. Check your connection and try again."
 msgstr "グループを作成できませんでした。接続を確認して、もう一度お試しください。"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't delete: {why}"
 msgstr "削除できませんでした：{why}"
 
@@ -7987,10 +7975,12 @@ msgid "Couldn’t remove those files."
 msgstr "そのファイルを削除できませんでした。"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't reopen: {why}"
 msgstr "再開できませんでした：{why}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't resolve: {why}"
 msgstr "解決できませんでした：{why}"
 
@@ -8100,9 +8090,9 @@ msgstr "カバー"
 msgid "Cover changed"
 msgstr "カバーの変更"
 
-#: src/components/CanvasSurface.jsx
-msgid "Cover color"
-msgstr "カバーの色"
+#: src/lib/menus/rows.js
+msgid "Cover image…"
+msgstr "カバー画像…"
 
 #: src/lib/versionFields.js
 msgid "Cover restored."
@@ -8112,7 +8102,8 @@ msgstr "カバーを復元しました。"
 msgid "Covers your whole workspace"
 msgstr "ワークスペース全体が対象"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Cream"
 msgstr "クリーム"
 
@@ -8187,11 +8178,6 @@ msgstr "Ctrl"
 msgid "Current"
 msgstr "現在"
 
-#: src/components/SidebarTags.jsx
-msgctxt "type"
-msgid "Current"
-msgstr "現在"
-
 #: src/components/film/FilmDock.jsx
 msgid "Current timecode — click to jump"
 msgstr "現在のタイムコード・クリックで移動"
@@ -8201,12 +8187,9 @@ msgid "Cursor"
 msgstr "カーソル"
 
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 msgid "Curved"
 msgstr "曲線"
-
-#: src/components/CanvasSurface.jsx
-msgid "Curved arrow"
-msgstr "曲線の矢印"
 
 #: src/lib/filesView.js
 msgid "Custom"
@@ -8239,20 +8222,15 @@ msgstr "カスタムフォント"
 msgid "Custom thumbnail set"
 msgstr "カスタムサムネイルを設定しました"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/fields.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Custom…"
 msgstr "カスタム…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/lib/menus/rows.js
 msgid "Cut"
 msgstr "切り取り"
-
-#: src/components/CanvasSurface.jsx
-msgid "Cut ({size})"
-msgstr "切り取り（{size}）"
 
 #: src/components/CanvasSurface.jsx
 msgid "Cut into boxes"
@@ -8271,6 +8249,7 @@ msgid "Dark theme"
 msgstr "ダークテーマ"
 
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 #: src/lib/shapeOptions.js
 msgid "Dashed"
 msgstr "破線"
@@ -8291,6 +8270,7 @@ msgstr "追加日"
 msgid "Date modified"
 msgstr "更新日"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 #: src/components/cards/ScheduleRail.jsx
 #: src/components/cards/ScheduleTiles.jsx
@@ -8306,10 +8286,6 @@ msgstr "日タイル"
 msgid "Day view"
 msgstr "日ビュー"
 
-#: src/components/CanvasSurface.jsx
-msgid "Day{value}"
-msgstr "日{value}"
-
 #: src/components/cards/ShootDayRange.jsx
 msgid "Days are created empty. Open one and “Set up this day” adds its call sheet, shotlist, script pages and hour-by-hour."
 msgstr "日は空の状態で作成されます。日を開いて「この日を設定」を選ぶと、コールシート、ショットリスト、脚本ページ、時間ごとの予定が追加されます。"
@@ -8322,9 +8298,13 @@ msgstr "{what}を減らす"
 msgid "Decrease font size"
 msgstr "フォントサイズを小さくする"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/settings/fields.jsx
+msgid "Default"
+msgstr "デフォルト"
+
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Default"
 msgstr "デフォルト"
 
@@ -8361,10 +8341,10 @@ msgstr "Delete"
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarTags.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 #: src/lib/oauthTrustWords.js
 msgid "Delete"
 msgstr "削除"
@@ -8376,18 +8356,6 @@ msgstr "「{name}」を削除しますか？元に戻せます。30日間は復�
 #: src/components/DocPageTree.jsx
 msgid "Delete \"{pageLabel}\"?"
 msgstr "「{pageLabel}」を削除しますか？"
-
-#: src/components/CanvasSurface.jsx
-msgid "Delete ({size})"
-msgstr "削除（{size}）"
-
-#: src/components/SidebarBoardTree.jsx
-msgid "Delete (last cluster)"
-msgstr "削除（最後のクラスター）"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Delete {count}"
-msgstr "{count}件を削除"
 
 #: src/components/ListSurface.jsx
 msgid "Delete {count} clusters and all their content?\n"
@@ -8427,6 +8395,7 @@ msgstr "アカウントを削除…"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 msgid "Delete arrow"
 msgstr "矢印を削除"
 
@@ -8463,6 +8432,7 @@ msgid "Delete conversation"
 msgstr "会話を削除"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Delete drawing"
 msgstr "描画を削除"
 
@@ -8770,10 +8740,17 @@ msgstr "閉じる: {title}"
 msgid "Display name"
 msgstr "表示名"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 msgid "Distribute"
 msgstr "等間隔に配置"
+
+#: src/lib/menus/rows.js
+msgid "Distribute horizontally"
+msgstr "左右に等間隔に配置"
+
+#: src/lib/menus/rows.js
+msgid "Distribute vertically"
+msgstr "上下に等間隔に配置"
 
 #: src/components/DocInsertMenu.jsx
 msgid "Divider"
@@ -8803,6 +8780,8 @@ msgstr "ドキュメント"
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "Doc"
 msgstr "ドキュメント"
@@ -8949,10 +8928,6 @@ msgstr "ダブルクリック"
 msgid "Double-click to interact"
 msgstr "ダブルクリックで操作"
 
-#: src/components/CanvasSurface.jsx
-msgid "Double-sided arrow"
-msgstr "両矢印"
-
 #: src/components/cards.jsx
 msgid "Double-tap to play"
 msgstr "ダブルタップで再生"
@@ -8961,7 +8936,6 @@ msgstr "ダブルタップで再生"
 msgid "download"
 msgstr "ダウンロード"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/cards/GridCellMenu.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
@@ -8973,21 +8947,15 @@ msgstr "ダウンロード"
 #: src/components/ImageEditModal.jsx
 #: src/components/ImageLightbox.jsx
 #: src/components/info/VersionsSection.jsx
-#: src/components/ListSurface.jsx
 #: src/components/PdfViewer.jsx
 #: src/components/R2Image.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Download"
 msgstr "ダウンロード"
 
 #: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
 msgid "Download {count}"
 msgstr "{count}件をダウンロード"
-
-#: src/components/ListSurface.jsx
-msgid "Download {count} of {n}"
-msgstr "{n}件中{count}件をダウンロード"
 
 #: src/components/cards/FileCard.jsx
 msgid "Download {label}"
@@ -9131,8 +9099,8 @@ msgid "Drag to another date to move this day"
 msgstr "別の日付にドラッグしてこの日を移動"
 
 #: src/components/CanvasSurface.jsx
-msgid "Drag to bend · right-click to straighten · double-click to reset"
-msgstr "ドラッグで曲げる · 右クリックで直線に · ダブルクリックでリセット"
+msgid "Drag to bend · right-click for options · double-click to reset"
+msgstr "ドラッグで曲げる · 右クリックでオプション · ダブルクリックでリセット"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to draw"
@@ -9186,6 +9154,7 @@ msgid "Drag to zoom"
 msgstr "ドラッグしてズーム"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Draw"
 msgstr "描画"
 
@@ -9346,14 +9315,10 @@ msgstr "Dropboxは、選んだフォルダを1つのzipとしてダウンロー�
 msgid "Dual dialogue"
 msgstr "二人同時のセリフ"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Duplicate"
 msgstr "複製"
-
-#: src/components/CanvasSurface.jsx
-msgid "Duplicate ({size})"
-msgstr "複製（{size}）"
 
 #: src/components/cards/ScheduleRundown.jsx
 msgid "Duration"
@@ -9363,6 +9328,11 @@ msgstr "所要時間"
 msgctxt "media"
 msgid "Duration"
 msgstr "再生時間"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Dusk"
+msgstr "夕暮れ"
 
 #: src/components/settings/fields.jsx
 msgid "e.g. Atkinson Hyperlegible"
@@ -9444,7 +9414,6 @@ msgstr "編集できる人は、それぞれ1シートを使います。閲覧�
 msgid "edit"
 msgstr "編集"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/comments/CommentRow.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
@@ -9453,33 +9422,26 @@ msgstr "編集"
 msgid "Edit"
 msgstr "編集"
 
-#: src/lib/contextMenuSections.js
-msgid "EDIT"
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Edit"
 msgstr "編集"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Edit a note or title"
 msgstr "メモまたはタイトルを編集"
 
-#: src/components/CanvasSurface.jsx
-msgid "Edit caption"
-msgstr "キャプションを編集"
-
 #: src/components/comments/CommentComposer.jsx
 msgid "Edit comment"
 msgstr "コメントを編集"
 
 #: src/components/CanvasSurface.jsx
-msgid "Edit hyperlink"
-msgstr "ハイパーリンクを編集"
-
-#: src/components/CanvasSurface.jsx
 msgid "Edit image hyperlink"
 msgstr "画像のハイパーリンクを編集"
 
-#: src/components/CanvasSurface.jsx
-msgid "Edit label"
-msgstr "ラベルを編集"
+#: src/lib/menus/rows.js
+msgid "Edit label…"
+msgstr "ラベルを編集…"
 
 #: src/components/cards.jsx
 #: src/components/cards/GridCellMenu.jsx
@@ -9488,7 +9450,7 @@ msgstr "ラベルを編集"
 msgid "Edit photo"
 msgstr "写真を編集"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Edit photo…"
 msgstr "写真を編集…"
 
@@ -9499,10 +9461,6 @@ msgstr "写真を編集…"
 #: src/components/ShareModal.jsx
 msgid "Edit profile"
 msgstr "プロフィールを編集"
-
-#: src/components/CanvasSurface.jsx
-msgid "Edit title"
-msgstr "タイトルを編集"
 
 #: src/components/MessageComposer.jsx
 msgid "Edit your message"
@@ -9731,7 +9689,6 @@ msgstr "移動中"
 msgid "ENTITIES NAMED THIS"
 msgstr "この名前のエンティティ"
 
-#: src/components/SidebarTags.jsx
 #: src/components/TagDetailView.jsx
 msgid "Entity type"
 msgstr "エンティティの種類"
@@ -9990,8 +9947,8 @@ msgstr "まずデモを見てみる"
 msgid "Explore universe →"
 msgstr "ユニバースを探索 →"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Export"
 msgstr "書き出し"
 
@@ -10057,9 +10014,9 @@ msgstr "追加ストレージは、{STORAGE_ADDON_BLOCK_LABEL} × {STORAGE_ADDON
 msgid "Extra storage isn’t available yet."
 msgstr "追加ストレージは、まだ利用できません。"
 
-#: src/components/CanvasSurface.jsx
-msgid "Eyedrop color (anywhere on screen)…"
-msgstr "スポイトで色を取得（画面上のどこでも）…"
+#: src/lib/menus/rows.js
+msgid "Eyedrop color…"
+msgstr "スポイトで色を取得…"
 
 #: src/components/CanvasSurface.jsx
 msgid "Eyedropper not supported in this browser yet."
@@ -10108,6 +10065,9 @@ msgstr "ファイル"
 #: src/lib/filesView.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/fileMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "File"
 msgstr "ファイル"
@@ -10134,6 +10094,7 @@ msgstr "ファイル"
 #: src/components/ViewSwitch.jsx
 #: src/lib/cardInfo.js
 #: src/lib/feedbackContext.js
+#: src/lib/menus/fileMenu.js
 #: src/lib/onboardingTourWords.js
 #: src/lib/sidebarShelves.js
 #: src/lib/viewSwitch.js
@@ -10206,7 +10167,7 @@ msgctxt "photo fit"
 msgid "Fill"
 msgstr "セルを埋める"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Fill color…"
 msgstr "塗りつぶしの色…"
 
@@ -10247,6 +10208,7 @@ msgstr "検索"
 
 #: src/components/home/ClustersHome.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
+#: src/lib/menus/rows.js
 msgid "Find a cluster"
 msgstr "クラスターを探す"
 
@@ -10330,6 +10292,7 @@ msgid "Fit"
 msgstr "フィット"
 
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Fit everything"
 msgstr "すべてを収める"
 
@@ -10379,7 +10342,7 @@ msgstr "クリップ全体をタイムラインに収める"
 msgid "Fit to cell"
 msgstr "セルに合わせる"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Fit to content"
 msgstr "内容に合わせる"
 
@@ -10442,6 +10405,7 @@ msgstr "折りたたむ"
 #: src/components/HeldUploadsBar.jsx
 #: src/lib/folderPlan.js
 #: src/lib/importStart.js
+#: src/lib/menus/rows.js
 msgid "Folder"
 msgstr "フォルダ"
 
@@ -10721,7 +10685,7 @@ msgstr "生成"
 msgid "Generate a matrix"
 msgstr "マトリクスを生成"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Generate matrix…"
 msgstr "マトリクスを生成…"
 
@@ -10736,10 +10700,6 @@ msgstr "{planName}を始める"
 #: src/components/UpgradeChip.jsx
 msgid "Get Creator"
 msgstr "Creatorを始める"
-
-#: src/components/ListSurface.jsx
-msgid "Get info"
-msgstr "情報を表示"
 
 #: src/components/SendSheet.jsx
 msgid "Gets it in Messages, or an email invite if they're new"
@@ -10816,8 +10776,8 @@ msgstr "フォーカス中のファイルへ移動：キャンバス上、また
 msgid "Go to the message"
 msgstr "メッセージへ移動"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
+#: src/lib/menus/rows.js
 msgid "Go to today"
 msgstr "今日へ移動"
 
@@ -10891,6 +10851,8 @@ msgstr "グリッド"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Grid"
 msgstr "グリッド"
 
@@ -10933,19 +10895,22 @@ msgctxt "default name"
 msgid "Group"
 msgstr "グループ"
 
+#: src/lib/menus/cardMenu.js
+msgctxt "noun"
+msgid "Group"
+msgstr "グループ"
+
 #: src/components/CanvasSurface.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgctxt "verb"
 msgid "Group"
 msgstr "グループ化"
 
-#: src/components/CanvasSurface.jsx
-msgid "Group \"{groupTitle}\""
-msgstr "グループ「{groupTitle}」"
-
-#: src/components/CanvasSurface.jsx
-msgid "Group ({size})"
-msgstr "グループ（{size}）"
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
+msgid "Group \"{name}\""
+msgstr "グループ「{name}」"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Group by"
@@ -10955,7 +10920,7 @@ msgstr "グループ化"
 msgid "GROUP CHAT"
 msgstr "グループチャット"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Group info"
 msgstr "グループ情報"
 
@@ -11162,25 +11127,13 @@ msgstr "フレーミングガイドを非表示"
 msgid "Hide from search"
 msgstr "検索から隠す"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide group label"
-msgstr "グループのラベルを非表示"
-
 #: src/components/ListSurface.jsx
 msgid "Hide info"
 msgstr "情報を非表示"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide label"
-msgstr "ラベルを非表示"
-
 #: src/components/cards.jsx
 msgid "Hide labels"
 msgstr "ラベルを非表示"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide labels (pure color)"
-msgstr "ラベルを非表示（色のみ）"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "Hide layer"
@@ -11193,10 +11146,6 @@ msgstr "メッセージを非表示"
 #: src/App.jsx
 msgid "Hide notifications"
 msgstr "通知を非表示"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide outline"
-msgstr "枠を非表示"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Hide pages"
@@ -11312,10 +11261,6 @@ msgstr "ホーム、グラフ、概要、トップ"
 msgid "Horizontal rule"
 msgstr "水平線"
 
-#: src/components/CanvasSurface.jsx
-msgid "Horizontally"
-msgstr "水平方向"
-
 #: src/components/cards/SchedulePeek.jsx
 msgid "Hours on grid"
 msgstr "グリッドに時間を表示"
@@ -11370,9 +11315,9 @@ msgstr "https://…"
 msgid "https://example.com/font.woff2"
 msgstr "https://example.com/font.woff2"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hug{value}"
-msgstr "フィット{value}"
+#: src/lib/menus/rows.js
+msgid "Hug"
+msgstr "ぴったり"
 
 #: src/components/FeedbackButton.jsx
 msgid "I love something"
@@ -11421,6 +11366,8 @@ msgstr "画像"
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "Image"
 msgstr "画像"
@@ -11608,12 +11555,10 @@ msgstr "インデント · 戻す（脚本：要素を切り替え）"
 msgid "indexable by search"
 msgstr "検索で見つかる"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
-#: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
+#: src/lib/menus/rows.js
 msgid "Info"
 msgstr "情報"
 
@@ -11624,10 +11569,6 @@ msgstr "情報：選択範囲、何も選択していない場合はクラスタ
 #: src/components/ListSurface.jsx
 msgid "Info ({cmdKey}I)"
 msgstr "情報（{cmdKey}I）"
-
-#: src/components/CanvasSurface.jsx
-msgid "Info ({size})"
-msgstr "情報（{size}）"
 
 #: src/components/clusterBrowser/QuickLook.jsx
 msgid "Info (⌘I)"
@@ -12249,7 +12190,7 @@ msgstr "自分だけ"
 msgid "Just you so far. Anyone you invite above will see this cluster and everything inside it."
 msgstr "今のところあなただけです。上で招待した人は、このクラスターとその中身をすべて見られます。"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Justified rows"
 msgstr "行揃え"
 
@@ -12268,6 +12209,10 @@ msgstr "別のファイルとして保持"
 #: src/components/team/TeamPeople.jsx
 msgid "Keep as viewer"
 msgstr "閲覧者のままにする"
+
+#: src/lib/menus/rows.js
+msgid "Keep in Files only"
+msgstr "ファイルにのみ残す"
 
 #: src/components/StorageAddonSheet.jsx
 #: src/pages/KeepPage.jsx
@@ -12399,6 +12344,11 @@ msgstr "種類"
 msgid "Label"
 msgstr "ラベル"
 
+#: src/lib/menus/rows.js
+msgctxt "group label"
+msgid "Label"
+msgstr "ラベル"
+
 #: src/lib/versionActions.js
 msgid "Label {versionLabel}"
 msgstr "ラベル{versionLabel}"
@@ -12418,6 +12368,11 @@ msgstr "ラベル…"
 #: src/components/GridLayoutThumb.jsx
 msgid "labelled {names}"
 msgstr "ラベル：{names}"
+
+#: src/lib/menus/rows.js
+msgctxt "palette"
+msgid "Labels"
+msgstr "ラベル"
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Language"
@@ -12594,10 +12549,10 @@ msgid "Leave workspace"
 msgstr "ワークスペースから退出"
 
 #: src/components/MessagesPanel.jsx
+#: src/components/MessageThread.jsx
 msgid "Leave…"
 msgstr "退出…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 msgid "Left"
 msgstr "左"
@@ -12691,12 +12646,15 @@ msgstr "リンク"
 #: src/components/doc/DocBarA.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/ListSurface.jsx
 #: src/components/MessageComposer.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 msgid "Link"
 msgstr "リンク"
@@ -12729,8 +12687,8 @@ msgstr "リンクカード"
 msgid "Link cards"
 msgstr "リンクカード"
 
-#: src/App.jsx
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 #: src/components/EntityHoverPopover.jsx
@@ -12827,6 +12785,11 @@ msgctxt "command search words"
 msgid "link, embed, reference, cluster, board"
 msgstr "リンク、埋め込み、参照、クラスター、ボード"
 
+#: src/lib/menus/rows.js
+msgctxt "image hyperlink"
+msgid "Link…"
+msgstr "リンク…"
+
 #: src/components/cards/GridCard.jsx
 #: src/components/ListSurface.jsx
 msgid "Linked"
@@ -12845,6 +12808,8 @@ msgstr "リンク先のクラスター"
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/lib/cardInfo.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Linked cluster"
 msgstr "リンクされたクラスター"
 
@@ -12855,11 +12820,6 @@ msgstr "リンク先のクラスター · アクセス権なし"
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Linked from"
 msgstr "リンク元"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "Linked from…"
-msgstr "リンク元…"
 
 #: src/components/cards/GridCard.jsx
 msgid "Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach."
@@ -13040,9 +13000,9 @@ msgstr "持っているものを見返す"
 msgid "Looking up…"
 msgstr "検索中…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/film/FilmDock.jsx
 #: src/components/film/FilmPlayer.jsx
+#: src/lib/menus/rows.js
 msgid "Loop"
 msgstr "ループ"
 
@@ -13267,7 +13227,6 @@ msgstr "手動のみ"
 msgid "Mark all read"
 msgstr "すべて既読にする"
 
-#: src/components/SidebarTags.jsx
 #: src/components/TagDetailView.jsx
 msgid "Mark as {label}"
 msgstr "{label}として設定"
@@ -13284,7 +13243,7 @@ msgstr "マーカー"
 msgid "Marking"
 msgstr "マーキング"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Masonry columns"
 msgstr "メイソンリー列"
 
@@ -13296,9 +13255,10 @@ msgstr "大文字と小文字を区別"
 msgid "Matching “{trim}”"
 msgstr "「{trim}」に一致"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Mauve"
-msgstr "モーブ"
+msgstr "モーヴ"
 
 #: src/components/PricingModal.jsx
 #: src/components/ReferralNudge.jsx
@@ -13348,6 +13308,7 @@ msgid "Mentions and replies to you show up here."
 msgstr "自分へのメンションと返信がここに表示されます。"
 
 #: src/App.jsx
+#: src/components/CardContextMenu.jsx
 #: src/components/film/FilmMenu.jsx
 msgid "Menu"
 msgstr "メニュー"
@@ -13450,11 +13411,8 @@ msgstr "メッセージ、チャット、DM、コメント、会話"
 msgid "Messaging opens once your account is off the waitlist"
 msgstr "メッセージを送れるようになるのは、アカウントがウェイトリストから外れたときです"
 
-#: src/components/CanvasSurface.jsx
-msgid "Middle"
-msgstr "中"
-
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Midnight"
 msgstr "ミッドナイト"
 
@@ -13512,6 +13470,7 @@ msgstr "等幅"
 msgid "Monospace code"
 msgstr "等幅コード"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 msgid "Month"
 msgstr "月"
@@ -13519,10 +13478,6 @@ msgstr "月"
 #: src/components/cards/ScheduleCard.jsx
 msgid "Month grid"
 msgstr "月グリッド"
-
-#: src/components/CanvasSurface.jsx
-msgid "Month{value}"
-msgstr "月{value}"
 
 #: src/auth/PricingSuccess.jsx
 #: src/auth/WaitlistConfirm.jsx
@@ -13565,6 +13520,7 @@ msgstr "ムードボード、脚本、ショットリスト。あらゆる素材
 #: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "More"
 msgstr "その他"
 
@@ -13579,6 +13535,7 @@ msgstr "矢印のその他のオプション"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
+#: src/components/SidebarTags.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13662,10 +13619,6 @@ msgstr "移動"
 #: src/App.jsx
 msgid "Move “{moveName}” into…"
 msgstr "「{moveName}」の移動先…"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Move {count} to…"
-msgstr "{count}件を移動…"
 
 #: src/lib/dropRules.js
 msgid "Move {movingCount} and copy {copyingCount} to {name}"
@@ -13756,9 +13709,9 @@ msgstr "ファイル間を移動"
 msgid "Move through the clusters, or the files"
 msgstr "クラスターまたはファイルを移動"
 
-#: src/components/CanvasSurface.jsx
-msgid "Move to a new cluster…"
-msgstr "新規クラスターに移動…"
+#: src/lib/menus/rows.js
+msgid "Move to cluster"
+msgstr "クラスターに移動"
 
 #: src/components/ListSurface.jsx
 msgid "Move to cluster…"
@@ -13766,6 +13719,7 @@ msgstr "クラスターに移動…"
 
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Move to…"
 msgstr "移動先…"
 
@@ -13872,8 +13826,8 @@ msgid "Muted"
 msgstr "ミュート"
 
 #: src/components/CanvasSurface.jsx
-msgid "N — columns, top→bottom{value}"
-msgstr "N：列ごと、上→下{value}"
+msgid "N — columns, top→bottom"
+msgstr "N — 列ごと、上→下"
 
 #: src/App.jsx
 #: src/components/CanvasSurface.jsx
@@ -13977,6 +13931,11 @@ msgstr "画像が3枚以上必要です。公開前に管理者が審査しま�
 msgid "Nest · un-nest a list item"
 msgstr "リスト項目をインデント · 解除"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Neutral"
+msgstr "ニュートラル"
+
 #: src/components/ShareModal.jsx
 msgid "Never"
 msgstr "無期限"
@@ -14026,10 +13985,15 @@ msgstr "新規チャット"
 #: src/components/ListSurface.jsx
 #: src/components/NewClusterButton.jsx
 #: src/components/ProjectsHome.jsx
+#: src/lib/menus/fileMenu.js
 msgid "New cluster"
 msgstr "新規クラスター"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
+msgid "New cluster from these"
+msgstr "これらから新規クラスター"
+
+#: src/lib/menus/rows.js
 msgid "New cluster inside"
 msgstr "内側に新規クラスター"
 
@@ -14037,7 +14001,7 @@ msgstr "内側に新規クラスター"
 msgid "New cluster name"
 msgstr "新しいクラスター名"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "New cluster…"
 msgstr "新規クラスター…"
 
@@ -14404,6 +14368,7 @@ msgid "No manually applied items."
 msgstr "手動で適用したアイテムはありません。"
 
 #: src/components/ColorPicker.jsx
+#: src/components/ctxMenuParts.jsx
 msgid "No matches"
 msgstr "一致なし"
 
@@ -14599,7 +14564,6 @@ msgstr "誰も追加されませんでした{tail}"
 #: src/components/capture/CaptureHud.jsx
 #: src/components/ColorPicker.jsx
 #: src/components/settings/BillingTab.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/TeamBilling.jsx
 #: src/lib/cardInfo.js
 msgid "None"
@@ -14668,11 +14632,6 @@ msgstr "見つかりません"
 #: src/lib/captureRecorder.js
 msgid "Not in a browser."
 msgstr "ブラウザ上ではありません。"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "Not linked anywhere"
-msgstr "どこからもリンクされていません"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/FirstValueUpgradeBanner.jsx
@@ -14777,6 +14736,8 @@ msgstr "メモ"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 msgid "Note"
 msgstr "メモ"
@@ -15483,17 +15444,11 @@ msgstr "不透明度"
 
 #: src/App.jsx
 #: src/components/ActivityTray.jsx
-#: src/components/CanvasSurface.jsx
 #: src/components/DocCard.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
-#: src/components/ListSurface.jsx
 #: src/components/MessageSharedCard.jsx
-#: src/components/shared/SharedPage.jsx
-#: src/components/SidebarBoardTree.jsx
-#: src/components/SidebarSharedBoards.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
 #: src/hooks/useNotifications.js
@@ -15511,6 +15466,11 @@ msgstr "支払い待ち"
 msgctxt "status"
 msgid "Open"
 msgstr "未解決"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
+msgid "Open"
+msgstr "開く"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open · close the tool rail’s + menu"
@@ -15623,8 +15583,8 @@ msgstr "キャプチャコントロールを開く"
 msgid "Open chat"
 msgstr "チャットを開く"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
+#: src/lib/menus/rows.js
 msgid "Open cluster"
 msgstr "クラスターを開く"
 
@@ -15646,6 +15606,7 @@ msgid "Open day"
 msgstr "日を開く"
 
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/lib/menus/rows.js
 msgid "Open doc"
 msgstr "ドキュメントを開く"
 
@@ -15706,9 +15667,8 @@ msgstr "Clustersで開く"
 msgid "Open in Files"
 msgstr "ファイルで開く"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/film/FilmPlayer.jsx
-#: src/components/ListSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Open in player"
 msgstr "プレーヤーで開く"
 
@@ -15735,14 +15695,14 @@ msgstr "もう一度開く"
 msgid "Open it to see what’s been added."
 msgstr "開いて、追加されたものを確認しましょう。"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/lib/menus/rows.js
 msgid "Open link"
 msgstr "リンクを開く"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Open linked cluster"
 msgstr "リンクされたクラスターを開く"
 
@@ -15761,10 +15721,6 @@ msgstr "メモを開く"
 #: src/components/sidebar/ClusterSwitch.jsx
 msgid "Open now"
 msgstr "今すぐ開く"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Open on the board by default"
-msgstr "デフォルトでキャンバスで開く"
 
 #: src/lib/importGuide.js
 msgid "Open OneDrive"
@@ -15822,25 +15778,28 @@ msgstr "サイドバーを開く"
 msgid "Open sidebar (⌘B)"
 msgstr "サイドバーを開く（⌘B）"
 
+#: src/lib/menus/rows.js
+msgid "Open sketch"
+msgstr "スケッチを開く"
+
 #: src/App.jsx
 msgid "Open split view"
 msgstr "分割表示を開く"
 
+#: src/components/CanvasSurface.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/EntityHoverPopover.jsx
 msgid "Open tag"
 msgstr "タグを開く"
 
-#: src/components/CardContextMenu.jsx
-msgid "Open tag \"{name}\""
-msgstr "タグ「{name}」を開く"
+#. placeholder {0}: c.name
+#: src/components/DocPageTagChips.jsx
+msgid "Open tag \"{0}\""
+msgstr "タグ「{0}」を開く"
 
 #: src/components/TagRangeHoverPopover.jsx
 msgid "Open tag detail"
 msgstr "タグの詳細を開く"
-
-#: src/components/CanvasSurface.jsx
-msgid "Open tag page"
-msgstr "タグのページを開く"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the box: type in a text box, or its menu"
@@ -16070,11 +16029,15 @@ msgstr "アウト {tc}"
 msgid "Out {tc} · {frames} fr"
 msgstr "アウト {tc}・{frames}フレーム"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgid "Outline"
+msgstr "枠"
+
+#: src/lib/menus/rows.js
 msgid "Outline color…"
 msgstr "枠の色…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Outline shape"
 msgstr "枠の形"
 
@@ -16232,7 +16195,8 @@ msgstr "キャンバスをパン"
 msgid "Pan tool"
 msgstr "パンツール"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Paper"
 msgstr "ペーパー"
 
@@ -16286,8 +16250,8 @@ msgstr "このアドレスでは、パスキーは使えません。"
 msgid "Password"
 msgstr "パスワード"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/lib/menus/fileMenu.js
 msgid "Paste"
 msgstr "貼り付け"
 
@@ -16311,6 +16275,10 @@ msgstr "貼り付けに失敗しました：{reason}"
 msgid "Paste from any tab, drag from your desktop, or drop a whole folder — they arrange themselves."
 msgstr "任意のタブから貼り付けるか、デスクトップからドラッグするか、フォルダごとドロップすると、自動で整列します。"
 
+#: src/lib/menus/rows.js
+msgid "Paste here"
+msgstr "ここに貼り付け"
+
 #: src/lib/firstBoardCopy.js
 msgid "Paste images or links from any tab, or drop a folder of frames"
 msgstr "任意のタブから画像やリンクを貼り付けるか、フレームのフォルダをドロップします"
@@ -16323,7 +16291,7 @@ msgstr "任意のタブから画像やリンクを貼り付けるか、フォル
 msgid "Paste images or links from any tab, or drop a whole folder"
 msgstr "任意のタブから画像やリンクを貼り付けるか、フォルダごとドロップします"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Paste into this cluster"
 msgstr "このクラスターに貼り付け"
 
@@ -16422,11 +16390,12 @@ msgstr "PDF"
 #: src/components/shared/SharedPage.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/sharedFiles.js
 msgid "PDF"
 msgstr "PDF"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "PDF (Save from Print)"
 msgstr "PDF（印刷から保存）"
 
@@ -16612,7 +16581,7 @@ msgstr "上のトピックを選ぶか、そのまま書いてください。ど
 msgid "Pick a topic, or write a few words."
 msgstr "トピックを選ぶか、ひとこと書いてください。"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Pick from cluster image…"
 msgstr "クラスターの画像から選択…"
 
@@ -16819,6 +16788,10 @@ msgstr "再生ヘッド"
 msgid "Playing muted — press M for sound"
 msgstr "ミュートで再生中・Mキーで音を出せます"
 
+#: src/components/CanvasSurface.jsx
+msgid "Plays muted"
+msgstr "ミュートで再生"
+
 #: src/App.jsx
 msgid "Please choose a PDF file."
 msgstr "PDFファイルを選択してください。"
@@ -16827,7 +16800,7 @@ msgstr "PDFファイルを選択してください。"
 msgid "Please choose an image file."
 msgstr "画像ファイルを選択してください。"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "PNG image"
 msgstr "PNG画像"
 
@@ -17104,10 +17077,6 @@ msgstr "パンチイン"
 msgid "Push in"
 msgstr "プッシュイン"
 
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Put {count} on board"
-msgstr "{count}件をキャンバスに置く"
-
 #: src/lib/dropRules.js
 msgid "Put {named} here"
 msgstr "{named}をここに置く"
@@ -17125,6 +17094,7 @@ msgstr "キャンバスに置く"
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Put on board"
 msgstr "キャンバスに配置"
 
@@ -17150,8 +17120,11 @@ msgstr "トライアルのためにクレジットカードを登録すること
 msgid "Queued"
 msgstr "待機中"
 
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/components/ctxMenuParts.jsx
+msgid "Quick actions"
+msgstr "クイックアクション"
+
+#: src/lib/menus/rows.js
 msgid "Quick look"
 msgstr "クイックルック"
 
@@ -17226,7 +17199,7 @@ msgstr "読み取り中"
 msgid "Reading {title}…"
 msgstr "{title}を読み取り中…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Reading order"
 msgstr "読み順"
 
@@ -17267,6 +17240,7 @@ msgstr "領収書"
 #: src/components/doc/DocBarA.jsx
 #: src/components/SendSheet.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/moveMenu.js
 msgid "Recent"
 msgstr "最近"
 
@@ -17289,12 +17263,12 @@ msgid "Recently deleted ({count})"
 msgstr "最近削除した項目({count})"
 
 #: src/components/SidebarTags.jsx
-msgid "Recolor"
-msgstr "色を変更"
-
-#: src/components/SidebarTags.jsx
 msgid "Recolor failed: {reason}"
 msgstr "色の変更に失敗しました：{reason}"
+
+#: src/components/SidebarTags.jsx
+msgid "Recolor…"
+msgstr "色を変更…"
 
 #: src/lib/docSaveStatus.js
 msgid "Reconnecting — changes kept on this device"
@@ -17474,7 +17448,11 @@ msgstr "ブックマークを削除"
 msgid "Remove bookmark {name}"
 msgstr "ブックマーク{name}を削除"
 
-#: src/components/CanvasSurface.jsx
+#: src/components/ColorPicker.jsx
+msgid "Remove color"
+msgstr "色を削除"
+
+#: src/lib/menus/rows.js
 msgid "Remove cover image"
 msgstr "カバー画像を削除"
 
@@ -17495,16 +17473,11 @@ msgstr "探索から外す"
 msgid "Remove from Explore?"
 msgstr "探索から外しますか？"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Remove from group"
 msgstr "グループから外す"
 
-#: src/components/CanvasSurface.jsx
-msgid "Remove from group ({size})"
-msgstr "グループから外す（{size}）"
-
-#: src/components/shared/SharedPage.jsx
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/menus/rows.js
 msgid "Remove from my list"
 msgstr "リストから外す"
 
@@ -17543,6 +17516,7 @@ msgstr "プレビューを削除"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/TagRangeHoverPopover.jsx
 msgid "Remove tag"
@@ -17643,13 +17617,9 @@ msgid "Removing…"
 msgstr "外しています…"
 
 #: src/components/CanvasSurface.jsx
-#: src/components/DocPageTree.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/home/HomeWorkspace.jsx
-#: src/components/ListSurface.jsx
-#: src/components/MessageThread.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarTags.jsx
 msgid "Rename"
 msgstr "名前を変更"
@@ -17670,7 +17640,7 @@ msgstr "名前の変更に失敗しました：{reason}"
 msgid "Rename group"
 msgstr "グループ名を変更"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Rename group…"
 msgstr "グループ名を変更…"
 
@@ -17699,6 +17669,10 @@ msgid "Rename, color, cover and view changes — each can be reverted."
 msgstr "名前、色、カバー、表示の変更。それぞれ元に戻せます。"
 
 #: src/components/CanvasSurface.jsx
+#: src/components/DocPageTree.jsx
+#: src/components/MessageThread.jsx
+#: src/components/SidebarTags.jsx
+#: src/lib/menus/rows.js
 msgid "Rename…"
 msgstr "名前を変更…"
 
@@ -17717,6 +17691,7 @@ msgstr "更新日"
 #: src/components/comments/CommentCard.jsx
 #: src/components/DocCard.jsx
 #: src/components/fileShare/DocShareView.jsx
+#: src/lib/menus/rows.js
 msgid "Reopen"
 msgstr "再開"
 
@@ -17736,11 +17711,11 @@ msgstr "すべて置換"
 msgid "Replace all {count}"
 msgstr "{count}件をすべて置換"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Replace cover image…"
 msgstr "カバー画像を置き換え…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Replace image…"
 msgstr "画像を置き換え…"
 
@@ -17823,7 +17798,7 @@ msgstr "{resendCooldown}秒後に再送信"
 msgid "Reset"
 msgstr "リセット"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Reset curve"
 msgstr "カーブをリセット"
 
@@ -17831,7 +17806,7 @@ msgstr "カーブをリセット"
 msgid "Reset framing"
 msgstr "フレーミングをリセット"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Reset to auto thumbnail"
 msgstr "自動サムネイルに戻す"
 
@@ -17843,7 +17818,6 @@ msgstr "デフォルトに戻す"
 msgid "Reset view state"
 msgstr "表示状態をリセット"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 msgid "Reset zoom"
 msgstr "ズームをリセット"
@@ -17857,6 +17831,7 @@ msgid "Resolution"
 msgstr "解像度"
 
 #: src/components/comments/CommentCard.jsx
+#: src/lib/menus/rows.js
 msgid "Resolve"
 msgstr "解決"
 
@@ -18065,7 +18040,6 @@ msgstr "巻き戻し中…"
 msgid "Rewinds every cluster in this workspace at once — for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible."
 msgstr "このワークスペースのすべてのクラスターを一度に巻き戻します。誤って大量に削除したときに使います。巻き戻し前の状態は保持されるため、巻き戻し自体も元に戻せます。"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 msgid "Right"
 msgstr "右"
@@ -18138,7 +18112,8 @@ msgstr "このパソコン上で動作します。"
 msgid "Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file."
 msgstr "MacのSafariなら再生できます。またはH.264形式のバージョンをアップロードしてください。メモはこのファイルに残ります。"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Sage"
 msgstr "セージ"
 
@@ -18149,6 +18124,11 @@ msgstr "サンプリングに失敗しました：{reason}"
 #: src/lib/cardInfo.js
 msgid "Sample rate"
 msgstr "サンプルレート"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sand"
+msgstr "砂"
 
 #: src/components/doc/DocBarA.jsx
 #: src/components/ToolOptionsBar.jsx
@@ -18224,7 +18204,7 @@ msgstr "保存して共有"
 msgid "Save as template"
 msgstr "テンプレートとして保存"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Save as template…"
 msgstr "テンプレートとして保存…"
 
@@ -18371,6 +18351,8 @@ msgstr "スケジュール"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Schedule"
 msgstr "スケジュール"
 
@@ -18462,6 +18444,11 @@ msgstr "スクロールするとキャンバスをパンします。{WHEEL_CMD}+
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling zooms at the pointer. {WHEEL_CMD}-scroll, Alt-scroll or Shift-scroll pans."
 msgstr "スクロールするとポインターの位置でズームします。{WHEEL_CMD}+スクロール、Alt+スクロール、Shift+スクロールでパンします。"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sea"
+msgstr "海"
 
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
@@ -18676,8 +18663,8 @@ msgstr "「メンバー」で確認できます。"
 msgid "Seen"
 msgstr "既読"
 
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Select"
 msgstr "選択"
 
@@ -18694,8 +18681,8 @@ msgstr "選択 / 移動"
 msgid "Select / move (V)"
 msgstr "選択 / 移動（V）"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Select all"
 msgstr "すべて選択"
 
@@ -18748,7 +18735,7 @@ msgstr "選択ツール"
 msgid "Select words inside one paragraph to tag them."
 msgstr "1つの段落内の単語を選択してタグ付けします。"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Select…"
 msgstr "選択…"
 
@@ -18790,7 +18777,7 @@ msgstr "共同作業者やクライアントにリンクを送りましょう。
 msgid "Send a direct message"
 msgstr "ダイレクトメッセージを送る"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Send backward"
 msgstr "背面へ"
 
@@ -18811,13 +18798,12 @@ msgstr "招待を送信"
 msgid "Send invites"
 msgstr "招待を送信"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Send to back"
 msgstr "最背面へ"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/SendSheet.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Send to…"
 msgstr "送信…"
 
@@ -18955,10 +18941,6 @@ msgstr "サービスアカウント"
 msgid "Set cluster thumbnail"
 msgstr "クラスターのサムネイルを設定"
 
-#: src/components/CanvasSurface.jsx
-msgid "Set cover image…"
-msgstr "カバー画像を設定…"
-
 #: src/components/film/FilmDock.jsx
 msgid "Set in"
 msgstr "イン点を設定"
@@ -19046,6 +19028,17 @@ msgstr "図形"
 msgid "Shape"
 msgstr "図形"
 
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
+msgctxt "add card"
+msgid "Shape"
+msgstr "図形"
+
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Shape"
+msgstr "図形"
+
 #: src/lib/listItemWords.js
 msgid "Shape ({shape})"
 msgstr "図形({shape})"
@@ -19083,6 +19076,7 @@ msgid "Share doc"
 msgstr "ドキュメントを共有"
 
 #: src/lib/fileShareBus.js
+#: src/lib/menus/rows.js
 msgid "Share doc…"
 msgstr "ドキュメントを共有…"
 
@@ -19090,9 +19084,7 @@ msgstr "ドキュメントを共有…"
 msgid "Share file"
 msgstr "ファイルを共有"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Share file…"
 msgstr "ファイルを共有…"
 
@@ -19117,6 +19109,7 @@ msgid "Share it in the store"
 msgstr "ストアで共有"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Share layout"
 msgstr "レイアウトを共有"
 
@@ -19163,7 +19156,7 @@ msgid "share, invite, collaborate, public link"
 msgstr "共有、招待、共同編集、公開リンク"
 
 #: src/components/settings/InviteTab.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Share…"
 msgstr "共有…"
 
@@ -19412,23 +19405,14 @@ msgstr "クラスターの下にファイルを表示"
 msgid "Show framing guides"
 msgstr "フレーミングガイドを表示"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show group label"
-msgstr "グループのラベルを表示"
-
 #: src/components/ListSurface.jsx
 msgid "Show in cluster"
 msgstr "クラスターで表示"
 
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Show in Files"
 msgstr "ファイルで表示"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show label"
-msgstr "ラベルを表示"
-
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "Show labels"
 msgstr "ラベルを表示"
@@ -19460,17 +19444,13 @@ msgstr "通知を表示"
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Show on board"
 msgstr "キャンバスで表示"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "Show only"
 msgstr "絞り込み"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show outline"
-msgstr "枠を表示"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Show pages"
@@ -19763,17 +19743,13 @@ msgstr "矢じり1つ"
 msgid "Single cell"
 msgstr "セル1つ"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Single column"
 msgstr "1列"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Single row"
 msgstr "1行"
-
-#: src/components/CanvasSurface.jsx
-msgid "Single-sided arrow"
-msgstr "片矢印"
 
 #: src/lib/cardInfo.js
 msgid "Site"
@@ -19800,6 +19776,7 @@ msgid "Size of the files"
 msgstr "ファイルのサイズ"
 
 #: src/components/SketchPadOverlay.jsx
+#: src/lib/menus/cardMenu.js
 msgid "Sketch"
 msgstr "スケッチ"
 
@@ -19860,8 +19837,8 @@ msgid "Small tiles"
 msgstr "小タイル"
 
 #: src/components/CanvasSurface.jsx
-msgid "Snake — alternating rows{value}"
-msgstr "スネーク：行を交互に{value}"
+msgid "Snake — alternating rows"
+msgstr "スネーク — 行ごとに折り返し"
 
 #: src/lib/errorWords.js
 msgid "Snapshot has 0 cards / arrows / strokes — restore would empty the board."
@@ -20019,7 +19996,6 @@ msgstr "ソースフィルターと保留中の提案"
 msgid "Source timecode"
 msgstr "ソースのタイムコード"
 
-#: src/components/ListSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/playerKeys.js
 msgctxt "keyboard key"
@@ -20031,7 +20007,7 @@ msgctxt "keyboard key"
 msgid "Space-drag"
 msgstr "スペースを押しながらドラッグ"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Spacing"
 msgstr "間隔"
 
@@ -20114,7 +20090,6 @@ msgid "Stand-in collaborators: none. Tap to change."
 msgstr "代役の共同作業者：なし。タップで変更します。"
 
 #: src/components/home/ClustersHome.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
 msgid "Star"
 msgstr "スターを付ける"
 
@@ -20123,6 +20098,11 @@ msgstr "スターを付ける"
 msgctxt "shape"
 msgid "Star"
 msgstr "星"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
+msgid "Star"
+msgstr "スターを付ける"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Star a file or a cluster from its menu and it stays here."
@@ -20160,7 +20140,7 @@ msgstr "チームを始める"
 msgid "Start a Team trial"
 msgstr "Teamのトライアルを始める"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Start at…"
 msgstr "開始位置…"
 
@@ -20179,6 +20159,10 @@ msgstr "無料で始めて、足りなくなったらお支払い。"
 #: src/components/ShowcaseBanner.jsx
 msgid "Start fresh"
 msgstr "新しく始める"
+
+#: src/lib/menus/rows.js
+msgid "Start here"
+msgstr "ここから開始"
 
 #: src/components/CanvasSurface.jsx
 msgid "Start here ({clipTime})"
@@ -20392,10 +20376,6 @@ msgstr "絵コンテのページ"
 msgid "Straight"
 msgstr "直線"
 
-#: src/components/CanvasSurface.jsx
-msgid "Straight arrow"
-msgstr "直線の矢印"
-
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Strikethrough"
@@ -20421,8 +20401,8 @@ msgstr "Stripeがお支払いをまだ確認中です。完了次第、チーム
 msgid "Stripe took the payment, but we haven't seen activation come through yet."
 msgstr "Stripeでお支払いは受け付けられましたが、有効化はまだ確認できていません。"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
+#: src/lib/menus/rows.js
 msgid "Stroke"
 msgstr "ストローク"
 
@@ -20430,7 +20410,7 @@ msgstr "ストローク"
 msgid "Stroke color"
 msgstr "ストロークの色"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Stroke color…"
 msgstr "ストロークの色…"
 
@@ -20532,6 +20512,11 @@ msgstr "テキストからの提案：{name}。✓で保持、×でここでは�
 #: src/components/settings/WorkspaceTab.jsx
 msgid "Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work."
 msgstr "ここに書かれた内容からタグを提案し、ドキュメント内で該当しそうな箇所に下線を引き、追加された画像を説明します。テキストと各画像の小さなコピーがCloudflare Workers AIに送られます。オフにすると、Clustersは何も送信せず、画像の説明は削除されます。追加したタグや、名前がテキストにそのまま現れるタグは、引き続き使えます。"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sun"
+msgstr "太陽"
 
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"
@@ -20635,7 +20620,6 @@ msgstr "表を削除しました"
 msgid "tag"
 msgstr "タグ"
 
-#: src/components/CardContextMenu.jsx
 #: src/components/entityPreviews/TagPreview.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/TagRangeHoverPopover.jsx
@@ -20661,9 +20645,9 @@ msgstr "タグ · {source}"
 msgid "Tag \"{name}\" deleted"
 msgstr "タグ「{name}」を削除しました"
 
-#: src/components/CanvasSurface.jsx
-msgid "Tag {size} cards…"
-msgstr "{size}枚のカードにタグ付け…"
+#: src/lib/menus/rows.js
+msgid "Tag cluster…"
+msgstr "クラスターにタグ付け…"
 
 #: src/components/SidebarTags.jsx
 msgid "Tag create failed: {reason}"
@@ -20675,7 +20659,7 @@ msgstr "タグの作成に失敗しました：{reason}"
 msgid "Tag failed: {reason}"
 msgstr "タグ付けに失敗しました：{reason}"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Tag group…"
 msgstr "グループにタグ付け…"
 
@@ -20688,6 +20672,7 @@ msgid "tag page"
 msgstr "タグページ"
 
 #: src/components/DocPageEditor.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/TagDetailView.jsx
 msgid "Tag removed"
 msgstr "タグを外しました"
@@ -20696,11 +20681,7 @@ msgstr "タグを外しました"
 msgid "Tag selection…"
 msgstr "選択範囲にタグ付け…"
 
-#: src/components/CanvasSurface.jsx
-msgid "Tag this cluster…"
-msgstr "このクラスターにタグ付け…"
-
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Tag…"
 msgstr "タグ…"
 
@@ -20722,7 +20703,6 @@ msgstr "タグ付き：サイドバーで数えている、このタグが付い
 msgid "Tags"
 msgstr "タグ"
 
-#: src/components/CardContextMenu.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/EntityPicker.jsx
 msgid "TAGS"
@@ -20739,6 +20719,10 @@ msgstr "テイク：{label}。タップで変更します。"
 #: src/components/capture/CaptureHud.jsx
 msgid "Take: none. Tap to change."
 msgstr "テイク：なし。タップで変更します。"
+
+#: src/lib/menus/rows.js
+msgid "Takes it off the canvas"
+msgstr "キャンバスから外します"
 
 #: src/lib/teamPricingCopyWords.js
 msgid "Talk to us"
@@ -20950,6 +20934,7 @@ msgstr "色温度"
 
 #: src/components/GridTemplatePanel.jsx
 #: src/components/SaveTemplateDialog.jsx
+#: src/lib/menus/rows.js
 msgid "Templates"
 msgstr "テンプレート"
 
@@ -22399,16 +22384,9 @@ msgid "Thu"
 msgstr "木"
 
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Tidy up"
 msgstr "整理"
-
-#: src/components/CanvasSurface.jsx
-msgid "Tidy up ({size})"
-msgstr "整理（{size}）"
-
-#: src/components/CanvasSurface.jsx
-msgid "Tidy up board"
-msgstr "キャンバスを整理"
 
 #: src/components/WaitlistModal.jsx
 msgid "tiktok.com/@your-handle"
@@ -22583,16 +22561,12 @@ msgstr "ツールバー"
 msgid "Tools"
 msgstr "ツール"
 
-#: src/components/CanvasSurface.jsx
-msgid "Top"
-msgstr "上"
-
 #: src/App.jsx
 msgid "top level"
 msgstr "最上位"
 
-#: src/components/CanvasSurface.jsx
 #: src/lib/cardInfo.js
+#: src/lib/menus/rows.js
 msgid "Top level"
 msgstr "最上位"
 
@@ -22727,21 +22701,13 @@ msgctxt "weekday, short"
 msgid "Tue"
 msgstr "火"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Turn into cluster…"
 msgstr "クラスターに変換…"
-
-#: src/components/CanvasSurface.jsx
-msgid "Turn off autoplay"
-msgstr "自動再生をオフ"
 
 #: src/App.jsx
 msgid "Turn off capture mode"
 msgstr "キャプチャモードをオフ"
-
-#: src/components/CanvasSurface.jsx
-msgid "Turn off looping"
-msgstr "ループをオフ"
 
 #: src/components/setup/WorkspaceSetup.jsx
 msgid "Two taps. We’ll set up your first cluster to match."
@@ -22750,6 +22716,10 @@ msgstr "2回タップするだけです。それに合わせて、最初のク�
 #: src/lib/billingCopyWords.js
 msgid "Two things — how many cards you can have and how much you can store: {limit}. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and {planName}: up to {EDITOR_LIMIT} who edit, and as many as you like who view."
 msgstr "2つあります。カードの枚数と、保存できる容量({limit})です。どんなサイズのファイルも、どのプランでも使えます。クラスターは無料で、カードを消費しません。人数は無料プランでも{planName}でも同じで、編集できる人は最大{EDITOR_LIMIT}人、閲覧者は何人でも可能です。"
+
+#: src/lib/menus/rows.js
+msgid "Two-way"
+msgstr "双方向"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/clusterBrowser/ClusterTable.jsx
@@ -22857,7 +22827,7 @@ msgstr "元に戻すには、移動先のクラスターが必要です。その
 msgid "Undo sketch change"
 msgstr "スケッチの変更を元に戻す"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Ungroup"
 msgstr "グループ解除"
 
@@ -22972,7 +22942,11 @@ msgid "Unread"
 msgstr "未読"
 
 #: src/components/home/ClustersHome.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+msgid "Unstar"
+msgstr "スターを外す"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Unstar"
 msgstr "スターを外す"
 
@@ -23033,6 +23007,7 @@ msgstr "無題のカード"
 #: src/hooks/useSidebarFiles.js
 #: src/lib/homeMap.js
 #: src/lib/homeRail.js
+#: src/lib/menus/clusterMenu.js
 #: src/lib/moveFailure.js
 #: src/lib/ownWork.js
 #: src/lib/shareCardLayout.js
@@ -23216,8 +23191,7 @@ msgstr "どんなファイルもアップロードすると、キャンバスに
 msgid "Upload any file and it stays here in Files. Search it, or open it as a full page."
 msgstr "どんなファイルもアップロードすると、ここの「ファイル」に残ります。検索したり、フルページで開いたりできます。"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Upload custom thumbnail…"
 msgstr "カスタムサムネイルをアップロード…"
 
@@ -23235,6 +23209,10 @@ msgstr "アップロードに失敗しました：{reason}"
 msgid "Upload files"
 msgstr "ファイルをアップロード"
 
+#: src/lib/menus/rows.js
+msgid "Upload files…"
+msgstr "ファイルをアップロード…"
+
 #: src/components/DocInsertMenu.jsx
 msgid "Upload from your machine"
 msgstr "パソコンからアップロード"
@@ -23243,8 +23221,7 @@ msgstr "パソコンからアップロード"
 msgid "Upload network error"
 msgstr "アップロードのネットワークエラー"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/ListSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Upload new version…"
 msgstr "新しいバージョンをアップロード…"
 
@@ -23440,10 +23417,6 @@ msgstr "バージョンは情報にあります"
 msgid "Vertical"
 msgstr "縦長"
 
-#: src/components/CanvasSurface.jsx
-msgid "Vertically"
-msgstr "垂直方向"
-
 #: src/components/ImageAdjustPanel.jsx
 msgid "Vibrance"
 msgstr "自然な彩度"
@@ -23467,6 +23440,7 @@ msgstr "動画"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/onboardingTourWords.js
 #: src/lib/sharedFiles.js
 msgid "Video"
@@ -23509,6 +23483,11 @@ msgctxt "permission"
 msgid "View"
 msgstr "閲覧のみ"
 
+#: src/lib/menus/rows.js
+msgctxt "schedule"
+msgid "View"
+msgstr "表示"
+
 #: src/App.jsx
 msgid "View access to “{name}” was shared with you."
 msgstr "「{name}」の閲覧権限が共有されました。"
@@ -23521,8 +23500,8 @@ msgstr "クラスターの閲覧権限が共有されました。"
 msgid "View changed"
 msgstr "表示の変更"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
+#: src/lib/menus/rows.js
 msgid "View full size"
 msgstr "フルサイズで表示"
 
@@ -23599,10 +23578,6 @@ msgstr "閲覧者は、ここでチャットを開始できません。開始す
 msgid "Violet"
 msgstr "バイオレット"
 
-#: src/components/CanvasSurface.jsx
-msgid "Visual"
-msgstr "ビジュアル"
-
 #: src/components/film/FilmDock.jsx
 msgid "Volume"
 msgstr "音量"
@@ -23619,6 +23594,7 @@ msgstr "音量を上げる · 下げる"
 #: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/lib/indexRowCard.js
+#: src/lib/menus/rows.js
 msgid "Vote"
 msgstr "投票"
 
@@ -23690,6 +23666,11 @@ msgstr "があなたのクラスターへの接続を求めています"
 msgid "Wardrobe and art direction"
 msgstr "衣装と美術"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Warm"
+msgstr "ウォーム"
+
 #: src/lib/oauthConsentCopy.js
 msgid "We could not check that app just now"
 msgstr "今はそのアプリを確認できませんでした"
@@ -23748,22 +23729,15 @@ msgstr "承認されると、1週間ほどでメールをお送りします。"
 msgid "We're reviewing your application and will email you when a spot opens."
 msgstr "申請を審査中です。空きができたらメールでお知らせします。"
 
-#: src/components/CanvasSurface.jsx
-msgid "Web"
-msgstr "ウェブ"
-
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"
 msgid "Wed"
 msgstr "水"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 msgid "Week"
 msgstr "週"
-
-#: src/components/CanvasSurface.jsx
-msgid "Week{value}"
-msgstr "週{value}"
 
 #: src/pages/ResumePage.jsx
 msgid "Welcome back — pick up where you left off."
@@ -23877,10 +23851,6 @@ msgstr "用途は？ 例: ショットリストのスクリプト"
 #: src/components/UpgradeReasonAsk.jsx
 msgid "What is it?"
 msgstr "それは何ですか？"
-
-#: src/components/SidebarTags.jsx
-msgid "What kind of thing is it?"
-msgstr "どんな種類のものですか？"
 
 #: src/components/setup/WorkspaceSetup.jsx
 msgid "What kind of work do you do?<0>Optional</0>"
@@ -24990,6 +24960,10 @@ msgstr "あなたの招待リンク"
 msgid "Your invites and referral link →"
 msgstr "招待と紹介リンク →"
 
+#: src/lib/menus/clusterMenu.js
+msgid "Your last cluster can't be deleted"
+msgstr "最後のクラスターは削除できません"
+
 #: src/lib/docResets.js
 msgid "Your last edits on this page didn’t make it before the cluster reloaded."
 msgstr "クラスターが再読み込みされる前に、このページの最後の編集が保存されませんでした。"
@@ -25162,8 +25136,8 @@ msgid "yourself"
 msgstr "自分"
 
 #: src/components/CanvasSurface.jsx
-msgid "Z — rows, left→right{value}"
-msgstr "Z：行ごと、左→右{value}"
+msgid "Z — rows, left→right"
+msgstr "Z — 行ごと、左→右"
 
 #: src/lib/importCopy.js
 msgid "Zip file"

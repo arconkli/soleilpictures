@@ -11,7 +11,7 @@ faq:
   - q: How big is the canvas?
     a: There is no boundary. Cards can go anywhere, and Shift-1 fits everything you have made back on screen no matter how far it spread.
   - q: Can I change the background?
-    a: Yes. Right-click the canvas and pick a background colour — seven presets plus a custom picker. The setting is per cluster.
+    a: Yes. Right-click the canvas, choose Background and pick a colour — seven presets plus a custom picker. The setting is per cluster.
   - q: Does the canvas work on a tablet?
     a: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger.
 related:
@@ -83,15 +83,19 @@ The **+** at the top of the rail opens the rest, grouped:
 Right-clicking is the fastest path to almost everything, and the menu differs by
 what is under the cursor.
 
-**On empty canvas:** Add (Cards / Visual / Web / Annotate), Paste, Select all,
-Background colour, Reset zoom, Export to PNG or PDF, and Clear all drawings.
+**On empty canvas:** a row of buttons on top that add a note, a picture, a
+cluster, a doc or a link; then Add › (everything else you can add), Paste here,
+Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy
+link, Tag cluster…, Cluster info, and Clear all drawings when there are
+drawings. `⌘0` still resets the zoom.
 
-**On a card:** everything specific to that card kind, plus the universal
-operations — duplicate, delete, layer order, tag, comment, copy link, and
+**On a card:** a row of icon buttons on top — Cut, Copy, Duplicate, Delete —
+then everything specific to that card kind, plus the universal operations —
+layer order, tag, comment, copy link, and
 **[Send to…](/docs/collaborate/messages#sending-a-card-or-cluster)**.
 
-**On a group:** rename, outline shape and colour, add to group, ungroup, group
-comment, group tag.
+**On a group:** Rename group…, Add comment, Tag group…, Outline, Label,
+Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup.
 
 **Inside text you are editing:** your browser's own menu, not ours. Right-clicking
 mid-sentence in a [note](/docs/canvas/notes) is a text gesture, so you get Paste,
@@ -121,7 +125,7 @@ selection that persists, gets a name, and can be commented on as a unit.
 
 On a computer, two or more picked get a bar along the bottom of the canvas:
 how many, **Tidy up** and **Align** (with Distribute), **Group**, **New
-cluster from N cards** and **Move N cards to…**, then **⋯** for the rest of the
+cluster from these** and **Move to cluster**, then **⋯** for the rest of the
 right-click menu, and **Delete**. Each does what the right-click menu does with
 the same selection.
 
@@ -141,7 +145,7 @@ resize, use an [art canvas card](/docs/canvas/shapes-and-drawing) instead.
 
 ## Background
 
-Right-click → **Background colour**. Seven presets plus a custom picker, set per
+Right-click → **Background**. Seven presets plus a custom picker, set per
 cluster. Useful for separating a scratch board from a client-facing one at a
 glance.
 

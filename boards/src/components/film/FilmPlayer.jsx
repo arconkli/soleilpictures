@@ -52,6 +52,7 @@ import { Spinner } from '../Spinner.jsx';
 import { SpeakerHigh, SpeakerSlash, ArrowsOutSimple } from '../../lib/icons.js';
 import { t as tr, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { mod, isMacPlatform } from '../../lib/menus/shortcuts.js';
 
 // An r2: key → a signed URL, from the cache when it's there (no black flash on
 // a card that's already been seen), with the failure kept so the player can
@@ -1202,7 +1203,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       run: () => setTcMode(m.id),
     })),
     { divider: true },
-    { id: 'copy', label: tr`Copy timecode`, hint: fullKeys ? '⌘C' : undefined, run: copyTc },
+    { id: 'copy', label: tr`Copy timecode`, hint: fullKeys ? mod('C') : undefined, run: copyTc },
   ];
   const rangeItems = () => {
     const r = S.current.range;
@@ -1217,11 +1218,11 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     ];
   };
   const stageItems = () => [
-    { id: 'copy', label: tr`Copy timecode`, hint: fullKeys ? '⌘C' : undefined, run: copyTc },
-    ...(canCopyLink ? [{ id: 'link', label: tr`Copy link to this frame`, hint: fullKeys ? '⇧⌘C' : undefined, run: () => runRef.current('copyLink') }] : []),
+    { id: 'copy', label: tr`Copy timecode`, hint: fullKeys ? mod('C') : undefined, run: copyTc },
+    ...(canCopyLink ? [{ id: 'link', label: tr`Copy link to this frame`, hint: fullKeys ? (isMacPlatform() ? '⇧⌘C' : 'Ctrl+Shift+C') : undefined, run: () => runRef.current('copyLink') }] : []),
     { divider: true },
     { id: 'zoom', label: pz.mode === 'fit' ? tr`Zoom the picture to 100%` : tr`Fit the picture`, hint: fullKeys ? 'Z' : undefined, run: cyclePictureZoom },
-    { id: 'loop', label: tr`Loop`, checked: looping, radio: false, hint: fullKeys ? '⌥L' : undefined, run: toggleLoop },
+    { id: 'loop', label: tr`Loop`, checked: looping, radio: false, hint: fullKeys ? (isMacPlatform() ? '⌥L' : 'Alt+L') : undefined, run: toggleLoop },
     { id: 'guides', label: guide === 'off' ? tr`Show framing guides` : tr`Hide framing guides`, hint: fullKeys ? 'G' : undefined,
       run: () => { if (guide === 'off') { setGuide(prefs.guide || '2.39'); } else setGuide('off'); } },
     { id: 'mute', label: muted ? tr`Unmute` : tr`Mute`, hint: keyboard ? 'M' : undefined, run: toggleMute },

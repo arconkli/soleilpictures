@@ -181,7 +181,8 @@ file of its own. Hold `⌥` while you drop to skip all of that and add it as a
 separate file straight away.
 
 **Upload new version…** in the right-click menu does the same with a file
-picker — for images it's under **Edit**. Images, videos, audio, PDFs and other
+picker — on the canvas it's under **Edit ›**, and in Files it is a top-level
+row. Images, videos, audio, PDFs and other
 files all take versions; the new one has to be the same kind as the old.
 
 Once a file has more than one, a small **v2** chip on the card (and beside its
@@ -196,6 +197,8 @@ version's menu:
 | **Download** | That version's original file |
 | **Add a label…** | A name for it — "Picture lock", "Director's cut" |
 | **Delete version** | Removes it, with undo |
+
+Each version's row in the list also has its own menu, with **Look at it** and **Rename label…**.
 
 A deleted version waits under **Recently deleted** for
 30 days, where **Restore** brings it back; after that

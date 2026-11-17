@@ -106,8 +106,13 @@ test('every client entry point asks the gate', () => {
     'saved templates, Save as template, and Share in the store');
   assert.match(canvas, /const isTpl = templateStoreOpen && t\.id === 'grid';/,
     'the grid tool opens the Templates panel only where the store is open');
-  assert.match(canvas, /if \(templateStoreOpen\) \{\s*items\.push\(\{\s*id: 'grid-apply-template'/,
+  assert.match(canvas, /if \(templateStoreOpen\) acts\['apply-template'\] = \(\) => \{ setSelected\(new Set\(\[c\.id\]\)\); setTplPanelOpen\(true\); \};/,
     'Apply template… opens the panel');
+  // The row's words and place are the menu catalogue's: a grid's Templates › submenu.
+  const rows = read('lib/menus/rows.js');
+  assert.match(rows, /'apply-template': R\('Layout', \(\) => t`Apply template…`\),/);
+  assert.match(rows, /templates: \[\['save-template', 'apply-template', 'share-layout'\]\],/);
+  assert.match(read('lib/menus/cardMenu.js'), /\n  grid: \{ open: \['spacing', 'reading-order', 'templates', 'generate-matrix'\] \},/);
   assert.match(canvas, /\{templateStoreOpen && justAddedTemplate && \(/, 'the "Grid template added" prompt');
 
   assert.match(read('App.jsx'), /src\.kind === 'curated'\) \{[\s\S]{0,600}?if \(!templateStoreAllowed\(\)\) return;/,

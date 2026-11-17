@@ -81,7 +81,7 @@ pile.
 Everything else lives in two places:
 
 - The **tool rail** down the left edge — select, pan, image, note, doc, cluster, grid, arrow.
-- **Right-click the canvas** — an Add menu grouped into Cards, Visual, Web and Annotate, plus paste, select all, background colour and export.
+- **Right-click the canvas** — quick buttons for note, picture, cluster, doc and link, an Add › menu, plus paste, select all, background and export.
 
 A few things worth knowing on day one:
 

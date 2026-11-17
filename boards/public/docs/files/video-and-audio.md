@@ -95,7 +95,7 @@ and plays it when it's ready. See [Formats](#formats).
 
 ### Autoplay and looping
 
-Right-click a video card for **Autoplay (muted)** and **Loop**. Together they
+Right-click a video card, then **Edit ›**, for **Autoplay** (its hint says "Plays muted") and **Loop**. Together they
 turn a short clip into the thing a GIF used to be on a reference board — a
 moving still you never have to press play on — while the file stays a real
 video you can scrub, download and hand to an editor.
@@ -118,11 +118,11 @@ frame at the same moment for everyone. Pause one from its controls and it stays
 paused for you alone; press play and it rejoins everyone else.
 
 To line clips up against each other, give one a **start point**: the frame it
-shows when the board starts. Right-click an autoplaying clip and choose **Start
+shows when the board starts. Right-click an autoplaying clip, open **Edit ›** and choose **Start
 here** to use the frame on screen (pause on the exact frame first if you like),
 or **Start at…** to type a time such as `0:12` or `1:05.5`. A looping clip still
 plays the whole clip, just shifted; one that plays once begins at its start point.
-The start point is saved on the card, so everyone sees the same alignment, and
+These rows show only with **Autoplay** on. The start point is saved on the card, so everyone sees the same alignment, and
 **Clear start point** puts the clip back to its beginning.
 
 ### What Clusters knows about a clip
@@ -169,7 +169,8 @@ MP3, M4A and FLAC files can carry artwork inside them, and Clusters reads it as
 the file uploads — a released track arrives on the canvas looking like itself.
 
 WAV and AIFF have no standard way to carry a picture, so a loop exported to
-either will not have one. Right-click any audio card for **Set cover image**
+either will not have one. Right-click any audio card, open **Edit ›** and choose **Cover image…**
+(**Replace cover image…** and **Remove cover image** once it has one)
 to add one by hand; a cover you set that way is never overwritten.
 
 ### Downloading audio
