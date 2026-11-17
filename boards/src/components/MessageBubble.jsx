@@ -18,6 +18,8 @@ import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { RelTime } from './RelTime.jsx';
 import { useMinuteNow } from '../hooks/useMinuteNow.js';
 import { MessageThings } from './MessageThings.jsx';
+import { MessageSharedCard } from './MessageSharedCard.jsx';
+import { sharedUnits, unitAttachments } from '../lib/messageThing.js';
 import { initialOf } from '../lib/graphemes.js';
 import { formatDate } from '../lib/intlFormat.js';
 import { t, ph } from '@lingui/core/macro';
@@ -72,6 +74,8 @@ export const MessageBubble = memo(function MessageBubble({
   useEffect(() => userProfiles.subscribe(() => force(n => (n + 1) | 0)), []);
 
   const { trie, workspaceId } = useEntityTrie();
+  const drawnUnits = useMemo(() => sharedUnits(msg.attachments), [msg.attachments]);
+  const drawnAtts = useMemo(() => new Set(drawnUnits.flatMap(unitAttachments)), [drawnUnits]);
   const profile = userProfiles.resolve(msg.sender_id);
   const senderName = profile?.name
     || profile?.email
@@ -337,7 +341,10 @@ export const MessageBubble = memo(function MessageBubble({
       )}
       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
         <div className="msg-bubble-attachments">
-          {msg.attachments.map((att, i) => (
+          {/* Cards and clusters sent with Send to… draw as a preview card; older
+              refs without a snapshot keep their plain link below. */}
+          {drawnUnits.map((u, i) => <MessageSharedCard key={`u${i}`} unit={u} onDragStart={onAttachmentDragStart} />)}
+          {msg.attachments.filter((a) => !drawnAtts.has(a)).map((att, i) => (
             <div key={i}
                  className="msg-attachment"
                  draggable

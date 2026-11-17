@@ -20,6 +20,7 @@ import { CardTransferState } from './cards/CardTransferState.jsx';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
+import { openSend, sendAvailable, SEND_MAX_CARDS } from '../lib/sendBus.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { ShortcutCard } from './cards/ShortcutCard.jsx';
 import { openableUrl } from '../lib/openableUrl.js';
@@ -10131,6 +10132,37 @@ export function CanvasSurface({
       { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: OPEN_FIT_MAX_ZOOM }));
   };
 
+  // Send to…: a card, the selection, or (on a cluster card) the cluster it
+  // stands for. Offered only where the signed-in shell mounted SendHost, so
+  // never on a public view. Viewers can send too.
+  const pushSendItem = (list, c, multi) => {
+    if (isPublic || !sendAvailable()) return;
+    const surface = isTouch ? 'card_menu_touch' : 'canvas_menu';
+    if (multi) {
+      const picked = [...selected].map((id) => cardById[id]).filter(Boolean);
+      if (!picked.length) return;
+      if (picked.length > SEND_MAX_CARDS) {
+        list.push({ id: 'send-to', disabled: true,
+          label: plural(SEND_MAX_CARDS, { one: 'Send to… (up to # card)', other: 'Send to… (up to # cards)' }) });
+        return;
+      }
+      list.push({ id: 'send-to',
+        label: plural(picked.length, { one: 'Send to…', other: 'Send # cards to…' }),
+        run: () => openSend({ boardId: board.id, boardTitle: board.name, cards: picked, surface }) });
+      return;
+    }
+    if (c.kind === 'board' || c.kind === 'boardlink') {
+      const target = c.kind === 'board' ? c.id : c.target;
+      if (!target) return;
+      list.push({ id: 'send-to', label: tr`Send to…`,
+        run: () => openSend({ boardId: target, boardTitle: boards[target]?.name || c.title || c.name || '', surface }) });
+      return;
+    }
+    if (!c.id) return;
+    list.push({ id: 'send-to', label: tr`Send to…`,
+      run: () => openSend({ boardId: board.id, boardTitle: board.name, cards: [c], surface }) });
+  };
+
   const buildMenu = (c) => {
     // Buckets → composeMenuSections keeps every card's menu grouped + ordered
     // the same: primary (open) · EDIT · ANNOTATE · ARRANGE · CLIPBOARD · meta
@@ -10184,6 +10216,7 @@ export function CanvasSurface({
           });
         }
       }
+      pushSendItem(openItems, c, multi);
       // People who can only view may still comment.
       if (!multi && canComment) {
         annotateItems.push({ id: 'comment', label: tr`Add comment`,
@@ -10850,6 +10883,7 @@ export function CanvasSurface({
     // To a finger the Clipboard group (Delete in it) follows Edit, ahead of
     // Annotate and Arrange: on a photo those two alone fill a phone's screen.
     const clipboard = { header: SECTION.CLIPBOARD, items: clipboardItems };
+    pushSendItem(openItems, c, multi);
     return composeMenuSections([
       { items: openItems },
       { header: SECTION.EDIT,      items },
@@ -14596,7 +14630,7 @@ export function CanvasSurface({
   // then select that one card and pan it to the viewport center (current zoom).
   useEffect(() => {
     const onFlash = (e) => {
-      const { boardId, cardId } = e.detail || {};
+      const { boardId, cardId, cardIds } = e.detail || {};
       if (boardId !== board.id || !cardId) return;
       let tries = 0;
       const tick = () => {
@@ -14607,15 +14641,28 @@ export function CanvasSurface({
           return;
         }
         if (card) {
-          setSelected(new Set([cardId]));
+          // A sent set: every one of them that is on the canvas, else just the one.
+          const byId = cardByIdRef.current || {};
+          const found = Array.isArray(cardIds) ? cardIds.map((id) => byId[id]).filter(Boolean) : [];
+          const picked = found.length ? found : [card];
+          setSelected(new Set(picked.map((x) => x.id)));
           const r = wrapRef.current?.getBoundingClientRect();
           if (r && r.width > 50) {
             const z = zoomRef.current;
             enableSmoothTransform();
-            setPan({
-              x: r.width / 2 - (card.x + card.w / 2) * z,
-              y: r.height / 2 - (card.y + card.h / 2) * z,
-            });
+            if (picked.length === 1) {
+              setPan({
+                x: r.width / 2 - (card.x + card.w / 2) * z,
+                y: r.height / 2 - (card.y + card.h / 2) * z,
+              });
+            } else {
+              // Centre on their combined bounds; zoom out just enough to fit, never in.
+              const bnd = boundsOfCards(picked);
+              if (bnd) {
+                applyCamera(solveFit(bnd, { w: r.width, h: r.height },
+                  { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: z }));
+              }
+            }
           }
           return;
         }

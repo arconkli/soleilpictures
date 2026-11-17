@@ -8004,7 +8004,28 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " everything specific to that card kind, plus the universal operations — duplicate, delete, layer order, tag, comment, copy link."
+     "v": " everything specific to that card kind, plus the universal operations — duplicate, delete, layer order, tag, comment, copy link, and "
+    },
+    {
+     "t": "strong",
+     "v": "[Send to…](/docs/collaborate/messages#sending-a-card-or-cluster)",
+     "children": [
+      {
+       "t": "link",
+       "v": "Send to…",
+       "href": "/docs/collaborate/messages#sending-a-card-or-cluster",
+       "children": [
+        {
+         "t": "text",
+         "v": "Send to…"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -37701,6 +37722,56 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Sending it in Messages",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sending it in Messages"
+    }
+   ],
+   "id": "sending-it-in-messages"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To send a cluster, or a card in it, to particular people, right-click it and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Send to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It arrives in their Messages as a preview card that opens the cluster, and anyone who can't open it yet gets view access: the same access, and the same daily limit, as inviting them here. See "
+    },
+    {
+     "t": "link",
+     "v": "Sending a card or cluster",
+     "href": "/docs/collaborate/messages#sending-a-card-or-cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sending a card or cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Link previews",
    "inline": [
     {
@@ -42149,6 +42220,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sending a card or cluster to an email address shares that cluster with them first; see "
+    },
+    {
+     "t": "link",
+     "v": "Sending a card or cluster",
+     "href": "#sending-a-card-or-cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sending a card or cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Threads",
@@ -42642,6 +42737,412 @@ export const DOCS_CONTENT = {
       ]
      }
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Sending a card or cluster",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sending a card or cluster"
+    }
+   ],
+   "id": "sending-a-card-or-cluster"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right-click a card or a cluster and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Send to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to send it to people in Messages. It's on any card on the canvas, on several selected cards at once ("
+    },
+    {
+     "t": "strong",
+     "v": "Send 3 cards to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send 3 cards to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", up to 50), on a cluster's card, and on a cluster in the sidebar. On a phone or tablet, use a card's "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu, or hold a cluster in the sidebar."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Who's listed",
+      "children": [
+       {
+        "t": "text",
+        "v": "Who's listed"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — your recent conversations first, groups included, then everyone you can message. Search by name, or type a whole email address to send it to someone who isn't listed"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Picking",
+      "children": [
+       {
+        "t": "text",
+        "v": "Picking"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — up to 25 at once: people, groups and email addresses together. Each person gets it in your direct conversation with them, and a group gets one message"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A message",
+      "children": [
+       {
+        "t": "text",
+        "v": "A message"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — anything you write goes with it, as the message's words"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Access",
+      "children": [
+       {
+        "t": "text",
+        "v": "Access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — anyone you picked who can't open the cluster yet gets view access when you press "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and the line beside "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " names them before you do. Someone without an account gets an email invitation, and the cluster is waiting for them when they sign up. In a group, each member who needs it gets view access"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "If you can only view it",
+      "children": [
+       {
+        "t": "text",
+        "v": "If you can only view it"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — you can still send it, but you can't let anyone in: the line beside "
+     },
+     {
+      "t": "strong",
+      "v": "Send",
+      "children": [
+       {
+        "t": "text",
+        "v": "Send"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " names whoever won't be able to open it, and only people who can edit the cluster can send it to a new email address"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Giving someone access counts toward your daily invitations, as it does from the "
+    },
+    {
+     "t": "link",
+     "v": "share panel",
+     "href": "/docs/collaborate/sharing#inviting-people",
+     "children": [
+      {
+       "t": "text",
+       "v": "share panel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Past the limit, the people you picked still get the message but can't open the cluster yet, an email address gets nothing, and the notice after "
+    },
+    {
+     "t": "strong",
+     "v": "Send",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " says so."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a keyboard, "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " move through the list, "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "Space"
+    },
+    {
+     "t": "text",
+     "v": " picks, "
+    },
+    {
+     "t": "code",
+     "v": "⌘/Ctrl+Enter"
+    },
+    {
+     "t": "text",
+     "v": " sends and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " closes."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What arrives",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What arrives"
+    }
+   ],
+   "id": "what-arrives"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A preview card, the same whoever sent it:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "On top",
+      "children": [
+       {
+        "t": "text",
+        "v": "On top"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", what it is: the picture, the start of a note, a palette's colours, the first few of several cards, or four of a cluster's pictures and how many cards it holds"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Below",
+      "children": [
+       {
+        "t": "text",
+        "v": "Below"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", its name and where it lives — \"Card · Night shoot\", \"3 cards · Night shoot\", \"Cluster in Soleil\" — and "
+     },
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " goes straight to the cluster in the app with the card, or the cards, centred and selected, even when the cluster was shared with you a moment ago or lives in another of your workspaces"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "No access",
+      "children": [
+       {
+        "t": "text",
+        "v": "No access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — someone who can't open the cluster, or whose cluster is in the Trash, sees \"You can't open Night shoot.\" in place of its pictures, and no "
+     },
+     {
+      "t": "strong",
+      "v": "Open",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open"
+       }
+      ]
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A message with no words reads \"Sent a card: Alley, neon\" in the list of conversations, and in the notice and the notification that announce it."
+    }
    ]
   },
   {

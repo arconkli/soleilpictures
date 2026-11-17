@@ -5,6 +5,8 @@ import { FilePdf, FileIcon, FileText, Link as LinkIcon, LayoutGrid, StickyNote }
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { messageThings } from '../lib/messageFeed.js';
+import { sharedUnits, unitAttachments } from '../lib/messageThing.js';
+import { MessageSharedCard } from './MessageSharedCard.jsx';
 import { attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLinks.js';
 import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
@@ -21,10 +23,15 @@ const PICTURE_MAX_H = 260;
 export function MessageThings({ msg, workspaceId, onDragStart }) {
   const things = messageThings(msg);
   if (!things.length) return null;
+  // Cards and clusters sent with Send to… carry a snapshot and draw as a
+  // preview card; older refs without one keep their plain row.
+  const units = sharedUnits(msg.attachments);
+  const drawn = new Set(units.flatMap(unitAttachments));
   const pics = things.filter((a) => a.kind === 'image' && a.storage_path);
-  const rest = things.filter((a) => !(a.kind === 'image' && a.storage_path));
+  const rest = things.filter((a) => !(a.kind === 'image' && a.storage_path) && !drawn.has(a));
   return (
     <div className="msg-things">
+      {units.map((u, i) => <MessageSharedCard key={`u${i}`} unit={u} onDragStart={onDragStart} />)}
       {pics.length === 1 && <Picture att={pics[0]} onDragStart={onDragStart} />}
       {pics.length > 1 && (
         <div className={`msg-thing-grid${pics.length === 2 ? ' is-two' : ''}`}>

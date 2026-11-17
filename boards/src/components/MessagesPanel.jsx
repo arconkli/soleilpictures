@@ -23,6 +23,7 @@ import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
 import { touchKeyboard, isComposingKey } from '../lib/composerKeys.js';
 import { initialOf, cutGraphemes } from '../lib/graphemes.js';
+import { thingLine } from '../lib/messageThing.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { PersonFace } from './PersonFace.jsx';
@@ -439,11 +440,20 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
     const words = previewText(conv.last_message_body);
     const mine = conv.last_message_sender_id === currentUserId;
     const who = mine ? t`You` : (userProfiles.get(conv.last_message_sender_id)?.name || conv.last_message_sender_email || t`Someone`).split(/[\s@]/)[0];
+    // A message of only cards or a cluster says what it sent.
+    const sent = !words && conv.last_message_thing
+      ? thingLine(conv.last_message_thing, { mine, who: isDm ? null : who })
+      : '';
     preview = words
       ? (mine ? t`You: ${words}` : !isDm && conv.last_message_sender_id ? t`${who}: ${words}` : words)
-      : conv.last_message_at ? t`${who} sent an attachment` : '';
+      : sent || (conv.last_message_at ? t`${who} sent an attachment` : '');
   } else if (conv.last_message_kind === 'system') {
     preview = preview || t`— event —`;
+  } else if (!preview.trim() && conv.last_message_thing && conv.last_message_kind !== 'system') {
+    // The drawer look: a message of only cards or a cluster says what it sent.
+    const mine = conv.last_message_sender_id === currentUserId;
+    const first = (userProfiles.get(conv.last_message_sender_id)?.name || conv.last_message_sender_email || t`Someone`).split(/[\s@]/)[0];
+    preview = thingLine(conv.last_message_thing, { mine, who: isDm ? null : first });
   } else if (!isDm && conv.last_message_sender_id && conv.last_message_sender_id !== currentUserId) {
     const senderName =
       userProfiles.get(conv.last_message_sender_id)?.name

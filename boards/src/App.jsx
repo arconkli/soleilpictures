@@ -171,6 +171,7 @@ import { setUploadContext } from './lib/uploadContext.js';
 import { InfoHost } from './components/info/InfoHost.jsx';
 import { PlayerHost } from './components/film/PlayerHost.jsx';
 import { FileShareHost } from './components/fileShare/FileShareHost.jsx';
+import { SendHost } from './components/SendHost.jsx';
 import { setShareRightsResolver } from './lib/fileShareBus.js';
 import { SharedFileHost } from './components/fileShare/SharedFileHost.jsx';
 import { useSharedFiles } from './hooks/useSharedFiles.js';
@@ -919,7 +920,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // for the shared list to be refetched (see openBoardAnywhere).
   const [pendingSharedOpen, setPendingSharedOpen] = useState(null);
   // `quiet`: the caller says what could not be opened in its own words.
-  const openBoardAnywhere = useCallback(async (id, { linkRef = null, quiet = false } = {}) => {
+  // A card flash waiting on that shared open: { boardId, cardId, cardIds }.
+  // The card handler hands it over so the flash isn't lost while the shared
+  // list refetches (a cluster just sent to you isn't in the map yet).
+  const pendingFlashRef = useRef(null);
+  const openBoardAnywhere = useCallback(async (id, { linkRef = null, quiet = false, flash = null } = {}) => {
     if (!id) return false;
     if (openBoardAt(id)) return 'opened';
     // Read the row WITH deleted_at, so a trashed cluster can be told apart
@@ -948,6 +953,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // boards-table event, so nothing refetched it). Refetch, and let the
       // effect below open it once it's in the map, or say it's gone if not.
       await refreshSharedBoards?.();
+      pendingFlashRef.current = flash ? { boardId: id, ...flash } : null;
       setPendingSharedOpen(id);
       return 'opened';
     }
@@ -967,8 +973,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   useEffect(() => {
     if (!pendingSharedOpen) return;
     setPendingSharedOpen(null);
+    const flash = pendingFlashRef.current;
+    pendingFlashRef.current = null;
     if (!openBoardAt(pendingSharedOpen)) {
       feedback.toast({ type: 'error', code: 'cluster_unavailable', message: tr`That cluster isn't available to you any more.` });
+    } else if (flash && flash.boardId === pendingSharedOpen && flash.cardId) {
+      // Carry the card flash through the shared open: a sent card opens on the
+      // canvas, then flashes once the cluster has mounted.
+      const bid = flash.boardId;
+      if (flash.cardIds) setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+      waitUntil(() => mountedBoardRef.current === bid).then(() => {
+        document.dispatchEvent(new CustomEvent('soleil-flash-card', {
+          detail: { boardId: bid, cardId: flash.cardId, cardIds: flash.cardIds },
+        }));
+      });
     }
   }, [pendingSharedOpen, openBoardAt, feedback]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
@@ -1641,6 +1659,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // The same names the panel is worded with, so a toast reads like its row.
     nameOf: (id) => userProfiles.get(id)?.name || '',
   });
+
+  // Send to…: what the sheet shows of a cluster (null when absent or deleted),
+  // and "Open chat" in its toast.
+  const sendBoardInfo = useCallback((id) => {
+    const b = id ? boards[id] : null;
+    if (!b || b.deleted_at) return null;
+    return { name: b.name, coverKey: b.thumb_key || null, cardCount: b.card_count ?? 0, workspaceId: b.workspace_id ?? null };
+  }, [boards]);
+  const sendOpenConversation = useCallback((id) => {
+    if (!id) return;
+    setOpenConversationId(id, 'send');
+    setTweak('showMessages', true);
+  }, [setOpenConversationId, setTweak]);
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
   // OS notifications, publishes to inboxBus for optimistic list updates.
@@ -6440,19 +6471,39 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (r === 'opened') recents.push(ref.id);
         return r;
       },
-      card: async (ref) => {
+      card: async (ref, opts) => {
         const boardId = ref.boardId || await boardOfCard(ref.cardId);
         if (!boardId) return false;
+        // A sent set of cards: the ?to= link holds one card, so the rest wait
+        // in sessionStorage across a workspace switch (keyed by board + card).
+        const flashKey = `soleil.boards.flashCards.${boardId}.${ref.cardId}`;
+        let cardIds = Array.isArray(opts?.cardIds) && opts.cardIds.length ? opts.cardIds : null;
+        if (!cardIds && ref.cardId) {
+          try {
+            const saved = JSON.parse(sessionStorage.getItem(flashKey) || 'null');
+            if (Array.isArray(saved) && saved.length) cardIds = saved;
+            sessionStorage.removeItem(flashKey);
+          } catch (_) {}
+        }
         const r = await openBoardAnywhere(boardId, {
           linkRef: ref.cardId ? { kind: 'card', boardId, cardId: ref.cardId } : null,
+          flash: ref.cardId ? { cardId: ref.cardId, cardIds } : null,
         });
+        if (r === 'switched' && cardIds && cardIds.length > 1 && ref.cardId) {
+          try { sessionStorage.setItem(flashKey, JSON.stringify(cardIds.slice(0, 200))); } catch (_) {}
+        }
         if (r !== 'opened') return r;
         recents.push(boardId);
-        if (ref.cardId) {
-          // Tell the canvas to flash this card once the new board mounts.
+        // A cluster just shared with you opens after its list refetches; the
+        // flash then goes out from that open, not from here.
+        if (ref.cardId && pendingFlashRef.current?.boardId !== boardId) {
+          // A sent card opens on the canvas (a list view has nothing to flash);
+          // other card links keep the view the cluster is in. Then tell the
+          // canvas to flash once the new board mounts.
+          if (cardIds) setViewOverride(o => (o[boardId] === 'canvas' ? o : { ...o, [boardId]: 'canvas' }));
           whenMounted(boardId).then(() => {
             document.dispatchEvent(new CustomEvent('soleil-flash-card', {
-              detail: { boardId, cardId: ref.cardId },
+              detail: { boardId, cardId: ref.cardId, cardIds },
             }));
           });
         }
@@ -13463,6 +13514,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }}
       />
       {fileSharesAllowed() && <FileShareHost />}
+      {msgAccess.canSend && <SendHost
+        workspaceId={workspace.id}
+        workspaceName={workspace.name}
+        userId={user.id}
+        userEmail={user.email}
+        boardInfo={sendBoardInfo}
+        onOpenConversation={sendOpenConversation}
+      />}
       {sharedFilesAllowed() && <SharedFileHost onSaveCopy={saveSharedCopy} onAddShortcut={addSharedShortcut} />}
 
       {/* Asked BEFORE the folder is read, so cancelling costs the user nothing

@@ -400,7 +400,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2177,7 +2177,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2203,6 +2203,10 @@ export const DOCS_PAGES = [
       {
         "id": "getting-a-link-fast",
         "text": "Getting a link fast"
+      },
+      {
+        "id": "sending-it-in-messages",
+        "text": "Sending it in Messages"
       },
       {
         "id": "link-previews",
@@ -2407,10 +2411,10 @@ export const DOCS_PAGES = [
     "title": "Messages — Soleil Clusters",
     "metaDescription": "Direct and group messages in Soleil Clusters. Message anyone you share a board with, drag attachments onto the canvas, deep-link to any message.",
     "h1": "Messages",
-    "answer": "Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.",
+    "answer": "Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title. Right-click any card or cluster and choose Send to… to send it as a preview card that opens it in the app.",
     "section": "collaborate",
     "order": 4,
-    "updated": "2026-10-21",
+    "updated": "2026-11-17",
     "navLabel": "Messages",
     "headings": [
       {
@@ -2424,6 +2428,10 @@ export const DOCS_PAGES = [
       {
         "id": "writing",
         "text": "Writing"
+      },
+      {
+        "id": "sending-a-card-or-cluster",
+        "text": "Sending a card or cluster"
       },
       {
         "id": "keyboard",
@@ -2446,7 +2454,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Who can I message?",
-        "a": "Anyone you share at least one board with. There is no separate contact list to maintain and no way to message a stranger."
+        "a": "Anyone you share at least one board with. There is no separate contact list to maintain. The one exception is Send to…: type an email address there and the card or cluster is shared with that person. An existing account gets it in Messages; anyone else gets an email invite."
       },
       {
         "q": "Can I get a link to one specific message?",
@@ -2455,6 +2463,10 @@ export const DOCS_PAGES = [
       {
         "q": "What do the numbers in the tab title mean?",
         "a": "Unread count. An @ prefix means at least one of them mentions you directly."
+      },
+      {
+        "q": "How do I send a card or cluster to someone?",
+        "a": "Right-click it and choose Send to…, pick people or type an email address, and press Send. It arrives in Messages as a preview card that opens the cluster with the card selected. If you can edit the cluster, anyone who could not open it yet gets view access."
       }
     ]
   },

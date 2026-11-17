@@ -110,6 +110,7 @@ import {
   UNPACK_MAX_BYTES,
 } from '../src/lib/fileFaceLimits.js';
 import { MESSAGE_EDIT_WINDOW_MIN } from '../src/lib/messageEdit.js';
+import { SEND_MAX_CARDS, SEND_MAX_PEOPLE } from '../src/lib/sendBus.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
   INVITE_BONUS_STORAGE_BYTES, INVITE_BONUS_STORAGE_LABEL, formatBonusBytes,
@@ -271,6 +272,14 @@ if (!draftRequestsPerHour) throw new Error('gen-docs: draft request limit not fo
 const undescribedPicturesCap = readFileSync(resolve(BOARDS, 'src/worker-api.js'), 'utf8')
   .match(/const UNDESCRIBED_CAP = (\d+);/);
 if (!undescribedPicturesCap) throw new Error('gen-docs: UNDESCRIBED_CAP not found in worker-api.js');
+// Send to…: how many people, groups and addresses one send reaches. The server
+// refuses more (send_board_to, 0904); the sheet stops picking at the same
+// number (SEND_MAX_PEOPLE in sendBus.js), and the two must agree.
+const sendMaxTargets = latestSqlDefining('send_board_to')
+  ?.match(/c_max_targets\s+constant\s+integer\s*:=\s*(\d+)/);
+if (!sendMaxTargets || Number(sendMaxTargets[1]) !== SEND_MAX_PEOPLE) {
+  throw new Error('gen-docs: send_board_to c_max_targets (0904) and SEND_MAX_PEOPLE (sendBus.js) disagree or were not found');
+}
 const newAccountHours = latestSqlDefining('_account_is_new')
   ?.match(/_account_is_new\(\)[\s\S]*?interval '(\d+) hours'/);
 const newAccountWorkspaces = latestSqlDefining('create_workspace_with_root')
@@ -482,6 +491,10 @@ export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // How long a message stays editable by its author (the app enforces it).
   messageEditWindowMin: String(MESSAGE_EDIT_WINDOW_MIN),
+  // Send to…: the most cards one message carries (the menu item refuses more),
+  // and the most people, groups and addresses one send reaches (see above).
+  sendMaxCards: String(SEND_MAX_CARDS),
+  sendMaxPeople: sendMaxTargets[1],
   // The cap accounts created before migration 0229 keep, permanently. The plans
   // page states the grandfather rule; every cohort is real, so every number
   // has to come from code rather than being typed into the markdown.
