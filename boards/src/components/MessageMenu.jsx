@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Reply, Copy, Link as LinkIcon, Pin, Edit, Trash2 } from '../lib/icons.js';
+import { menuIconNow, useMenuIcons } from '../lib/menuIconsLoad.js';
+import { plain } from '../lib/menus/shortcuts.js';
 import { QUICK_EMOJIS } from './EmojiPalette.jsx';
 import { withinEditWindow } from '../lib/messageEdit.js';
 import { isComposingKey } from '../lib/composerKeys.js';
@@ -21,6 +22,7 @@ import { Trans } from '@lingui/react/macro';
 export function MessageMenu({
   msg, selfId, anchor, trigger = null, onClose, onReact, onReply, onCopyText, onCopyLink, onPin, onEdit, onDelete,
 }) {
+  useMenuIcons();
   const popRef = useRef(null);
   const [pos, setPos] = useState(null);
   const isMine = msg.sender_id === selfId;
@@ -114,34 +116,34 @@ export function MessageMenu({
       <div className="msg-menu-sep" role="separator" />
       {onReply && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onReply)}>
-          <Icon as={Reply} size={15} weight="regular" /><Trans>Reply</Trans><span className="msg-menu-key">R</span>
+          <Icon as={menuIconNow('ArrowBendUpLeft')} size={16} weight="regular" /><Trans>Reply</Trans><span className="msg-menu-key">{plain('R')}</span>
         </button>
       )}
       {msg.body && onCopyText && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onCopyText)}>
-          <Icon as={Copy} size={15} weight="regular" /><Trans>Copy text</Trans>
+          <Icon as={menuIconNow('Copy')} size={16} weight="regular" /><Trans>Copy text</Trans>
         </button>
       )}
       {onCopyLink && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onCopyLink)}>
-          <Icon as={LinkIcon} size={15} weight="regular" /><Trans>Copy link</Trans>
+          <Icon as={menuIconNow('LinkSimple')} size={16} weight="regular" /><Trans>Copy link</Trans>
         </button>
       )}
       {onPin && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onPin)}>
-          <Icon as={Pin} size={15} weight="regular" />{msg.is_pinned ? t`Unpin` : t`Pin`}
+          <Icon as={menuIconNow(msg.is_pinned ? 'PushPinSlash' : 'PushPin')} size={16} weight="regular" />{msg.is_pinned ? t`Unpin` : t`Pin`}
         </button>
       )}
       {editable && onEdit && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onEdit)}>
-          <Icon as={Edit} size={15} weight="regular" /><Trans>Edit</Trans><span className="msg-menu-key">E</span>
+          <Icon as={menuIconNow('PencilSimple')} size={16} weight="regular" /><Trans>Edit</Trans><span className="msg-menu-key">{plain('E')}</span>
         </button>
       )}
       {isMine && onDelete && (
         <>
           <div className="msg-menu-sep" role="separator" />
           <button type="button" role="menuitem" className="msg-menu-item is-danger" onClick={run(onDelete)}>
-            <Icon as={Trash2} size={15} weight="regular" /><Trans>Delete</Trans>
+            <Icon as={menuIconNow('Trash')} size={16} weight="regular" /><Trans>Delete</Trans>
           </button>
         </>
       )}

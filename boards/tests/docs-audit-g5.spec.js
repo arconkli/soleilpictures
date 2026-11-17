@@ -284,8 +284,9 @@ test('DOCS-22: the custom menu on a selection offers Cut, Copy and Paste that wo
   await page.mouse.click(box.x + 10, box.y + box.height / 2, { button: 'right' });
   const menu = page.locator('.doc-ctx');
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('button', { name: /Cut/ })).toBeVisible();
-  await menu.getByRole('button', { name: /Copy/ }).click();
+  // Its rows are menu items now, as every menu's are (plan.md §2.2, Keyboard).
+  await expect(menu.getByRole('menuitem', { name: /Cut/ })).toBeVisible();
+  await menu.getByRole('menuitem', { name: /Copy/ }).click();
   await expect(menu).toHaveCount(0);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('alpha');
   // Paste at the end through the menu.
@@ -295,7 +296,7 @@ test('DOCS-22: the custom menu on a selection offers Cut, Copy and Paste that wo
   });
   await page.mouse.click(box.x + box.width - 4, box.y + box.height / 2, { button: 'right' });
   await expect(menu).toBeVisible();
-  await menu.getByRole('button', { name: /Paste/ }).click();
+  await menu.getByRole('menuitem', { name: /Paste/ }).click();
   await expect.poll(() => page.evaluate(() => window.__soleilDocTest.editor.state.doc.textContent)).toBe('alpha betaalpha');
 });
 

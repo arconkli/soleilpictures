@@ -97,6 +97,10 @@ async function openGroupedCardMenu(page) {
   await page.keyboard.press('ControlOrMeta+g');
   await expect(page.locator('.group-label').first()).toBeVisible();
   await expect(hugOutline(page)).toHaveCount(0);
+  // One card's menu, not the selection's: the menu of several cards has no
+  // Group "Name" › (plan.md §3, Several cards), so the selection goes first.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.card.is-selected')).toHaveCount(0);
   await card(page, 'home-image').click({ button: 'right' });
   await expect(menu(page)).toBeVisible();
   return menu(page).locator('.ctx-has-submenu', { hasText: /^Group "/ });
@@ -123,13 +127,19 @@ test('a mouse over a submenu\'s own submenu row opens a flyout beside the flyout
   expect(s.x >= g.x + g.width || s.x + s.width <= g.x, `nested ${s.x}..${s.x + s.width} beside ${g.x}..${g.x + g.width}`).toBe(true);
   expect(s.x).toBeGreaterThanOrEqual(0);
   expect(s.x + s.width).toBeLessThanOrEqual(1440);
-  // On the flyout's far side while the window has the room there; flipped to
+  // Carrying on the way the list went (a cascade, f150597c): on the flyout's
+  // far side from the menu while the window has the room there; flipped to
   // its near side, over the menu, when it doesn't.
-  const roomRight = g.x + g.width + 204 <= 1440 - 8;
-  expect(roomRight ? s.x >= g.x + g.width : s.x + s.width <= g.x).toBe(true);
+  const m = await menu(page).boundingBox();
+  const wentLeft = g.x + g.width <= m.x;
+  const roomRight = g.x + g.width + 2 + s.width <= 1440 - 8;
+  const roomLeft = g.x - 2 - s.width >= 8;
+  const goesRight = wentLeft ? !roomLeft && roomRight : roomRight;
+  expect(goesRight ? s.x >= g.x + g.width : s.x + s.width <= g.x).toBe(true);
 
   // The pointer travels into it, and stays: nothing closes behind it.
-  const hug = shape.getByRole('menuitem', { name: /^Hug/ });
+  // Box and Hug are a choice of one, checked (plan.md §3, Group: "Box / Hug, checked").
+  const hug = shape.getByRole('menuitemradio', { name: /^Hug/ });
   await hug.hover();
   await page.waitForTimeout(400);
   await expect(shape).toBeVisible();
@@ -186,9 +196,11 @@ test('the keys open a nested flyout, ← closes one level at a time, and Escape 
   await page.keyboard.press('ArrowRight');
   const shape = named(page, 'Outline shape');
   await expect(shape).toBeVisible();
-  await expect(shape.getByRole('menuitem').first()).toBeFocused();
+  // Box and Hug are radio rows now (plan.md §3, Group: "Box / Hug, checked").
+  const choices = shape.getByRole('menuitemradio');
+  await expect(choices.first()).toBeFocused();
   await page.keyboard.press('ArrowDown');
-  await expect(shape.getByRole('menuitem').nth(1)).toBeFocused();
+  await expect(choices.nth(1)).toBeFocused();
 
   // ← closes the nested one, back on its row; the flyout stays.
   await page.keyboard.press('ArrowLeft');
@@ -197,10 +209,10 @@ test('the keys open a nested flyout, ← closes one level at a time, and Escape 
   await expect(shapeRow).toBeFocused();
   // Enter and Space open it too.
   await page.keyboard.press('Enter');
-  await expect(shape.getByRole('menuitem').first()).toBeFocused();
+  await expect(choices.first()).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press(' ');
-  await expect(shape.getByRole('menuitem').first()).toBeFocused();
+  await expect(choices.first()).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await expect(shapeRow).toBeFocused();
   // ← again closes the flyout, back on the menu's row.

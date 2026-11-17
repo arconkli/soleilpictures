@@ -61,6 +61,9 @@ A [tag](/docs/organize/tags) can apply to a passage rather than the whole
 document: select the words, right-click and choose **Tag selection…**. Tagged
 text is underlined, with dots in the **left margin**.
 
+A tag chip in a document has its own menu, with **Open tag** and **Remove tag**.
+`⇧F10` opens it from the keyboard.
+
 This is what lets a script's mention of a location connect to the reference wall
 for that location — the tag's page lists this passage among everything else
 carrying it.

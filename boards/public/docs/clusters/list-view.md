@@ -31,8 +31,9 @@ listed once.
 `⌘K` → "Show Files" does the same as `F`. Opening the page this way is yours
 alone, on this device; it never changes the cluster for anyone else. To make a
 cluster open in Files for everyone, and on shared and published links, choose
-**Always open in Files** from its menu in the sidebar (if you can edit it);
-the same menu turns it back with **Open on the board by default**. Visitors
+**More ›**, then **Always open in Files**, from its menu (if you can edit
+it; it is a tick, offered in the sidebar tree and on folders in Files, not on
+Home); untick it to turn it back. Visitors
 on those links get this same page, read-only: the search, **All files ⌄**,
 Grid and List, Quick look, Info and downloads, but nothing that adds, moves
 or deletes. The title is just the cluster's name there, and its clusters open
@@ -58,7 +59,7 @@ under [Moving and copying files](/docs/clusters/sidebar#moving-and-copying-files
 
 A file can be in a cluster without being on its board. Files you add in Files
 start that way, and so does a card you take off: right-click it on the board
-and choose **Remove from board**. Either way it waits in Files with a **Not on
+and choose **Move to cluster ›**, then **Keep in Files only**. Either way it waits in Files with a **Not on
 board** mark. **Not on board** in the **View** menu shows just those.
 
 To put one on the board, drag it there from the sidebar, or right-click it in Files — or use
@@ -195,9 +196,16 @@ dragging. A trackpad or mouse on a tablet still clicks and selects as it does
 on a computer.
 
 **Right-click** a file, a folder or a selection for everything you can do
-with it — Quick look, Show on board, Rename, Download, Copy link, Move to…,
-Copy to…, Get info and Delete — or press `⇧F10` to open the same menu from the
-keyboard.
+with it, or press `⇧F10` to open the same menu from the keyboard. A file's
+menu runs in this order: Quick look, Open in player, Show on board (or Put on
+board); Send to…, Copy link, Share file… (Share doc… for a doc), Download;
+Rename, Upload new version…, Move to…, Copy to…; Info, Linked from N places,
+Delete. A row that doesn't apply to the file is left out. With several files
+selected the menu's title is the count, and it holds Put on board, Send to…,
+Download, Move to…, Copy to…, Info and Delete.
+
+Right-click empty space in Files for a menu with **New cluster**, **Upload
+files…** and **Select all**. It is right-click only.
 
 **Rename** a file or folder with `F2`, or Rename in that menu: the name
 becomes editable in place, `Enter` saves and `Esc` puts it back. Renaming a
@@ -287,7 +295,7 @@ pack plays through with `↓` and `Space`.
 
 ## Info
 
-**Info** — `⌘I`, **Get info** in the right-click menu, or the button in Quick
+**Info** — `⌘I`, **Info** in the right-click menu (it reads **Hide info** while the panel is open), or the button in Quick
 look and on the selection bar — describes whatever is selected: a file's
 large preview, its kind and format, size, dimensions, who uploaded it and
 exactly when, and where it lives; a folder's contents; a summary of several

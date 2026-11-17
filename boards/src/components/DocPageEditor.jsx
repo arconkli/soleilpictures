@@ -20,6 +20,8 @@ import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/Ima
 import { CaretCell } from './docExtensions/CaretCell.js';
 import { Icon } from './Icon.jsx';
 import { Bold, ChatCircleText, HighlighterCircle, Italic, Link, Underline } from '../lib/icons.js';
+import { menuIconNow, useMenuIcons } from '../lib/menuIconsLoad.js';
+import { mod, isMacPlatform } from '../lib/menus/shortcuts.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange, restoreDocTagRows, listWorkspaceTags, ensureTag } from '../lib/tagsApi.js';
@@ -1805,19 +1807,19 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     <div className="doc-ctx" style={{ position: 'fixed', left, top }} role="menu"
          onMouseDown={(e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); }}>
       {pos.hasSelection && (<>
-        <CtxItem icon={<CutIcon />} label={tt`Cut`} shortcut="⌘X" onClick={clip('cut')} />
-        <CtxItem icon={<CopyIcon />} label={tt`Copy`} shortcut="⌘C" onClick={clip('copy')} />
+        <CtxItem icon="Scissors" label={tt`Cut`} shortcut={mod('X')} onClick={clip('cut')} />
+        <CtxItem icon="Copy" label={tt`Copy`} shortcut={mod('C')} onClick={clip('copy')} />
       </>)}
-      <CtxItem icon={<PasteIcon />} label={tt`Paste`} shortcut="⌘V" onClick={paste} />
+      <CtxItem icon="ClipboardText" label={tt`Paste`} shortcut={mod('V')} onClick={paste} />
       <CtxSep />
-      <CtxItem icon={<b>B</b>} label={tt`Bold`} shortcut="⌘B" active={isActive('bold')}
+      <CtxItem icon="TextB" label={tt`Bold`} shortcut={mod('B')} active={isActive('bold')}
             onClick={run(() => editor.chain().focus().toggleBold().run())} />
-      <CtxItem icon={<i>I</i>} label={tt`Italic`} shortcut="⌘I" active={isActive('italic')}
+      <CtxItem icon="TextItalic" label={tt`Italic`} shortcut={mod('I')} active={isActive('italic')}
             onClick={run(() => editor.chain().focus().toggleItalic().run())} />
-      <CtxItem icon={<u>U</u>} label={tt`Underline`} shortcut="⌘U" active={isActive('underline')}
+      <CtxItem icon="TextUnderline" label={tt`Underline`} shortcut={mod('U')} active={isActive('underline')}
             onClick={run(() => editor.chain().focus().toggleUnderline().run())} />
       <CtxSep />
-      <CtxItem icon={<LinkIcon />} label={tt`Link`} shortcut="⌘K"
+      <CtxItem icon="Link" label={tt`Link`} shortcut={mod('K')}
             onClick={run(() => onOpenLinkPicker?.(editor))} />
       <div className="doc-ctx-color-row" role="group" aria-label={tt`Text color`}>
         <span className="doc-ctx-color-label"><Trans>Color</Trans></span>
@@ -1842,10 +1844,10 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       {pos.hasSelection && (
         <>
           <CtxSep />
-          <CtxItem icon={<CommentIcon />} label={tt`Add comment`} shortcut="⌘⌥M"
+          <CtxItem icon="ChatCircle" label={tt`Add comment`} shortcut={isMacPlatform() ? '⌘⌥M' : 'Ctrl+Alt+M'}
                 onClick={run(() => onAddComment?.())} />
           {onTagSelection && (
-            <CtxItem icon={<TagIcon />} label={tt`Tag selection…`}
+            <CtxItem icon="Tag" label={tt`Tag selection…`}
                   onClick={run(() => onTagSelection())} />
           )}
         </>
@@ -1853,7 +1855,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       {pos.tagInfo && onRemoveTag && (
         <>
           <CtxSep />
-          <CtxItem icon={<RemoveTagIcon />}
+          <CtxItem icon="X"
                 label={pos.tagInfo.tagName ? tt`Remove "${ph({ tagName: pos.tagInfo.tagName })}"` : tt`Remove tag`}
                 danger
                 onClick={run(() => onRemoveTag(pos.tagInfo))} />
@@ -1865,10 +1867,12 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
 
 // Module-level so a re-render of the menu never remounts its buttons
 // mid-click (a component type created inside render is a new type each time).
+// icon: a Phosphor name (menuIconNow), drawn 16px regular like the shared menu's.
 function CtxItem({ icon, label, shortcut, active, onClick, danger }) {
+  useMenuIcons();
   return (
-    <button className={`doc-ctx-item ${active ? 'is-active' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>
-      <span className="doc-ctx-icon">{icon}</span>
+    <button type="button" role="menuitem" className={`doc-ctx-item ${active ? 'is-active' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>
+      <span className="doc-ctx-icon">{(() => { const Ic = menuIconNow(icon); return Ic ? <Ic size={16} weight="regular" aria-hidden="true" /> : null; })()}</span>
       <span className="doc-ctx-label">{label}</span>
       {shortcut && <span className="doc-ctx-kbd">{shortcut}</span>}
     </button>
@@ -1880,7 +1884,6 @@ const CtxSep = () => <div className="doc-ctx-sep" />;
 function svg(props, children) { return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>; }
 const HighlightIcon = () => svg({}, <><path d="M3 11 L8 6 L10 8 L5 13 Z M8 6 L11 3 L13 5 L10 8" /><path d="M2 13 H6" /></>);
 const CodeIcon  = () => svg({}, <><path d="M5 10 L2 7 L5 4" /><path d="M9 4 L12 7 L9 10" /></>);
-const LinkIcon  = () => svg({}, <><path d="M5 7 L9 7 M6 4 L4 4 A3 3 0 0 0 4 10 L6 10 M8 4 L10 4 A3 3 0 0 1 10 10 L8 10" /></>);
 const H1Icon    = () => svg({}, <><path d="M3 3 V11 M3 7 H8 M8 3 V11" /><path d="M11 4 L13 3 V11" /></>);
 const H2Icon    = () => svg({}, <><path d="M3 3 V11 M3 7 H7 M7 3 V11" /><path d="M10 5 A1.5 1.5 0 0 1 13 5 C13 7 10 9 10 11 H13" /></>);
 const H3Icon    = () => svg({}, <><path d="M3 3 V11 M3 7 H7 M7 3 V11" /><path d="M10 5 A1.5 1.5 0 0 1 13 5 A1.5 1.5 0 0 1 11 7.5 A1.5 1.5 0 0 1 13 10 A1.5 1.5 0 0 1 10 10" /></>);
@@ -1888,9 +1891,3 @@ const UlIcon    = () => svg({}, <><circle cx="3" cy="4" r=".7" fill="currentColo
 const OlIcon    = () => svg({}, <><text x="1.4" y="5.5" fontSize="3.2" fontFamily="ui-monospace" stroke="none" fill="currentColor">1</text><text x="1.4" y="9" fontSize="3.2" fontFamily="ui-monospace" stroke="none" fill="currentColor">2</text><text x="1.4" y="12.5" fontSize="3.2" fontFamily="ui-monospace" stroke="none" fill="currentColor">3</text><path d="M6 4 H12 M6 7 H12 M6 10 H12" /></>);
 const TaskIcon  = () => svg({}, <><rect x="2" y="2.5" width="4" height="4" rx="1" /><path d="M3 4.5 L4 5.5 L5.5 3.8" /><path d="M8 4.5 H12" /><rect x="2" y="8.5" width="4" height="4" rx="1" /><path d="M8 10.5 H12" /></>);
 const QuoteIcon = () => svg({}, <><path d="M2 5 Q2 3 4 3 V6 H2 V5 Q2 7 4 8" /><path d="M8 5 Q8 3 10 3 V6 H8 V5 Q8 7 10 8" /></>);
-const CommentIcon = () => svg({}, <><path d="M2 4 A1 1 0 0 1 3 3 H11 A1 1 0 0 1 12 4 V9 A1 1 0 0 1 11 10 H6 L4 12 V10 H3 A1 1 0 0 1 2 9 Z" /></>);
-const CutIcon   = () => svg({}, <><circle cx="4" cy="11" r="1.6" /><circle cx="10" cy="11" r="1.6" /><path d="M5.2 9.8 L10 2 M8.8 9.8 L4 2" /></>);
-const CopyIcon  = () => svg({}, <><rect x="4.5" y="4.5" width="7" height="7.5" rx="1.2" /><path d="M2.5 9.5 V3 A1 1 0 0 1 3.5 2 H8.5" /></>);
-const PasteIcon = () => svg({}, <><rect x="3" y="3" width="8" height="9.5" rx="1.2" /><path d="M5.5 3 V2 H8.5 V3" /></>);
-const TagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /></>);
-const RemoveTagIcon = () => svg({}, <><path d="M2 7 L7 2 H11 V6 L6 11 Z" /><circle cx="9" cy="4" r=".7" fill="currentColor" stroke="none" /><path d="M4 9 L8 13 M8 9 L4 13" strokeWidth="1.6" /></>);

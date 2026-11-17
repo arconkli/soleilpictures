@@ -921,7 +921,10 @@ test.describe('sidebar files: menus', () => {
     await file.click({ modifiers: ['ControlOrMeta'] });
     await file.click({ button: 'right' });
     const menu = page.locator('.ctx-menu').last();
-    await expect(menu.getByText('Download 2', { exact: true })).toBeVisible();
+    // No count glued onto a label: it is the menu's title (plan.md §3 Several
+    // cards, "No "(N)" glued onto labels").
+    await expect(menu.locator('.ctx-title')).toHaveText('2 files');
+    await expect(menu.getByText('Download', { exact: true })).toBeVisible();
     await expect(menu.getByText('Share file…', { exact: true })).toHaveCount(0);
   });
 
@@ -930,7 +933,10 @@ test.describe('sidebar files: menus', () => {
     await row(page, 'Casting').click({ button: 'right' });
     const menu = page.locator('.ctx-menu').last();
     await expect(menu.getByText('Star', { exact: true })).toBeVisible();
-    await menu.getByText('Always open in Files', { exact: true }).click();
+    // Always open in Files sits under More › in every cluster menu now (plan.md
+    // §3 Cluster; §9 words pass).
+    await menu.getByRole('menuitem', { name: 'More', exact: true }).hover();
+    await page.locator('.ctx-submenu').getByText('Always open in Files', { exact: true }).click();
     await expect(page.getByTestId('sbqa-log')).toContainText('opens-as cast list');
   });
 });

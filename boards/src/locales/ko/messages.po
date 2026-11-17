@@ -209,26 +209,6 @@ msgstr "{0, plural, =0 {카드 옵션} =1 {카드 옵션} other {카드 #장 옵
 
 #. placeholder {0}: ids.length
 #: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Copy to cluster…} =1 {Copy to cluster…} other {Copy # cards to…}}"
-msgstr "{0, plural, =0 {클러스터로 복사…} =1 {클러스터로 복사…} other {카드 #장 복사…}}"
-
-#. placeholder {0}: ids.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Move to cluster…} =1 {Move to cluster…} other {Move # cards to…}}"
-msgstr "{0, plural, =0 {클러스터로 이동…} =1 {클러스터로 이동…} other {카드 #장 이동…}}"
-
-#. placeholder {0}: actingBoardIds.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Move to cluster…} =1 {Move to cluster…} other {Move # clusters to…}}"
-msgstr "{0, plural, =0 {클러스터로 이동…} =1 {클러스터로 이동…} other {클러스터 #개 이동…}}"
-
-#. placeholder {0}: offIds.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =0 {Remove from board} =1 {Remove from board} other {Remove # from board}}"
-msgstr "{0, plural, =0 {캔버스에서 제거} =1 {캔버스에서 제거} other {#개를 캔버스에서 제거}}"
-
-#. placeholder {0}: ids.length
-#: src/components/CanvasSurface.jsx
 msgid "{0, plural, =1 {Card deleted} other {# cards deleted}}"
 msgstr "{0, plural, =1 {카드를 삭제했어요} other {카드 #장을 삭제했어요}}"
 
@@ -246,11 +226,6 @@ msgstr "{0, plural, =1 {{cutFrom}에서 잘라낸 카드를 붙여넣었어요. 
 #: src/components/CanvasSurface.jsx
 msgid "{0, plural, =1 {Put on the board} other {# put on the board}}"
 msgstr "{0, plural, =1 {캔버스에 올렸어요} other {#개를 캔버스에 올렸어요}}"
-
-#. placeholder {0}: list.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, =1 {Removed from board — it’s still in Files} other {# removed from board — still in Files}}"
-msgstr "{0, plural, =1 {캔버스에서 제거했어요. 파일에는 그대로 있어요} other {#개를 캔버스에서 제거했어요. 파일에는 그대로 있어요}}"
 
 #. placeholder {0}: mine.length
 #: src/components/ShareModal.jsx
@@ -333,6 +308,7 @@ msgstr "{0, plural, other {요금제 한도를 넘은 카드 #장은 제외했�
 #. placeholder {0}: cards.length
 #. placeholder {0}: cardsOf(b)
 #: src/auth/AuthGate.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
@@ -569,7 +545,7 @@ msgstr "{0, plural, other {획 #개가 삭제돼요. 실행 취소할 수 있어
 msgid "{0, plural, one {# TARGETS} other {# TARGETS}}"
 msgstr "{0, plural, other {대상 #개}}"
 
-#. placeholder {0}: counts.get(sheetFor.id)
+#. placeholder {0}: counts.get(tag.id)
 #: src/components/SidebarTags.jsx
 msgid "{0, plural, one {# thing} other {# things}}"
 msgstr "{0, plural, other {항목 #개}}"
@@ -687,11 +663,6 @@ msgstr "{0, plural, other {아래 사람들과, 아직 유효한 링크 #개만}
 msgid "{0, plural, one {Preview: nobody was emailed. # invite added to People.} other {Preview: nobody was emailed. # invites added to People.}}"
 msgstr "{0, plural, other {미리보기: 이메일은 보내지 않았어요. 초대 #개를 사람 목록에 추가했어요.}}"
 
-#. placeholder {0}: offSel.length
-#: src/components/ListSurface.jsx
-msgid "{0, plural, one {Put # on board} other {Put # on board}}"
-msgstr "{0, plural, other {#개를 캔버스에 올리기}}"
-
 #. placeholder {0}: plan.length
 #: src/App.jsx
 msgid "{0, plural, one {Put on the board · {left} still in Files} other {# put on the board · {left} still in Files}}"
@@ -743,6 +714,11 @@ msgstr "{0, plural, other {#개 더 보기}}"
 msgid "{0, plural, one {Show all #} other {Show all #}}"
 msgstr "{0, plural, other {모두 표시 #}}"
 
+#. placeholder {0}: list.length
+#: src/components/CanvasSurface.jsx
+msgid "{0, plural, one {Taken off the canvas. It’s still in Files.} other {# taken off the canvas. They’re still in Files.}}"
+msgstr "{0, plural, other {#개를 캔버스에서 뺐어요. 파일에는 그대로 있어요.}}"
+
 #. placeholder {0}: chosen.length
 #: src/components/team/TeamSetup.jsx
 msgid "{0, plural, one {Team · # workspace moving in · {editors, plural, one {# person who edit} other {# people who edit}}} other {Team · # workspaces moving in · {editors, plural, one {# person who edit} other {# people who edit}}}}"
@@ -777,11 +753,6 @@ msgstr "{0, plural, other {#명 초대함}}"
 #: src/components/CanvasSurface.jsx
 msgid "{0, plural, other {# versions — Info shows them all}}"
 msgstr "{0, plural, other {버전 #개 — 정보에서 모두 볼 수 있어요}}"
-
-#. placeholder {0}: plan.ids.length
-#: src/components/CanvasSurface.jsx
-msgid "{0, plural, other {New cluster from # cards}}"
-msgstr "{0, plural, other {카드 #장으로 새 클러스터}}"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "{activeCount, plural, one {View, # filter on} other {View, # filters on}}"
@@ -1014,9 +985,14 @@ msgstr "{count, plural, other {카드 #장 · {board}}}"
 
 #: src/components/entityPreviews/GroupPreview.jsx
 #: src/components/MessageSharedCard.jsx
+#: src/lib/menus/cardMenu.js
 #: src/lib/messageThing.js
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, other {카드 #장}}"
+
+#: src/lib/menus/rows.js
+msgid "{count, plural, one {# comment} other {# comments}}"
+msgstr "{count, plural, other {댓글 #개}}"
 
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is coming in} other {# files are coming in}}"
@@ -1025,6 +1001,10 @@ msgstr "{count, plural, other {파일 #개가 들어오는 중이에요}}"
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is in Files} other {# files are in Files}}"
 msgstr "{count, plural, other {파일 #개가 파일에 있어요}}"
+
+#: src/lib/menus/fileMenu.js
+msgid "{count, plural, one {# file} other {# files}}"
+msgstr "{count, plural, other {파일 #개}}"
 
 #: src/components/SidebarTags.jsx
 msgid "{count, plural, one {# item are tagged with \"{name}\". Delete the tag and all of its applications?\n"
@@ -1041,6 +1021,7 @@ msgid "{count, plural, one {# item on {when}} other {# items on {when}}}"
 msgstr "{count, plural, other {{when} 항목 #개}}"
 
 #: src/components/cards/ScheduleRail.jsx
+#: src/lib/menus/fileMenu.js
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, other {항목 #개}}"
 
@@ -1516,6 +1497,10 @@ msgstr "{label}, 캔버스 메뉴로 돌아가기"
 msgid "{label}, back to the card menu"
 msgstr "{label}, 카드 메뉴로 돌아가기"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the menu"
+msgstr "{label}, 메뉴로 돌아가기"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, other {라벨 #개와 함께 저장했어요: “{name}”}}"
@@ -1583,6 +1568,10 @@ msgstr "{limit, plural, other {이 무료 클러스터에 더 담을 수 있는 
 #: src/lib/notificationWords.js
 msgid "{limit, plural, one {Your plan has # person who can edit, the most it allows.} other {Your plan has # people who can edit, the most it allows.}}"
 msgstr "{limit, plural, other {현재 요금제에서는 편집할 수 있는 사람이 #명이며, 허용되는 최대치예요.}}"
+
+#: src/components/CardContextMenu.jsx
+msgid "{linkedN, plural, one {Linked from # place} other {Linked from # places}}"
+msgstr "{linkedN, plural, other {#곳에서 링크됨}}"
 
 #: src/lib/sendTo.js
 msgid "{list} can't open it yet: only editors can let people in."
@@ -1951,10 +1940,6 @@ msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them
 msgstr "{n, plural, other {관리자에게 추가해 달라고 요청하세요.}}"
 
 #: src/components/CanvasSurface.jsx
-msgid "{n, plural, one {Comments (#)} other {Comments (#)}}"
-msgstr "{n, plural, other {댓글 (#)}}"
-
-#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
 msgstr "{n, plural, other {카드 #장을 복사했어요 · ⌘Z로 실행 취소}}"
 
@@ -2117,9 +2102,9 @@ msgstr "{n}/{total}"
 msgid "{n} people who can edit"
 msgstr "편집할 수 있는 사람 {n}명"
 
-#: src/components/ListSurface.jsx
-msgid "{n} selected"
-msgstr "{n}개 선택됨"
+#: src/lib/menus/rows.js
+msgid "{n} px"
+msgstr "{n} px"
 
 #: src/components/DocBookmarkList.jsx
 msgid "{name} — {page}"
@@ -2159,8 +2144,8 @@ msgid "{name} — Soleil Clusters"
 msgstr "{name} — Soleil Clusters"
 
 #: src/components/SidebarTags.jsx
-msgid "{name} · {c} applied · right-click to manage"
-msgstr "{name} · {c}개 적용됨 · 우클릭해서 관리"
+msgid "{name} · {c} applied"
+msgstr "{name} · {c}개에 적용됨"
 
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{name} · {where}"
@@ -2197,10 +2182,6 @@ msgstr "{name} · 캔버스에 없음"
 #: src/components/clusterBrowser/FilesPageHead.jsx
 msgid "{name} · press to see another cluster’s files"
 msgstr "{name} · 눌러서 다른 클러스터의 파일 보기"
-
-#: src/components/SidebarTags.jsx
-msgid "{name} · right-click to manage"
-msgstr "{name} · 우클릭해서 관리"
 
 #: src/components/SidebarSharedBoards.jsx
 msgid "{name} · view only"
@@ -2337,10 +2318,6 @@ msgstr "{name}, 프로필 편집"
 #: src/components/team/TeamPage.jsx
 msgid "{name}, team"
 msgstr "{name}, 팀"
-
-#: src/components/SidebarTags.jsx
-msgid "{name}: actions"
-msgstr "{name}: 작업"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "{name}: go to where they are"
@@ -2625,11 +2602,6 @@ msgstr "{px} px"
 #: src/lib/importCopy.js
 msgid "{readyCount, plural, one {Put # on the board} other {Put # on the board}}"
 msgstr "{readyCount, plural, other {#개를 캔버스에 올리기}}"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "{refCount, plural, one {Linked from # place} other {Linked from # places}}"
-msgstr "{refCount, plural, other {#곳에서 연결됨}}"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{removed, plural, one {# file} other {# files}}"
@@ -3039,10 +3011,6 @@ msgstr "읽지 않음 {unreadCount}"
 #: src/components/MessageThread.jsx
 msgid "{unseenCount, plural, one {# new message} other {# new messages}}"
 msgstr "{unseenCount, plural, other {새 메시지 #개}}"
-
-#: src/components/ColorPicker.jsx
-msgid "{upperCase} — right-click to remove"
-msgstr "{upperCase} — 우클릭하면 제거"
 
 #: src/components/sidebar/SidebarMeter.jsx
 msgid "{used} of {cardLimit} cards"
@@ -3920,6 +3888,12 @@ msgstr "실제 크기, {pct}%"
 msgid "Add"
 msgstr "추가"
 
+#: src/lib/menus/canvasMenu.js
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Add"
+msgstr "추가"
+
 #: src/lib/billingCopyWords.js
 msgid "Add {block} — {then}"
 msgstr "{block} 추가 — {then}"
@@ -3959,6 +3933,7 @@ msgstr "1TB 추가 · 월 {price}"
 msgid "Add a card"
 msgstr "카드 추가"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 msgid "Add a cluster"
 msgstr "클러스터 추가"
@@ -3984,6 +3959,10 @@ msgstr "하루 추가"
 #: src/components/cards/ScheduleRail.jsx
 msgid "Add a day here"
 msgstr "여기에 하루 추가"
+
+#: src/components/CanvasSurface.jsx
+msgid "Add a doc"
+msgstr "문서 추가"
 
 #: src/lib/workspaceSetup.js
 msgid "Add a few emails, or share one link with everyone."
@@ -4072,6 +4051,10 @@ msgstr "세로선 추가 (열로 나누기)"
 msgid "Add a web link"
 msgstr "웹 링크 추가"
 
+#: src/components/CanvasSurface.jsx
+msgid "Add an image"
+msgstr "이미지 추가"
+
 #: src/components/setup/InviteStep.jsx
 msgid "Add another"
 msgstr "하나 더 추가"
@@ -4093,10 +4076,6 @@ msgid "Add bookmark"
 msgstr "북마크 추가"
 
 #: src/components/CanvasSurface.jsx
-msgid "Add caption"
-msgstr "캡션 추가"
-
-#: src/components/CanvasSurface.jsx
 msgid "Add cluster"
 msgstr "클러스터 추가"
 
@@ -4116,15 +4095,11 @@ msgstr "왼쪽에 열 추가"
 msgid "Add column right"
 msgstr "오른쪽에 열 추가"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Add comment"
 msgstr "댓글 추가"
-
-#: src/components/CanvasSurface.jsx
-msgid "Add comment to group"
-msgstr "그룹에 댓글 추가"
 
 #: src/components/cards/GridCard.jsx
 #: src/components/cards/ScheduleCard.jsx
@@ -4171,10 +4146,6 @@ msgid "Add grid tool"
 msgstr "그리드 추가 도구"
 
 #: src/components/CanvasSurface.jsx
-msgid "Add hyperlink"
-msgstr "하이퍼링크 추가"
-
-#: src/components/CanvasSurface.jsx
 msgid "Add image"
 msgstr "이미지 추가"
 
@@ -4195,9 +4166,9 @@ msgstr "이미지 추가"
 msgid "Add item"
 msgstr "항목 추가"
 
-#: src/components/CanvasSurface.jsx
-msgid "Add label"
-msgstr "라벨 추가"
+#: src/lib/menus/rows.js
+msgid "Add label…"
+msgstr "라벨 추가…"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "Add layer"
@@ -4307,7 +4278,6 @@ msgstr "추가하기"
 msgid "Add this TXT record to its DNS, then check."
 msgstr "이 TXT 레코드를 DNS에 추가한 뒤 확인하세요."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "Add title"
 msgstr "제목 추가"
@@ -4325,7 +4295,7 @@ msgstr "클러스터에 추가"
 msgid "Add to Cursor"
 msgstr "Cursor에 추가"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Add to group"
 msgstr "그룹에 추가"
 
@@ -4341,13 +4311,13 @@ msgstr "VS Code에 추가"
 msgid "Add to workspace"
 msgstr "워크스페이스에 추가"
 
+#: src/lib/menus/rows.js
+msgid "Add vote"
+msgstr "투표 추가"
+
 #: src/components/CanvasSurface.jsx
 msgid "Add vote failed: {reason}"
 msgstr "투표를 추가하지 못했어요: {reason}"
-
-#: src/components/CanvasSurface.jsx
-msgid "Add vote to card"
-msgstr "카드에 투표 추가"
 
 #: src/components/ImportCapDialog.jsx
 msgid "Add what fits"
@@ -4451,10 +4421,6 @@ msgstr "“{name}”에 추가했어요: {only}"
 msgid "Added {versionLabel} of “{nameOf}”"
 msgstr "“{nameOf}”의 {versionLabel}을(를) 추가했어요"
 
-#: src/components/TagDetailView.jsx
-msgid "added automatically"
-msgstr "자동으로 추가됨"
-
 #: src/lib/cardInfo.js
 msgid "Added here"
 msgstr "여기에 추가됨"
@@ -4551,20 +4517,26 @@ msgstr "AI 제안"
 msgid "Aileron (default)"
 msgstr "Aileron (기본)"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align"
 msgstr "정렬"
 
+#: src/lib/menus/rows.js
+msgid "Align bottom"
+msgstr "아래쪽 정렬"
+
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align center"
 msgstr "가운데 정렬"
 
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align left"
 msgstr "왼쪽 정렬"
 
@@ -4572,10 +4544,19 @@ msgstr "왼쪽 정렬"
 msgid "Align left · center · right"
 msgstr "왼쪽 · 가운데 · 오른쪽 정렬"
 
+#: src/lib/menus/rows.js
+msgid "Align middle"
+msgstr "세로 가운데 정렬"
+
 #: src/components/docExtensions/ImageResizable.js
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Align right"
 msgstr "오른쪽 정렬"
+
+#: src/lib/menus/rows.js
+msgid "Align top"
+msgstr "위쪽 정렬"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Align: {label}"
@@ -4606,6 +4587,7 @@ msgstr "모든 변경 사항 저장됨"
 
 #: src/components/CommandPalette.jsx
 #: src/components/SidebarBoardsSection.jsx
+#: src/lib/menus/moveMenu.js
 msgid "All clusters"
 msgstr "모든 클러스터"
 
@@ -4696,7 +4678,7 @@ msgstr "이미 그 안에 있음"
 msgid "Also share sub-clusters"
 msgstr "하위 클러스터도 공유"
 
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Always open in Files"
 msgstr "항상 파일에서 열기"
 
@@ -4747,10 +4729,6 @@ msgstr "각도(도): 0은 오른쪽, 90은 바로 아래"
 
 #: src/components/CanvasSurface.jsx
 msgid "Annotate"
-msgstr "주석"
-
-#: src/lib/contextMenuSections.js
-msgid "ANNOTATE"
 msgstr "주석"
 
 #: src/auth/PricingSuccess.jsx
@@ -4938,7 +4916,7 @@ msgstr "다음에 만드는 링크에 적용돼요. 기존 링크는 각자의 �
 msgid "Apply"
 msgstr "적용"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Apply template…"
 msgstr "템플릿 적용…"
 
@@ -4970,12 +4948,8 @@ msgstr "앱"
 msgid "Archive"
 msgstr "아카이브"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Arrange"
-msgstr "배치"
-
-#: src/lib/contextMenuSections.js
-msgid "ARRANGE"
 msgstr "배치"
 
 #: src/components/CanvasSurface.jsx
@@ -4983,6 +4957,8 @@ msgstr "배치"
 #: src/components/toolbar/CanvasBarsA.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/shapeOptions.js
 msgid "Arrow"
 msgstr "화살표"
@@ -5151,6 +5127,7 @@ msgstr "오디오"
 #: src/lib/importJob.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/sharedFiles.js
 #: src/lib/sidebarShelves.js
 msgid "Audio"
@@ -5185,9 +5162,9 @@ msgstr "자동 ({autoName})"
 msgid "Automatic follows this browser. Cards, clusters and comments stay in the language they were written in."
 msgstr "자동은 이 브라우저의 설정을 따라요. 카드, 클러스터, 댓글은 작성된 언어 그대로 유지돼요."
 
-#: src/components/CanvasSurface.jsx
-msgid "Autoplay (muted)"
-msgstr "자동 재생(음소거)"
+#: src/lib/menus/rows.js
+msgid "Autoplay"
+msgstr "자동 재생"
 
 #: src/lib/billingCopyWords.js
 msgid "Awaiting payment"
@@ -5260,8 +5237,8 @@ msgstr "캔버스로 돌아가기 (F)"
 msgid "Back to your workspace"
 msgstr "워크스페이스로 돌아가기"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
+#: src/lib/menus/rows.js
 msgid "Background"
 msgstr "배경"
 
@@ -5384,7 +5361,6 @@ msgstr "클러스터"
 msgid "Board"
 msgstr "클러스터"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/docExtensions/BoardEmbed.js
 msgid "BOARD"
@@ -5460,11 +5436,8 @@ msgstr "이 위치에 북마크"
 msgid "Bookmarks"
 msgstr "북마크"
 
-#: src/components/CanvasSurface.jsx
-msgid "Bottom"
-msgstr "아래"
-
 #: src/components/cards/GridCard.jsx
+#: src/lib/menus/rows.js
 msgid "Box"
 msgstr "칸"
 
@@ -5488,10 +5461,6 @@ msgstr "상자 스타일"
 #: src/lib/importGuide.js
 msgid "Box, Notion, an old hard drive and a camera card all work this way."
 msgstr "Box, Notion, 오래된 하드 드라이브, 카메라 카드 모두 이렇게 가져올 수 있어요."
-
-#: src/components/CanvasSurface.jsx
-msgid "Box{value}"
-msgstr "상자{value}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Boxes"
@@ -5558,7 +5527,7 @@ msgstr "다른 앱에서 파일 가져오기…"
 msgid "Bring files in from a computer: download them, unzip, and drop them on Clusters."
 msgstr "컴퓨터에서 파일을 가져오세요. 다운로드하고 압축을 푼 뒤 Clusters에 놓으면 돼요."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Bring forward"
 msgstr "앞으로 가져오기"
 
@@ -5566,7 +5535,7 @@ msgstr "앞으로 가져오기"
 msgid "Bring in a folder"
 msgstr "폴더 가져오기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Bring to front"
 msgstr "맨 앞으로 가져오기"
 
@@ -5771,7 +5740,6 @@ msgstr "저장할 수 없음 — 액세스 종료됨"
 #: src/components/SaveTemplateDialog.jsx
 #: src/components/settings/DeleteAccount.jsx
 #: src/components/SketchPadOverlay.jsx
-#: src/components/TagActionSheet.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamBilling.jsx
 #: src/components/team/TeamConfirm.jsx
@@ -5847,6 +5815,10 @@ msgstr "캔버스 클러스터"
 msgid "Canvas groups"
 msgstr "캔버스 그룹"
 
+#: src/lib/menus/canvasMenu.js
+msgid "Canvas menu"
+msgstr "캔버스 메뉴"
+
 #: src/lib/filesView.js
 msgid "Canvas order"
 msgstr "캔버스 순서"
@@ -5858,6 +5830,10 @@ msgstr "최대 {MAX_SHOOT_DAYS_PER_ADD}까지만 추가돼요. 나머지는 한 
 #: src/components/cards.jsx
 msgid "Caption"
 msgstr "캡션"
+
+#: src/lib/menus/rows.js
+msgid "Caption…"
+msgstr "캡션…"
 
 #: src/components/capture/CaptureHud.jsx
 #: src/components/SettingsPanel.jsx
@@ -5886,6 +5862,7 @@ msgstr "캡처, 스크린샷, 녹화, 데모, 마케팅, 깔끔하게"
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/messageThing.js
 msgid "Card"
 msgstr "카드"
@@ -5936,7 +5913,6 @@ msgstr "카드 제목"
 msgid "Card, invoices and receipts are in Stripe."
 msgstr "카드, 청구서, 영수증은 Stripe에 있어요."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/TagDetailView.jsx
 #: src/lib/billingCopyWords.js
 msgid "Cards"
@@ -5966,10 +5942,6 @@ msgstr "캐스팅"
 msgid "Caveat (handwritten)"
 msgstr "Caveat (손글씨)"
 
-#: src/components/CanvasSurface.jsx
-msgid "Center"
-msgstr "가운데"
-
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Center in the box"
 msgstr "칸 안에서 가운데 정렬"
@@ -5990,10 +5962,6 @@ msgstr "중앙 십자"
 #: src/components/team/TeamBilling.jsx
 msgid "Change card"
 msgstr "카드 변경"
-
-#: src/components/SidebarBoardTree.jsx
-msgid "Change color"
-msgstr "색상 변경"
 
 #: src/components/settings/fields.jsx
 msgid "Change picture"
@@ -6040,7 +6008,8 @@ msgstr "등장인물"
 msgid "Characters"
 msgstr "캐릭터"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Charcoal"
 msgstr "차콜"
 
@@ -6188,7 +6157,7 @@ msgstr "지우기 (esc)"
 msgid "Clear {label}"
 msgstr "{label} 지우기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Clear all drawings"
 msgstr "그림 모두 지우기"
 
@@ -6245,6 +6214,10 @@ msgstr "선택 해제"
 #: src/components/ListSurface.jsx
 msgid "Clear selection (Esc)"
 msgstr "선택 해제 (Esc)"
+
+#: src/lib/menus/rows.js
+msgid "Clear start point"
+msgstr "시작 지점 지우기"
 
 #: src/components/CanvasSurface.jsx
 msgid "Clear start point ({clipTime})"
@@ -6377,10 +6350,6 @@ msgstr "클릭: 100% · 더블클릭: 클러스터 전체"
 #: src/components/film/FilmPlayer.jsx
 msgid "Clip timecode"
 msgstr "클립 타임코드"
-
-#: src/lib/contextMenuSections.js
-msgid "CLIPBOARD"
-msgstr "클립보드"
 
 #: src/App.jsx
 #: src/components/cards/SchedulePeek.jsx
@@ -6541,6 +6510,8 @@ msgstr "클러스터"
 #: src/lib/entityKinds.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 #: src/pages/KeepPage.jsx
 msgid "Cluster"
@@ -6558,7 +6529,7 @@ msgstr "{parent} 안의 클러스터"
 msgid "Cluster in {ws}"
 msgstr "{ws}의 클러스터"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Cluster info"
 msgstr "클러스터 정보"
 
@@ -6722,12 +6693,19 @@ msgstr "색상 {custom}"
 msgid "Color {k}"
 msgstr "색상 {k}"
 
+#: src/lib/menus/rows.js
+msgid "Color and cover"
+msgstr "색상 및 커버"
+
 #: src/components/CanvasSurface.jsx
 #: src/lib/helpHub.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Color palette"
 msgstr "색상 팔레트"
 
 #: src/components/cards.jsx
+#: src/components/ColorPicker.jsx
 msgid "Color removed"
 msgstr "색상을 제거했어요"
 
@@ -6784,6 +6762,8 @@ msgstr "Google Drive나 Dropbox에서 오셨나요?"
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/commentAuthor.js
 #: src/lib/commentPins.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Comment"
 msgstr "댓글"
 
@@ -6804,6 +6784,7 @@ msgid "Comment by {author}"
 msgstr "{author}의 댓글"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/CommentRow.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
@@ -6831,6 +6812,7 @@ msgid "Comment replies"
 msgstr "댓글 답글"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 msgid "Comment resolved"
@@ -7073,6 +7055,11 @@ msgstr "대화를 숨겼어요"
 msgid "Conversations you resolve are kept here."
 msgstr "해결한 대화는 여기에 보관돼요."
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Cool"
+msgstr "쿨"
+
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
 #: src/components/setup/InviteStep.jsx
@@ -7137,13 +7124,16 @@ msgstr "복사했어요."
 msgid "Copies the existing link when one is already live."
 msgstr "이미 유효한 링크가 있으면 그 링크를 복사해요."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/ShareModal.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/team/TeamJoining.jsx
 #: src/components/team/TeamSetup.jsx
+msgid "Copy"
+msgstr "복사"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Copy"
 msgstr "복사"
 
@@ -7154,14 +7144,6 @@ msgstr "복사 · 잘라내기 · 붙여넣기"
 #: src/App.jsx
 msgid "Copy \"{name}\" to your personal workspace?"
 msgstr "“{name}” 클러스터를 개인 워크스페이스로 복사할까요?"
-
-#: src/components/CanvasSurface.jsx
-msgid "Copy ({size})"
-msgstr "복사 ({size})"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Copy {count} to…"
-msgstr "{count}개 복사…"
 
 #: src/lib/dropRules.js
 msgid "Copy {what} to {name}"
@@ -7198,14 +7180,12 @@ msgstr "파일을 이동하지 않고 복사"
 #: src/components/comments/CommentRow.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
-#: src/components/ListSurface.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/setup/InviteStep.jsx
-#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/menus/rows.js
 msgid "Copy link"
 msgstr "링크 복사"
 
@@ -7243,16 +7223,21 @@ msgstr "지금 복사하세요 — 다시 표시되지 않아요."
 msgid "Copy timecode"
 msgstr "타임코드 복사"
 
+#: src/lib/menus/rows.js
+msgid "Copy to cluster"
+msgstr "클러스터로 복사"
+
 #: src/components/ListSurface.jsx
 msgid "Copy to cluster…"
 msgstr "클러스터로 복사…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Copy to my workspace"
 msgstr "내 워크스페이스로 복사"
 
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Copy to…"
 msgstr "복사 위치…"
 
@@ -7333,6 +7318,7 @@ msgid "Could not change their access: {reason}"
 msgstr "액세스 권한을 변경할 수 없어요: {reason}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 #: src/lib/cardLink.js
@@ -7646,6 +7632,7 @@ msgid "Couldn’t be uploaded"
 msgstr "업로드하지 못했어요"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't bring it back: {why}"
 msgstr "되돌릴 수 없어요: {why}"
 
@@ -7682,7 +7669,7 @@ msgstr "댓글을 카드와 함께 복사할 수 없어요: {why}"
 msgid "Couldn't copy the link — your browser blocked the clipboard."
 msgstr "링크를 복사할 수 없어요. 브라우저가 클립보드를 차단했어요."
 
-#: src/App.jsx
+#: src/lib/cardLink.js
 msgid "Couldn't copy the link."
 msgstr "링크를 복사할 수 없었어요."
 
@@ -7711,6 +7698,7 @@ msgid "Couldn't create the group. Check your connection and try again."
 msgstr "그룹을 만들 수 없었어요. 연결을 확인하고 다시 시도해 주세요."
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't delete: {why}"
 msgstr "삭제할 수 없어요: {why}"
 
@@ -7987,10 +7975,12 @@ msgid "Couldn’t remove those files."
 msgstr "그 파일을 제거할 수 없었어요."
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't reopen: {why}"
 msgstr "다시 열 수 없어요: {why}"
 
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 msgid "Couldn't resolve: {why}"
 msgstr "해결할 수 없어요: {why}"
 
@@ -8100,9 +8090,9 @@ msgstr "커버"
 msgid "Cover changed"
 msgstr "커버 변경됨"
 
-#: src/components/CanvasSurface.jsx
-msgid "Cover color"
-msgstr "커버 색상"
+#: src/lib/menus/rows.js
+msgid "Cover image…"
+msgstr "커버 이미지…"
 
 #: src/lib/versionFields.js
 msgid "Cover restored."
@@ -8112,7 +8102,8 @@ msgstr "커버를 복원했어요."
 msgid "Covers your whole workspace"
 msgstr "워크스페이스 전체에 적용돼요"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Cream"
 msgstr "크림"
 
@@ -8187,11 +8178,6 @@ msgstr "Ctrl"
 msgid "Current"
 msgstr "현재"
 
-#: src/components/SidebarTags.jsx
-msgctxt "type"
-msgid "Current"
-msgstr "현재"
-
 #: src/components/film/FilmDock.jsx
 msgid "Current timecode — click to jump"
 msgstr "현재 타임코드 — 클릭해서 이동"
@@ -8201,12 +8187,9 @@ msgid "Cursor"
 msgstr "커서"
 
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 msgid "Curved"
 msgstr "곡선"
-
-#: src/components/CanvasSurface.jsx
-msgid "Curved arrow"
-msgstr "곡선 화살표"
 
 #: src/lib/filesView.js
 msgid "Custom"
@@ -8239,20 +8222,15 @@ msgstr "사용자 지정 글꼴"
 msgid "Custom thumbnail set"
 msgstr "사용자 지정 썸네일을 설정했어요"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/fields.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Custom…"
 msgstr "사용자 지정…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/lib/menus/rows.js
 msgid "Cut"
 msgstr "잘라내기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Cut ({size})"
-msgstr "잘라내기 ({size})"
 
 #: src/components/CanvasSurface.jsx
 msgid "Cut into boxes"
@@ -8271,6 +8249,7 @@ msgid "Dark theme"
 msgstr "다크 테마"
 
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 #: src/lib/shapeOptions.js
 msgid "Dashed"
 msgstr "점선"
@@ -8291,6 +8270,7 @@ msgstr "추가한 날짜"
 msgid "Date modified"
 msgstr "수정한 날짜"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 #: src/components/cards/ScheduleRail.jsx
 #: src/components/cards/ScheduleTiles.jsx
@@ -8306,10 +8286,6 @@ msgstr "일 타일"
 msgid "Day view"
 msgstr "일 보기"
 
-#: src/components/CanvasSurface.jsx
-msgid "Day{value}"
-msgstr "일{value}"
-
 #: src/components/cards/ShootDayRange.jsx
 msgid "Days are created empty. Open one and “Set up this day” adds its call sheet, shotlist, script pages and hour-by-hour."
 msgstr "일은 빈 상태로 만들어져요. 하나를 열고 “이 날 설정”을 누르면 콜시트, 샷 리스트, 시나리오 페이지, 시간별 일정이 추가돼요."
@@ -8322,9 +8298,13 @@ msgstr "{what} 줄이기"
 msgid "Decrease font size"
 msgstr "글꼴 크기 줄이기"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/settings/fields.jsx
+msgid "Default"
+msgstr "기본"
+
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Default"
 msgstr "기본"
 
@@ -8361,10 +8341,10 @@ msgstr "Delete"
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarTags.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 #: src/lib/oauthTrustWords.js
 msgid "Delete"
 msgstr "삭제"
@@ -8376,18 +8356,6 @@ msgstr "“{name}” 삭제할까요? 실행 취소할 수 있어요. 30일 동�
 #: src/components/DocPageTree.jsx
 msgid "Delete \"{pageLabel}\"?"
 msgstr "“{pageLabel}” 삭제할까요?"
-
-#: src/components/CanvasSurface.jsx
-msgid "Delete ({size})"
-msgstr "삭제 ({size})"
-
-#: src/components/SidebarBoardTree.jsx
-msgid "Delete (last cluster)"
-msgstr "삭제 (마지막 클러스터)"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Delete {count}"
-msgstr "{count}개 삭제"
 
 #: src/components/ListSurface.jsx
 msgid "Delete {count} clusters and all their content?\n"
@@ -8427,6 +8395,7 @@ msgstr "계정 삭제…"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/menus/rows.js
 msgid "Delete arrow"
 msgstr "화살표 삭제"
 
@@ -8463,6 +8432,7 @@ msgid "Delete conversation"
 msgstr "대화 삭제"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Delete drawing"
 msgstr "그리기 삭제"
 
@@ -8770,10 +8740,17 @@ msgstr "닫기: {title}"
 msgid "Display name"
 msgstr "표시 이름"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 msgid "Distribute"
 msgstr "균등 배분"
+
+#: src/lib/menus/rows.js
+msgid "Distribute horizontally"
+msgstr "가로 균등 배분"
+
+#: src/lib/menus/rows.js
+msgid "Distribute vertically"
+msgstr "세로 균등 배분"
 
 #: src/components/DocInsertMenu.jsx
 msgid "Divider"
@@ -8803,6 +8780,8 @@ msgstr "문서"
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "Doc"
 msgstr "문서"
@@ -8949,10 +8928,6 @@ msgstr "더블클릭"
 msgid "Double-click to interact"
 msgstr "더블클릭해서 사용하기"
 
-#: src/components/CanvasSurface.jsx
-msgid "Double-sided arrow"
-msgstr "양쪽 화살표"
-
 #: src/components/cards.jsx
 msgid "Double-tap to play"
 msgstr "두 번 탭해서 재생"
@@ -8961,7 +8936,6 @@ msgstr "두 번 탭해서 재생"
 msgid "download"
 msgstr "다운로드"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/cards/GridCellMenu.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
@@ -8973,21 +8947,15 @@ msgstr "다운로드"
 #: src/components/ImageEditModal.jsx
 #: src/components/ImageLightbox.jsx
 #: src/components/info/VersionsSection.jsx
-#: src/components/ListSurface.jsx
 #: src/components/PdfViewer.jsx
 #: src/components/R2Image.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Download"
 msgstr "다운로드"
 
 #: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
 msgid "Download {count}"
 msgstr "{count}개 다운로드"
-
-#: src/components/ListSurface.jsx
-msgid "Download {count} of {n}"
-msgstr "{n}개 중 {count}개 다운로드"
 
 #: src/components/cards/FileCard.jsx
 msgid "Download {label}"
@@ -9131,8 +9099,8 @@ msgid "Drag to another date to move this day"
 msgstr "다른 날짜로 드래그해 이 날을 이동하세요"
 
 #: src/components/CanvasSurface.jsx
-msgid "Drag to bend · right-click to straighten · double-click to reset"
-msgstr "끌어서 구부리기 · 우클릭으로 펴기 · 더블클릭으로 초기화"
+msgid "Drag to bend · right-click for options · double-click to reset"
+msgstr "끌어서 구부리기 · 우클릭하면 옵션 · 더블클릭하면 초기화"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to draw"
@@ -9186,6 +9154,7 @@ msgid "Drag to zoom"
 msgstr "끌어서 확대/축소"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Draw"
 msgstr "그리기"
 
@@ -9346,14 +9315,10 @@ msgstr "Dropbox는 고른 폴더를 zip 하나로 다운로드해요."
 msgid "Dual dialogue"
 msgstr "동시 대사"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Duplicate"
 msgstr "복제"
-
-#: src/components/CanvasSurface.jsx
-msgid "Duplicate ({size})"
-msgstr "복제 ({size})"
 
 #: src/components/cards/ScheduleRundown.jsx
 msgid "Duration"
@@ -9363,6 +9328,11 @@ msgstr "소요 시간"
 msgctxt "media"
 msgid "Duration"
 msgstr "재생 시간"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Dusk"
+msgstr "황혼"
 
 #: src/components/settings/fields.jsx
 msgid "e.g. Atkinson Hyperlegible"
@@ -9444,7 +9414,6 @@ msgstr "편집할 수 있는 사람은 각각 시트를 하나씩 사용해요. 
 msgid "edit"
 msgstr "편집"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/comments/CommentRow.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
@@ -9453,33 +9422,26 @@ msgstr "편집"
 msgid "Edit"
 msgstr "편집"
 
-#: src/lib/contextMenuSections.js
-msgid "EDIT"
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Edit"
 msgstr "편집"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Edit a note or title"
 msgstr "메모나 제목 편집"
 
-#: src/components/CanvasSurface.jsx
-msgid "Edit caption"
-msgstr "캡션 편집"
-
 #: src/components/comments/CommentComposer.jsx
 msgid "Edit comment"
 msgstr "댓글 수정"
 
 #: src/components/CanvasSurface.jsx
-msgid "Edit hyperlink"
-msgstr "하이퍼링크 편집"
-
-#: src/components/CanvasSurface.jsx
 msgid "Edit image hyperlink"
 msgstr "이미지 하이퍼링크 편집"
 
-#: src/components/CanvasSurface.jsx
-msgid "Edit label"
-msgstr "라벨 편집"
+#: src/lib/menus/rows.js
+msgid "Edit label…"
+msgstr "라벨 편집…"
 
 #: src/components/cards.jsx
 #: src/components/cards/GridCellMenu.jsx
@@ -9488,7 +9450,7 @@ msgstr "라벨 편집"
 msgid "Edit photo"
 msgstr "사진 편집"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Edit photo…"
 msgstr "사진 편집…"
 
@@ -9499,10 +9461,6 @@ msgstr "사진 편집…"
 #: src/components/ShareModal.jsx
 msgid "Edit profile"
 msgstr "프로필 편집"
-
-#: src/components/CanvasSurface.jsx
-msgid "Edit title"
-msgstr "제목 편집"
 
 #: src/components/MessageComposer.jsx
 msgid "Edit your message"
@@ -9731,7 +9689,6 @@ msgstr "들어가는 중"
 msgid "ENTITIES NAMED THIS"
 msgstr "이 이름의 항목"
 
-#: src/components/SidebarTags.jsx
 #: src/components/TagDetailView.jsx
 msgid "Entity type"
 msgstr "개체 유형"
@@ -9990,8 +9947,8 @@ msgstr "먼저 데모 둘러보기"
 msgid "Explore universe →"
 msgstr "유니버스 탐색 →"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Export"
 msgstr "내보내기"
 
@@ -10057,9 +10014,9 @@ msgstr "추가 저장 공간은 {STORAGE_ADDON_MAX_BLOCKS} × {STORAGE_ADDON_BLO
 msgid "Extra storage isn’t available yet."
 msgstr "추가 저장 공간은 아직 이용할 수 없어요."
 
-#: src/components/CanvasSurface.jsx
-msgid "Eyedrop color (anywhere on screen)…"
-msgstr "스포이트로 색상 선택(화면 어디서나)…"
+#: src/lib/menus/rows.js
+msgid "Eyedrop color…"
+msgstr "스포이트로 색상 선택…"
 
 #: src/components/CanvasSurface.jsx
 msgid "Eyedropper not supported in this browser yet."
@@ -10108,6 +10065,9 @@ msgstr "파일"
 #: src/lib/filesView.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/fileMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "File"
 msgstr "파일"
@@ -10134,6 +10094,7 @@ msgstr "파일"
 #: src/components/ViewSwitch.jsx
 #: src/lib/cardInfo.js
 #: src/lib/feedbackContext.js
+#: src/lib/menus/fileMenu.js
 #: src/lib/onboardingTourWords.js
 #: src/lib/sidebarShelves.js
 #: src/lib/viewSwitch.js
@@ -10206,7 +10167,7 @@ msgctxt "photo fit"
 msgid "Fill"
 msgstr "채우기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Fill color…"
 msgstr "채우기 색상…"
 
@@ -10247,6 +10208,7 @@ msgstr "찾기"
 
 #: src/components/home/ClustersHome.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
+#: src/lib/menus/rows.js
 msgid "Find a cluster"
 msgstr "클러스터 찾기"
 
@@ -10330,6 +10292,7 @@ msgid "Fit"
 msgstr "맞추기"
 
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Fit everything"
 msgstr "모두 맞추기"
 
@@ -10379,7 +10342,7 @@ msgstr "타임라인에 클립 전체 맞추기"
 msgid "Fit to cell"
 msgstr "셀에 맞춤"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Fit to content"
 msgstr "콘텐츠에 맞추기"
 
@@ -10442,6 +10405,7 @@ msgstr "접기"
 #: src/components/HeldUploadsBar.jsx
 #: src/lib/folderPlan.js
 #: src/lib/importStart.js
+#: src/lib/menus/rows.js
 msgid "Folder"
 msgstr "폴더"
 
@@ -10721,7 +10685,7 @@ msgstr "생성"
 msgid "Generate a matrix"
 msgstr "매트릭스 생성"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Generate matrix…"
 msgstr "매트릭스 생성…"
 
@@ -10736,10 +10700,6 @@ msgstr "{planName} 시작하기"
 #: src/components/UpgradeChip.jsx
 msgid "Get Creator"
 msgstr "Creator 시작하기"
-
-#: src/components/ListSurface.jsx
-msgid "Get info"
-msgstr "정보 보기"
 
 #: src/components/SendSheet.jsx
 msgid "Gets it in Messages, or an email invite if they're new"
@@ -10816,8 +10776,8 @@ msgstr "포커스된 파일로 이동: 캔버스에서 또는 파일에서"
 msgid "Go to the message"
 msgstr "메시지로 이동"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
+#: src/lib/menus/rows.js
 msgid "Go to today"
 msgstr "오늘로 이동"
 
@@ -10891,6 +10851,8 @@ msgstr "그리드"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Grid"
 msgstr "그리드"
 
@@ -10933,19 +10895,22 @@ msgctxt "default name"
 msgid "Group"
 msgstr "그룹"
 
+#: src/lib/menus/cardMenu.js
+msgctxt "noun"
+msgid "Group"
+msgstr "그룹"
+
 #: src/components/CanvasSurface.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgctxt "verb"
 msgid "Group"
 msgstr "그룹화"
 
-#: src/components/CanvasSurface.jsx
-msgid "Group \"{groupTitle}\""
-msgstr "그룹 “{groupTitle}”"
-
-#: src/components/CanvasSurface.jsx
-msgid "Group ({size})"
-msgstr "그룹 ({size})"
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
+msgid "Group \"{name}\""
+msgstr "그룹 “{name}”"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Group by"
@@ -10955,7 +10920,7 @@ msgstr "그룹 기준"
 msgid "GROUP CHAT"
 msgstr "그룹 채팅"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Group info"
 msgstr "그룹 정보"
 
@@ -11162,25 +11127,13 @@ msgstr "프레임 가이드 숨기기"
 msgid "Hide from search"
 msgstr "검색에서 숨기기"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide group label"
-msgstr "그룹 라벨 숨기기"
-
 #: src/components/ListSurface.jsx
 msgid "Hide info"
 msgstr "정보 숨기기"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide label"
-msgstr "라벨 숨기기"
-
 #: src/components/cards.jsx
 msgid "Hide labels"
 msgstr "라벨 숨기기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide labels (pure color)"
-msgstr "라벨 숨기기(순수 색상)"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "Hide layer"
@@ -11193,10 +11146,6 @@ msgstr "메시지 숨기기"
 #: src/App.jsx
 msgid "Hide notifications"
 msgstr "알림 숨기기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide outline"
-msgstr "윤곽선 숨기기"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Hide pages"
@@ -11312,10 +11261,6 @@ msgstr "홈, 그래프, 개요, 처음"
 msgid "Horizontal rule"
 msgstr "가로줄"
 
-#: src/components/CanvasSurface.jsx
-msgid "Horizontally"
-msgstr "가로"
-
 #: src/components/cards/SchedulePeek.jsx
 msgid "Hours on grid"
 msgstr "그리드에 시간 표시"
@@ -11370,9 +11315,9 @@ msgstr "https://…"
 msgid "https://example.com/font.woff2"
 msgstr "https://example.com/font.woff2"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hug{value}"
-msgstr "밀착{value}"
+#: src/lib/menus/rows.js
+msgid "Hug"
+msgstr "밀착"
 
 #: src/components/FeedbackButton.jsx
 msgid "I love something"
@@ -11421,6 +11366,8 @@ msgstr "이미지"
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/sharedFiles.js
 msgid "Image"
 msgstr "이미지"
@@ -11608,12 +11555,10 @@ msgstr "들여쓰기 · 내어쓰기 (시나리오: 요소 순환)"
 msgid "indexable by search"
 msgstr "검색 노출 가능"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
-#: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
+#: src/lib/menus/rows.js
 msgid "Info"
 msgstr "정보"
 
@@ -11624,10 +11569,6 @@ msgstr "정보 — 선택 항목, 선택한 게 없으면 클러스터"
 #: src/components/ListSurface.jsx
 msgid "Info ({cmdKey}I)"
 msgstr "정보 ({cmdKey}I)"
-
-#: src/components/CanvasSurface.jsx
-msgid "Info ({size})"
-msgstr "정보 ({size})"
 
 #: src/components/clusterBrowser/QuickLook.jsx
 msgid "Info (⌘I)"
@@ -12249,7 +12190,7 @@ msgstr "나만"
 msgid "Just you so far. Anyone you invite above will see this cluster and everything inside it."
 msgstr "아직 나뿐이에요. 위에서 초대한 사람은 이 클러스터와 그 안의 모든 것을 볼 수 있어요."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Justified rows"
 msgstr "균등 행"
 
@@ -12268,6 +12209,10 @@ msgstr "별도 파일로 유지"
 #: src/components/team/TeamPeople.jsx
 msgid "Keep as viewer"
 msgstr "뷰어로 유지"
+
+#: src/lib/menus/rows.js
+msgid "Keep in Files only"
+msgstr "파일에만 보관"
 
 #: src/components/StorageAddonSheet.jsx
 #: src/pages/KeepPage.jsx
@@ -12399,6 +12344,11 @@ msgstr "종류"
 msgid "Label"
 msgstr "라벨"
 
+#: src/lib/menus/rows.js
+msgctxt "group label"
+msgid "Label"
+msgstr "라벨"
+
 #: src/lib/versionActions.js
 msgid "Label {versionLabel}"
 msgstr "라벨 {versionLabel}"
@@ -12418,6 +12368,11 @@ msgstr "라벨…"
 #: src/components/GridLayoutThumb.jsx
 msgid "labelled {names}"
 msgstr "라벨: {names}"
+
+#: src/lib/menus/rows.js
+msgctxt "palette"
+msgid "Labels"
+msgstr "라벨"
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Language"
@@ -12594,10 +12549,10 @@ msgid "Leave workspace"
 msgstr "워크스페이스 나가기"
 
 #: src/components/MessagesPanel.jsx
+#: src/components/MessageThread.jsx
 msgid "Leave…"
 msgstr "나가기…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 msgid "Left"
 msgstr "왼쪽"
@@ -12691,12 +12646,15 @@ msgstr "링크"
 #: src/components/doc/DocBarA.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/ListSurface.jsx
 #: src/components/MessageComposer.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 msgid "Link"
 msgstr "링크"
@@ -12729,8 +12687,8 @@ msgstr "링크 카드"
 msgid "Link cards"
 msgstr "링크 카드"
 
-#: src/App.jsx
 #: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
 #: src/components/comments/FileThreads.jsx
 #: src/components/EntityHoverPopover.jsx
@@ -12827,6 +12785,11 @@ msgctxt "command search words"
 msgid "link, embed, reference, cluster, board"
 msgstr "연결, 임베드, 참조, 클러스터, 보드, 링크"
 
+#: src/lib/menus/rows.js
+msgctxt "image hyperlink"
+msgid "Link…"
+msgstr "링크…"
+
 #: src/components/cards/GridCard.jsx
 #: src/components/ListSurface.jsx
 msgid "Linked"
@@ -12845,6 +12808,8 @@ msgstr "연결된 클러스터"
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/lib/cardInfo.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Linked cluster"
 msgstr "연결된 클러스터"
 
@@ -12855,11 +12820,6 @@ msgstr "연결된 클러스터 · 액세스 권한 없음"
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Linked from"
 msgstr "링크한 곳"
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "Linked from…"
-msgstr "연결된 위치…"
 
 #: src/components/cards/GridCard.jsx
 msgid "Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach."
@@ -13040,9 +13000,9 @@ msgstr "가지고 있는 것들을 돌아봐요"
 msgid "Looking up…"
 msgstr "찾는 중…"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/film/FilmDock.jsx
 #: src/components/film/FilmPlayer.jsx
+#: src/lib/menus/rows.js
 msgid "Loop"
 msgstr "반복"
 
@@ -13267,7 +13227,6 @@ msgstr "수동만"
 msgid "Mark all read"
 msgstr "모두 읽음으로 표시"
 
-#: src/components/SidebarTags.jsx
 #: src/components/TagDetailView.jsx
 msgid "Mark as {label}"
 msgstr "{label} 유형으로 표시"
@@ -13284,7 +13243,7 @@ msgstr "마커"
 msgid "Marking"
 msgstr "표시 중"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Masonry columns"
 msgstr "벽돌형 열"
 
@@ -13296,7 +13255,8 @@ msgstr "대소문자 구분"
 msgid "Matching “{trim}”"
 msgstr "“{trim}”과(와) 일치"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Mauve"
 msgstr "모브"
 
@@ -13348,6 +13308,7 @@ msgid "Mentions and replies to you show up here."
 msgstr "나를 멘션한 댓글과 내게 온 답글이 여기에 표시돼요."
 
 #: src/App.jsx
+#: src/components/CardContextMenu.jsx
 #: src/components/film/FilmMenu.jsx
 msgid "Menu"
 msgstr "메뉴"
@@ -13450,11 +13411,8 @@ msgstr "메시지, 채팅, 쪽지, 댓글, 대화, DM"
 msgid "Messaging opens once your account is off the waitlist"
 msgstr "계정이 대기자 명단에서 나오면 메시지를 쓸 수 있어요"
 
-#: src/components/CanvasSurface.jsx
-msgid "Middle"
-msgstr "중간"
-
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Midnight"
 msgstr "미드나이트"
 
@@ -13512,6 +13470,7 @@ msgstr "모노"
 msgid "Monospace code"
 msgstr "고정폭 코드"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 msgid "Month"
 msgstr "월"
@@ -13519,10 +13478,6 @@ msgstr "월"
 #: src/components/cards/ScheduleCard.jsx
 msgid "Month grid"
 msgstr "월 그리드"
-
-#: src/components/CanvasSurface.jsx
-msgid "Month{value}"
-msgstr "월{value}"
 
 #: src/auth/PricingSuccess.jsx
 #: src/auth/WaitlistConfirm.jsx
@@ -13565,6 +13520,7 @@ msgstr "무드보드, 시나리오, 샷 리스트 — 모든 에셋을 하나의
 #: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "More"
 msgstr "더 보기"
 
@@ -13579,6 +13535,7 @@ msgstr "화살표 옵션 더 보기"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
+#: src/components/SidebarTags.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13662,10 +13619,6 @@ msgstr "이동"
 #: src/App.jsx
 msgid "Move “{moveName}” into…"
 msgstr "“{moveName}” 이동 위치…"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Move {count} to…"
-msgstr "{count}개 이동…"
 
 #: src/lib/dropRules.js
 msgid "Move {movingCount} and copy {copyingCount} to {name}"
@@ -13756,9 +13709,9 @@ msgstr "파일 사이 이동"
 msgid "Move through the clusters, or the files"
 msgstr "클러스터 또는 파일 사이 이동"
 
-#: src/components/CanvasSurface.jsx
-msgid "Move to a new cluster…"
-msgstr "새 클러스터로 이동…"
+#: src/lib/menus/rows.js
+msgid "Move to cluster"
+msgstr "클러스터로 이동"
 
 #: src/components/ListSurface.jsx
 msgid "Move to cluster…"
@@ -13766,6 +13719,7 @@ msgstr "클러스터로 이동…"
 
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Move to…"
 msgstr "이동 위치…"
 
@@ -13872,8 +13826,8 @@ msgid "Muted"
 msgstr "음소거"
 
 #: src/components/CanvasSurface.jsx
-msgid "N — columns, top→bottom{value}"
-msgstr "N — 열 기준, 위→아래{value}"
+msgid "N — columns, top→bottom"
+msgstr "N — 열 순서, 위→아래"
 
 #: src/App.jsx
 #: src/components/CanvasSurface.jsx
@@ -13977,6 +13931,11 @@ msgstr "이미지가 3장 이상 필요해요. 관리자가 검토한 뒤 공개
 msgid "Nest · un-nest a list item"
 msgstr "목록 항목 들여쓰기 · 내어쓰기"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Neutral"
+msgstr "뉴트럴"
+
 #: src/components/ShareModal.jsx
 msgid "Never"
 msgstr "만료 안 함"
@@ -14026,10 +13985,15 @@ msgstr "새 채팅"
 #: src/components/ListSurface.jsx
 #: src/components/NewClusterButton.jsx
 #: src/components/ProjectsHome.jsx
+#: src/lib/menus/fileMenu.js
 msgid "New cluster"
 msgstr "새 클러스터"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
+msgid "New cluster from these"
+msgstr "선택한 항목으로 새 클러스터"
+
+#: src/lib/menus/rows.js
 msgid "New cluster inside"
 msgstr "안에 새 클러스터"
 
@@ -14037,7 +14001,7 @@ msgstr "안에 새 클러스터"
 msgid "New cluster name"
 msgstr "새 클러스터 이름"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "New cluster…"
 msgstr "새 클러스터…"
 
@@ -14404,6 +14368,7 @@ msgid "No manually applied items."
 msgstr "수동으로 적용한 항목이 없어요."
 
 #: src/components/ColorPicker.jsx
+#: src/components/ctxMenuParts.jsx
 msgid "No matches"
 msgstr "일치하는 항목 없음"
 
@@ -14599,7 +14564,6 @@ msgstr "아무도 추가되지 않았어요{tail}"
 #: src/components/capture/CaptureHud.jsx
 #: src/components/ColorPicker.jsx
 #: src/components/settings/BillingTab.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/TeamBilling.jsx
 #: src/lib/cardInfo.js
 msgid "None"
@@ -14668,11 +14632,6 @@ msgstr "찾을 수 없음"
 #: src/lib/captureRecorder.js
 msgid "Not in a browser."
 msgstr "브라우저가 아니에요."
-
-#: src/components/BackgroundContextMenu.jsx
-#: src/components/CardContextMenu.jsx
-msgid "Not linked anywhere"
-msgstr "어디에도 연결되지 않음"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/FirstValueUpgradeBanner.jsx
@@ -14777,6 +14736,8 @@ msgstr "메모"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 #: src/lib/messageThing.js
 msgid "Note"
 msgstr "메모"
@@ -15483,17 +15444,11 @@ msgstr "불투명도"
 
 #: src/App.jsx
 #: src/components/ActivityTray.jsx
-#: src/components/CanvasSurface.jsx
 #: src/components/DocCard.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
-#: src/components/ListSurface.jsx
 #: src/components/MessageSharedCard.jsx
-#: src/components/shared/SharedPage.jsx
-#: src/components/SidebarBoardTree.jsx
-#: src/components/SidebarSharedBoards.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
 #: src/hooks/useNotifications.js
@@ -15511,6 +15466,11 @@ msgstr "결제 대기"
 msgctxt "status"
 msgid "Open"
 msgstr "미해결"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
+msgid "Open"
+msgstr "열기"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open · close the tool rail’s + menu"
@@ -15623,8 +15583,8 @@ msgstr "캡처 컨트롤 열기"
 msgid "Open chat"
 msgstr "채팅 열기"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
+#: src/lib/menus/rows.js
 msgid "Open cluster"
 msgstr "클러스터 열기"
 
@@ -15646,6 +15606,7 @@ msgid "Open day"
 msgstr "이 날 열기"
 
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/lib/menus/rows.js
 msgid "Open doc"
 msgstr "문서 열기"
 
@@ -15706,9 +15667,8 @@ msgstr "Clusters에서 열기"
 msgid "Open in Files"
 msgstr "파일에서 열기"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/film/FilmPlayer.jsx
-#: src/components/ListSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Open in player"
 msgstr "플레이어에서 열기"
 
@@ -15735,14 +15695,14 @@ msgstr "다시 열기"
 msgid "Open it to see what’s been added."
 msgstr "열어서 추가된 내용을 확인하세요."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/lib/menus/rows.js
 msgid "Open link"
 msgstr "링크 열기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Open linked cluster"
 msgstr "연결된 클러스터 열기"
 
@@ -15761,10 +15721,6 @@ msgstr "메모 열기"
 #: src/components/sidebar/ClusterSwitch.jsx
 msgid "Open now"
 msgstr "지금 열기"
-
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Open on the board by default"
-msgstr "기본으로 캔버스에서 열기"
 
 #: src/lib/importGuide.js
 msgid "Open OneDrive"
@@ -15822,25 +15778,28 @@ msgstr "사이드바 열기"
 msgid "Open sidebar (⌘B)"
 msgstr "사이드바 열기 (⌘B)"
 
+#: src/lib/menus/rows.js
+msgid "Open sketch"
+msgstr "스케치 열기"
+
 #: src/App.jsx
 msgid "Open split view"
 msgstr "분할 보기 열기"
 
+#: src/components/CanvasSurface.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/EntityHoverPopover.jsx
 msgid "Open tag"
 msgstr "태그 열기"
 
-#: src/components/CardContextMenu.jsx
-msgid "Open tag \"{name}\""
-msgstr "태그 “{name}” 열기"
+#. placeholder {0}: c.name
+#: src/components/DocPageTagChips.jsx
+msgid "Open tag \"{0}\""
+msgstr "“{0}” 태그 열기"
 
 #: src/components/TagRangeHoverPopover.jsx
 msgid "Open tag detail"
 msgstr "태그 상세 열기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Open tag page"
-msgstr "태그 페이지 열기"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the box: type in a text box, or its menu"
@@ -16070,11 +16029,15 @@ msgstr "아웃 {tc}"
 msgid "Out {tc} · {frames} fr"
 msgstr "아웃 {tc} · {frames}fr"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgid "Outline"
+msgstr "윤곽선"
+
+#: src/lib/menus/rows.js
 msgid "Outline color…"
 msgstr "윤곽선 색상…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Outline shape"
 msgstr "윤곽선 모양"
 
@@ -16232,7 +16195,8 @@ msgstr "캔버스 이동"
 msgid "Pan tool"
 msgstr "화면 이동 도구"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Paper"
 msgstr "종이"
 
@@ -16286,8 +16250,8 @@ msgstr "이 주소에서는 패스키가 작동하지 않아요."
 msgid "Password"
 msgstr "비밀번호"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/lib/menus/fileMenu.js
 msgid "Paste"
 msgstr "붙여넣기"
 
@@ -16311,6 +16275,10 @@ msgstr "붙여넣지 못했어요: {reason}"
 msgid "Paste from any tab, drag from your desktop, or drop a whole folder — they arrange themselves."
 msgstr "아무 탭에서나 붙여넣고, 데스크톱에서 끌어오고, 폴더째로 놓아 보세요. 알아서 정렬돼요."
 
+#: src/lib/menus/rows.js
+msgid "Paste here"
+msgstr "여기에 붙여넣기"
+
 #: src/lib/firstBoardCopy.js
 msgid "Paste images or links from any tab, or drop a folder of frames"
 msgstr "아무 탭에서나 이미지나 링크를 붙여넣거나, 프레임 폴더를 놓아 보세요"
@@ -16323,7 +16291,7 @@ msgstr "아무 탭에서나 이미지나 링크를 붙여넣거나, 폴더를 �
 msgid "Paste images or links from any tab, or drop a whole folder"
 msgstr "아무 탭에서나 이미지나 링크를 붙여넣거나, 폴더째로 놓아 보세요"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Paste into this cluster"
 msgstr "이 클러스터에 붙여넣기"
 
@@ -16422,11 +16390,12 @@ msgstr "PDF"
 #: src/components/shared/SharedPage.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/sharedFiles.js
 msgid "PDF"
 msgstr "PDF"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "PDF (Save from Print)"
 msgstr "PDF (인쇄에서 저장)"
 
@@ -16612,7 +16581,7 @@ msgstr "위에서 주제를 고르거나 그냥 적어 주세요. 둘 중 하나
 msgid "Pick a topic, or write a few words."
 msgstr "주제를 고르거나 몇 마디 적어 주세요."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Pick from cluster image…"
 msgstr "클러스터 이미지에서 선택…"
 
@@ -16819,6 +16788,10 @@ msgstr "재생 헤드"
 msgid "Playing muted — press M for sound"
 msgstr "음소거로 재생 중 — M을 누르면 소리가 나와요"
 
+#: src/components/CanvasSurface.jsx
+msgid "Plays muted"
+msgstr "음소거로 재생"
+
 #: src/App.jsx
 msgid "Please choose a PDF file."
 msgstr "PDF 파일을 선택하세요."
@@ -16827,7 +16800,7 @@ msgstr "PDF 파일을 선택하세요."
 msgid "Please choose an image file."
 msgstr "이미지 파일을 선택하세요."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "PNG image"
 msgstr "PNG 이미지"
 
@@ -17104,10 +17077,6 @@ msgstr "펀치 인"
 msgid "Push in"
 msgstr "푸시 인"
 
-#: src/components/sidebar/ClusterSidebar.jsx
-msgid "Put {count} on board"
-msgstr "{count}개 캔버스에 놓기"
-
 #: src/lib/dropRules.js
 msgid "Put {named} here"
 msgstr "{named} 여기에 놓기"
@@ -17125,6 +17094,7 @@ msgstr "캔버스에 올리기"
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Put on board"
 msgstr "캔버스에 올리기"
 
@@ -17150,8 +17120,11 @@ msgstr "체험을 위해 결제 카드 등록하기"
 msgid "Queued"
 msgstr "대기 중"
 
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/components/ctxMenuParts.jsx
+msgid "Quick actions"
+msgstr "빠른 작업"
+
+#: src/lib/menus/rows.js
 msgid "Quick look"
 msgstr "빠른 보기"
 
@@ -17226,7 +17199,7 @@ msgstr "읽는 중"
 msgid "Reading {title}…"
 msgstr "{title} 읽는 중…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Reading order"
 msgstr "읽는 순서"
 
@@ -17267,6 +17240,7 @@ msgstr "영수증"
 #: src/components/doc/DocBarA.jsx
 #: src/components/SendSheet.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/menus/moveMenu.js
 msgid "Recent"
 msgstr "최근"
 
@@ -17289,12 +17263,12 @@ msgid "Recently deleted ({count})"
 msgstr "최근 삭제됨 ({count})"
 
 #: src/components/SidebarTags.jsx
-msgid "Recolor"
-msgstr "색상 변경"
-
-#: src/components/SidebarTags.jsx
 msgid "Recolor failed: {reason}"
 msgstr "색상을 바꾸지 못했어요: {reason}"
+
+#: src/components/SidebarTags.jsx
+msgid "Recolor…"
+msgstr "색상 변경…"
 
 #: src/lib/docSaveStatus.js
 msgid "Reconnecting — changes kept on this device"
@@ -17474,7 +17448,11 @@ msgstr "북마크 제거"
 msgid "Remove bookmark {name}"
 msgstr "북마크 {name} 제거"
 
-#: src/components/CanvasSurface.jsx
+#: src/components/ColorPicker.jsx
+msgid "Remove color"
+msgstr "색상 제거"
+
+#: src/lib/menus/rows.js
 msgid "Remove cover image"
 msgstr "커버 이미지 제거"
 
@@ -17495,16 +17473,11 @@ msgstr "탐색에서 제거"
 msgid "Remove from Explore?"
 msgstr "탐색에서 제거할까요?"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Remove from group"
 msgstr "그룹에서 제거"
 
-#: src/components/CanvasSurface.jsx
-msgid "Remove from group ({size})"
-msgstr "그룹에서 제거 ({size})"
-
-#: src/components/shared/SharedPage.jsx
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/menus/rows.js
 msgid "Remove from my list"
 msgstr "내 목록에서 제거"
 
@@ -17543,6 +17516,7 @@ msgstr "미리보기 제거"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/DocPageEditor.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/TagRangeHoverPopover.jsx
 msgid "Remove tag"
@@ -17643,13 +17617,9 @@ msgid "Removing…"
 msgstr "제거하는 중…"
 
 #: src/components/CanvasSurface.jsx
-#: src/components/DocPageTree.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/home/HomeWorkspace.jsx
-#: src/components/ListSurface.jsx
-#: src/components/MessageThread.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarTags.jsx
 msgid "Rename"
 msgstr "이름 바꾸기"
@@ -17670,7 +17640,7 @@ msgstr "이름을 바꾸지 못했어요: {reason}"
 msgid "Rename group"
 msgstr "그룹 이름 바꾸기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Rename group…"
 msgstr "그룹 이름 바꾸기…"
 
@@ -17699,6 +17669,10 @@ msgid "Rename, color, cover and view changes — each can be reverted."
 msgstr "이름, 색상, 커버, 보기 변경 사항이에요. 각각 되돌릴 수 있어요."
 
 #: src/components/CanvasSurface.jsx
+#: src/components/DocPageTree.jsx
+#: src/components/MessageThread.jsx
+#: src/components/SidebarTags.jsx
+#: src/lib/menus/rows.js
 msgid "Rename…"
 msgstr "이름 바꾸기…"
 
@@ -17717,6 +17691,7 @@ msgstr "갱신일"
 #: src/components/comments/CommentCard.jsx
 #: src/components/DocCard.jsx
 #: src/components/fileShare/DocShareView.jsx
+#: src/lib/menus/rows.js
 msgid "Reopen"
 msgstr "다시 열기"
 
@@ -17736,11 +17711,11 @@ msgstr "모두 바꾸기"
 msgid "Replace all {count}"
 msgstr "{count}건 모두 바꾸기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Replace cover image…"
 msgstr "커버 이미지 교체…"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Replace image…"
 msgstr "이미지 교체…"
 
@@ -17823,7 +17798,7 @@ msgstr "{resendCooldown}초 후 다시 보내기"
 msgid "Reset"
 msgstr "재설정"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Reset curve"
 msgstr "곡선 초기화"
 
@@ -17831,7 +17806,7 @@ msgstr "곡선 초기화"
 msgid "Reset framing"
 msgstr "프레이밍 초기화"
 
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Reset to auto thumbnail"
 msgstr "자동 썸네일로 되돌리기"
 
@@ -17843,7 +17818,6 @@ msgstr "기본값으로 재설정"
 msgid "Reset view state"
 msgstr "보기 상태 초기화"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 msgid "Reset zoom"
 msgstr "확대/축소 초기화"
@@ -17857,6 +17831,7 @@ msgid "Resolution"
 msgstr "해상도"
 
 #: src/components/comments/CommentCard.jsx
+#: src/lib/menus/rows.js
 msgid "Resolve"
 msgstr "해결"
 
@@ -18065,7 +18040,6 @@ msgstr "되돌리는 중…"
 msgid "Rewinds every cluster in this workspace at once — for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible."
 msgstr "이 워크스페이스의 모든 클러스터를 한꺼번에 되돌려요. 실수로 대량 삭제한 뒤에 쓰는 기능이에요. 되돌리기 전 상태가 보관되므로 되돌리기 자체도 취소할 수 있어요."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 msgid "Right"
 msgstr "오른쪽"
@@ -18138,7 +18112,8 @@ msgstr "이 컴퓨터에서 실행돼요."
 msgid "Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file."
 msgstr "Mac의 Safari에서는 재생돼요. 또는 H.264 버전을 업로드하세요. 메모는 이 파일에 그대로 남아요."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
+msgctxt "background"
 msgid "Sage"
 msgstr "세이지"
 
@@ -18149,6 +18124,11 @@ msgstr "색상 추출에 실패했어요: {reason}"
 #: src/lib/cardInfo.js
 msgid "Sample rate"
 msgstr "샘플 레이트"
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sand"
+msgstr "모래"
 
 #: src/components/doc/DocBarA.jsx
 #: src/components/ToolOptionsBar.jsx
@@ -18224,7 +18204,7 @@ msgstr "저장하고 공유"
 msgid "Save as template"
 msgstr "템플릿으로 저장"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Save as template…"
 msgstr "템플릿으로 저장…"
 
@@ -18371,6 +18351,8 @@ msgstr "일정"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
 msgid "Schedule"
 msgstr "일정"
 
@@ -18462,6 +18444,11 @@ msgstr "스크롤하면 캔버스가 이동해요. {WHEEL_CMD}+스크롤은 확�
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling zooms at the pointer. {WHEEL_CMD}-scroll, Alt-scroll or Shift-scroll pans."
 msgstr "스크롤하면 포인터 위치에서 확대/축소돼요. {WHEEL_CMD}+스크롤, Alt+스크롤, Shift+스크롤은 화면을 이동해요."
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sea"
+msgstr "바다"
 
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
@@ -18676,8 +18663,8 @@ msgstr "“사람”에서 확인하세요."
 msgid "Seen"
 msgstr "읽음"
 
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Select"
 msgstr "선택"
 
@@ -18694,8 +18681,8 @@ msgstr "선택 / 이동"
 msgid "Select / move (V)"
 msgstr "선택 / 이동 (V)"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
+#: src/lib/menus/rows.js
 msgid "Select all"
 msgstr "모두 선택"
 
@@ -18748,7 +18735,7 @@ msgstr "선택 도구"
 msgid "Select words inside one paragraph to tag them."
 msgstr "태그를 달려면 한 문단 안에서 단어를 선택하세요."
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Select…"
 msgstr "선택…"
 
@@ -18790,7 +18777,7 @@ msgstr "협업자나 클라이언트에게 링크를 보내세요. 내가 추가
 msgid "Send a direct message"
 msgstr "다이렉트 메시지 보내기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Send backward"
 msgstr "뒤로 보내기"
 
@@ -18811,13 +18798,12 @@ msgstr "초대 보내기"
 msgid "Send invites"
 msgstr "초대 보내기"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Send to back"
 msgstr "맨 뒤로 보내기"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/SendSheet.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Send to…"
 msgstr "보내기…"
 
@@ -18955,10 +18941,6 @@ msgstr "서비스 계정"
 msgid "Set cluster thumbnail"
 msgstr "클러스터 썸네일 설정"
 
-#: src/components/CanvasSurface.jsx
-msgid "Set cover image…"
-msgstr "커버 이미지 설정…"
-
 #: src/components/film/FilmDock.jsx
 msgid "Set in"
 msgstr "인 지정"
@@ -19046,6 +19028,17 @@ msgstr "도형"
 msgid "Shape"
 msgstr "도형"
 
+#: src/lib/menus/cardMenu.js
+#: src/lib/menus/rows.js
+msgctxt "add card"
+msgid "Shape"
+msgstr "도형"
+
+#: src/lib/menus/rows.js
+msgctxt "menu"
+msgid "Shape"
+msgstr "도형"
+
 #: src/lib/listItemWords.js
 msgid "Shape ({shape})"
 msgstr "도형 ({shape})"
@@ -19083,6 +19076,7 @@ msgid "Share doc"
 msgstr "문서 공유"
 
 #: src/lib/fileShareBus.js
+#: src/lib/menus/rows.js
 msgid "Share doc…"
 msgstr "문서 공유…"
 
@@ -19090,9 +19084,7 @@ msgstr "문서 공유…"
 msgid "Share file"
 msgstr "파일 공유"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Share file…"
 msgstr "파일 공유…"
 
@@ -19117,6 +19109,7 @@ msgid "Share it in the store"
 msgstr "스토어에 공유"
 
 #: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Share layout"
 msgstr "레이아웃 공유"
 
@@ -19163,7 +19156,7 @@ msgid "share, invite, collaborate, public link"
 msgstr "공유, 초대, 협업, 공개 링크, 링크 공유"
 
 #: src/components/settings/InviteTab.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Share…"
 msgstr "공유…"
 
@@ -19412,23 +19405,14 @@ msgstr "클러스터 아래에 파일 표시"
 msgid "Show framing guides"
 msgstr "프레임 가이드 표시"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show group label"
-msgstr "그룹 라벨 표시"
-
 #: src/components/ListSurface.jsx
 msgid "Show in cluster"
 msgstr "클러스터에서 보기"
 
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Show in Files"
 msgstr "파일에서 보기"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show label"
-msgstr "라벨 표시"
-
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "Show labels"
 msgstr "라벨 표시"
@@ -19460,17 +19444,13 @@ msgstr "알림 표시"
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ListSurface.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+#: src/lib/menus/rows.js
 msgid "Show on board"
 msgstr "캔버스에서 보기"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "Show only"
 msgstr "다음만 표시"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show outline"
-msgstr "윤곽선 표시"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Show pages"
@@ -19763,17 +19743,13 @@ msgstr "화살촉 하나"
 msgid "Single cell"
 msgstr "단일 칸"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Single column"
 msgstr "한 열"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Single row"
 msgstr "한 줄"
-
-#: src/components/CanvasSurface.jsx
-msgid "Single-sided arrow"
-msgstr "한쪽 화살표"
 
 #: src/lib/cardInfo.js
 msgid "Site"
@@ -19800,6 +19776,7 @@ msgid "Size of the files"
 msgstr "파일 크기"
 
 #: src/components/SketchPadOverlay.jsx
+#: src/lib/menus/cardMenu.js
 msgid "Sketch"
 msgstr "스케치"
 
@@ -19860,8 +19837,8 @@ msgid "Small tiles"
 msgstr "작은 타일"
 
 #: src/components/CanvasSurface.jsx
-msgid "Snake — alternating rows{value}"
-msgstr "스네이크 — 행을 번갈아{value}"
+msgid "Snake — alternating rows"
+msgstr "스네이크 — 행마다 방향 바꾸기"
 
 #: src/lib/errorWords.js
 msgid "Snapshot has 0 cards / arrows / strokes — restore would empty the board."
@@ -20019,7 +19996,6 @@ msgstr "출처 필터와 대기 중인 제안"
 msgid "Source timecode"
 msgstr "소스 타임코드"
 
-#: src/components/ListSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/playerKeys.js
 msgctxt "keyboard key"
@@ -20031,7 +20007,7 @@ msgctxt "keyboard key"
 msgid "Space-drag"
 msgstr "스페이스+드래그"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Spacing"
 msgstr "간격"
 
@@ -20114,7 +20090,6 @@ msgid "Stand-in collaborators: none. Tap to change."
 msgstr "대역 공동 작업자: 없음. 탭해서 변경하세요."
 
 #: src/components/home/ClustersHome.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
 msgid "Star"
 msgstr "별표 표시"
 
@@ -20123,6 +20098,11 @@ msgstr "별표 표시"
 msgctxt "shape"
 msgid "Star"
 msgstr "별"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
+msgid "Star"
+msgstr "별표 표시"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Star a file or a cluster from its menu and it stays here."
@@ -20160,7 +20140,7 @@ msgstr "팀 시작하기"
 msgid "Start a Team trial"
 msgstr "Team 체험 시작"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Start at…"
 msgstr "시작 지점…"
 
@@ -20179,6 +20159,10 @@ msgstr "무료로 시작하세요. 부족해지면 그때 결제하세요."
 #: src/components/ShowcaseBanner.jsx
 msgid "Start fresh"
 msgstr "새로 시작"
+
+#: src/lib/menus/rows.js
+msgid "Start here"
+msgstr "여기서 시작"
 
 #: src/components/CanvasSurface.jsx
 msgid "Start here ({clipTime})"
@@ -20392,10 +20376,6 @@ msgstr "스토리보드 페이지"
 msgid "Straight"
 msgstr "직선"
 
-#: src/components/CanvasSurface.jsx
-msgid "Straight arrow"
-msgstr "직선 화살표"
-
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Strikethrough"
@@ -20421,8 +20401,8 @@ msgstr "Stripe에서 아직 결제를 확인하는 중이에요. 완료되는 �
 msgid "Stripe took the payment, but we haven't seen activation come through yet."
 msgstr "Stripe에서 결제는 받았지만 아직 활성화가 확인되지 않았어요."
 
-#: src/components/CanvasSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
+#: src/lib/menus/rows.js
 msgid "Stroke"
 msgstr "테두리"
 
@@ -20430,7 +20410,7 @@ msgstr "테두리"
 msgid "Stroke color"
 msgstr "획 색상"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Stroke color…"
 msgstr "테두리 색상…"
 
@@ -20532,6 +20512,11 @@ msgstr "텍스트에서 추천: {name}. ✓는 유지, ×는 여기서 다시 �
 #: src/components/settings/WorkspaceTab.jsx
 msgid "Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work."
 msgstr "여기에 쓴 내용을 바탕으로 태그를 제안하고, 문서에서 해당될 만한 태그에 밑줄을 긋고, 추가한 이미지를 설명해요. 텍스트와 각 이미지의 작은 사본은 Cloudflare Workers AI로 전송돼요. 끄면 Clusters는 아무것도 보내지 않고 이미지 설명은 삭제돼요. 직접 추가한 태그와 텍스트에 정확한 이름이 나오는 태그는 계속 작동해요."
+
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Sun"
+msgstr "태양"
 
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"
@@ -20635,7 +20620,6 @@ msgstr "표를 삭제했어요"
 msgid "tag"
 msgstr "태그"
 
-#: src/components/CardContextMenu.jsx
 #: src/components/entityPreviews/TagPreview.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/TagRangeHoverPopover.jsx
@@ -20661,9 +20645,9 @@ msgstr "태그 · {source}"
 msgid "Tag \"{name}\" deleted"
 msgstr "태그 “{name}” 삭제됨"
 
-#: src/components/CanvasSurface.jsx
-msgid "Tag {size} cards…"
-msgstr "카드 {size}장 태그…"
+#: src/lib/menus/rows.js
+msgid "Tag cluster…"
+msgstr "클러스터에 태그…"
 
 #: src/components/SidebarTags.jsx
 msgid "Tag create failed: {reason}"
@@ -20675,7 +20659,7 @@ msgstr "태그를 만들지 못했어요: {reason}"
 msgid "Tag failed: {reason}"
 msgstr "태그를 달지 못했어요: {reason}"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Tag group…"
 msgstr "그룹 태그…"
 
@@ -20688,6 +20672,7 @@ msgid "tag page"
 msgstr "태그 페이지"
 
 #: src/components/DocPageEditor.jsx
+#: src/components/DocPageTagChips.jsx
 #: src/components/TagDetailView.jsx
 msgid "Tag removed"
 msgstr "태그를 제거했어요"
@@ -20696,11 +20681,7 @@ msgstr "태그를 제거했어요"
 msgid "Tag selection…"
 msgstr "선택 항목 태그…"
 
-#: src/components/CanvasSurface.jsx
-msgid "Tag this cluster…"
-msgstr "이 클러스터 태그…"
-
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Tag…"
 msgstr "태그…"
 
@@ -20722,7 +20703,6 @@ msgstr "태그됨: 이 태그가 달린 항목으로, 사이드바가 세는 기
 msgid "Tags"
 msgstr "태그"
 
-#: src/components/CardContextMenu.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/EntityPicker.jsx
 msgid "TAGS"
@@ -20739,6 +20719,10 @@ msgstr "테이크: {label}. 탭해서 변경하세요."
 #: src/components/capture/CaptureHud.jsx
 msgid "Take: none. Tap to change."
 msgstr "테이크: 없음. 탭해서 변경하세요."
+
+#: src/lib/menus/rows.js
+msgid "Takes it off the canvas"
+msgstr "캔버스에서 빼요"
 
 #: src/lib/teamPricingCopyWords.js
 msgid "Talk to us"
@@ -20950,6 +20934,7 @@ msgstr "색온도"
 
 #: src/components/GridTemplatePanel.jsx
 #: src/components/SaveTemplateDialog.jsx
+#: src/lib/menus/rows.js
 msgid "Templates"
 msgstr "템플릿"
 
@@ -22399,16 +22384,9 @@ msgid "Thu"
 msgstr "목"
 
 #: src/components/toolbar/SelectionBarA.jsx
+#: src/lib/menus/rows.js
 msgid "Tidy up"
 msgstr "정리"
-
-#: src/components/CanvasSurface.jsx
-msgid "Tidy up ({size})"
-msgstr "정리 ({size})"
-
-#: src/components/CanvasSurface.jsx
-msgid "Tidy up board"
-msgstr "캔버스 정리"
 
 #: src/components/WaitlistModal.jsx
 msgid "tiktok.com/@your-handle"
@@ -22583,16 +22561,12 @@ msgstr "도구 모음"
 msgid "Tools"
 msgstr "도구"
 
-#: src/components/CanvasSurface.jsx
-msgid "Top"
-msgstr "위"
-
 #: src/App.jsx
 msgid "top level"
 msgstr "최상위"
 
-#: src/components/CanvasSurface.jsx
 #: src/lib/cardInfo.js
+#: src/lib/menus/rows.js
 msgid "Top level"
 msgstr "최상위"
 
@@ -22727,21 +22701,13 @@ msgctxt "weekday, short"
 msgid "Tue"
 msgstr "화"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Turn into cluster…"
 msgstr "클러스터로 바꾸기…"
-
-#: src/components/CanvasSurface.jsx
-msgid "Turn off autoplay"
-msgstr "자동 재생 끄기"
 
 #: src/App.jsx
 msgid "Turn off capture mode"
 msgstr "캡처 모드 끄기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Turn off looping"
-msgstr "반복 끄기"
 
 #: src/components/setup/WorkspaceSetup.jsx
 msgid "Two taps. We’ll set up your first cluster to match."
@@ -22750,6 +22716,10 @@ msgstr "탭 두 번이면 돼요. 그에 맞춰 첫 클러스터를 준비해 �
 #: src/lib/billingCopyWords.js
 msgid "Two things — how many cards you can have and how much you can store: {limit}. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and {planName}: up to {EDITOR_LIMIT} who edit, and as many as you like who view."
 msgstr "두 가지예요 — 만들 수 있는 카드 수와 저장할 수 있는 용량이에요: {limit}. 어떤 크기의 파일이든 모든 요금제에서 환영하고, 클러스터는 무료라서 카드를 소모하지 않아요. 사람 수는 무료와 {planName} 요금제가 같아요. 편집할 수 있는 사람은 최대 {EDITOR_LIMIT}명, 보기만 하는 사람은 원하는 만큼이에요."
+
+#: src/lib/menus/rows.js
+msgid "Two-way"
+msgstr "양방향"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/clusterBrowser/ClusterTable.jsx
@@ -22857,7 +22827,7 @@ msgstr "실행 취소하려면 카드가 이동된 클러스터가 필요해요.
 msgid "Undo sketch change"
 msgstr "스케치 변경 실행 취소"
 
-#: src/components/CanvasSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Ungroup"
 msgstr "그룹 해제"
 
@@ -22972,7 +22942,11 @@ msgid "Unread"
 msgstr "읽지 않음"
 
 #: src/components/home/ClustersHome.jsx
-#: src/components/sidebar/ClusterSidebar.jsx
+msgid "Unstar"
+msgstr "별표 해제"
+
+#: src/lib/menus/rows.js
+msgctxt "verb"
 msgid "Unstar"
 msgstr "별표 해제"
 
@@ -23033,6 +23007,7 @@ msgstr "제목 없는 카드"
 #: src/hooks/useSidebarFiles.js
 #: src/lib/homeMap.js
 #: src/lib/homeRail.js
+#: src/lib/menus/clusterMenu.js
 #: src/lib/moveFailure.js
 #: src/lib/ownWork.js
 #: src/lib/shareCardLayout.js
@@ -23216,8 +23191,7 @@ msgstr "어떤 파일이든 업로드하면 캔버스에 있든 없든 여기 �
 msgid "Upload any file and it stays here in Files. Search it, or open it as a full page."
 msgstr "어떤 파일이든 업로드하면 여기 파일에 남아요. 검색하거나 전체 페이지로 열어 보세요."
 
-#: src/components/CanvasSurface.jsx
-#: src/components/SidebarBoardTree.jsx
+#: src/lib/menus/rows.js
 msgid "Upload custom thumbnail…"
 msgstr "사용자 지정 썸네일 업로드…"
 
@@ -23235,6 +23209,10 @@ msgstr "업로드에 실패했어요: {reason}"
 msgid "Upload files"
 msgstr "파일 업로드"
 
+#: src/lib/menus/rows.js
+msgid "Upload files…"
+msgstr "파일 업로드…"
+
 #: src/components/DocInsertMenu.jsx
 msgid "Upload from your machine"
 msgstr "내 컴퓨터에서 업로드"
@@ -23243,8 +23221,7 @@ msgstr "내 컴퓨터에서 업로드"
 msgid "Upload network error"
 msgstr "업로드 네트워크 오류"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/ListSurface.jsx
+#: src/lib/menus/rows.js
 msgid "Upload new version…"
 msgstr "새 버전 업로드…"
 
@@ -23440,10 +23417,6 @@ msgstr "버전은 정보에서 볼 수 있어요"
 msgid "Vertical"
 msgstr "세로"
 
-#: src/components/CanvasSurface.jsx
-msgid "Vertically"
-msgstr "세로"
-
 #: src/components/ImageAdjustPanel.jsx
 msgid "Vibrance"
 msgstr "생동감"
@@ -23467,6 +23440,7 @@ msgstr "동영상"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/menus/cardMenu.js
 #: src/lib/onboardingTourWords.js
 #: src/lib/sharedFiles.js
 msgid "Video"
@@ -23509,6 +23483,11 @@ msgctxt "permission"
 msgid "View"
 msgstr "보기 전용"
 
+#: src/lib/menus/rows.js
+msgctxt "schedule"
+msgid "View"
+msgstr "보기"
+
 #: src/App.jsx
 msgid "View access to “{name}” was shared with you."
 msgstr "“{name}”의 보기 권한이 나와 공유됐어요."
@@ -23521,8 +23500,8 @@ msgstr "클러스터의 보기 권한이 나와 공유됐어요."
 msgid "View changed"
 msgstr "보기 변경됨"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
+#: src/lib/menus/rows.js
 msgid "View full size"
 msgstr "원래 크기로 보기"
 
@@ -23599,10 +23578,6 @@ msgstr "뷰어는 여기서 채팅을 시작할 수 없어요. 시작하려면 �
 msgid "Violet"
 msgstr "보라색"
 
-#: src/components/CanvasSurface.jsx
-msgid "Visual"
-msgstr "시각 자료"
-
 #: src/components/film/FilmDock.jsx
 msgid "Volume"
 msgstr "볼륨"
@@ -23619,6 +23594,7 @@ msgstr "볼륨 높이기 · 낮추기"
 #: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/lib/indexRowCard.js
+#: src/lib/menus/rows.js
 msgid "Vote"
 msgstr "투표"
 
@@ -23690,6 +23666,11 @@ msgstr "이(가) 내 클러스터에 연결하려고 해요"
 msgid "Wardrobe and art direction"
 msgstr "의상과 미술"
 
+#: src/lib/menus/rows.js
+msgctxt "cover color"
+msgid "Warm"
+msgstr "웜"
+
 #: src/lib/oauthConsentCopy.js
 msgid "We could not check that app just now"
 msgstr "지금은 해당 앱을 확인할 수 없어요"
@@ -23748,22 +23729,15 @@ msgstr "승인되면 약 일주일 안에 이메일로 알려 드려요."
 msgid "We're reviewing your application and will email you when a spot opens."
 msgstr "신청서를 검토 중이에요. 자리가 나면 이메일로 알려 드릴게요."
 
-#: src/components/CanvasSurface.jsx
-msgid "Web"
-msgstr "웹"
-
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"
 msgid "Wed"
 msgstr "수"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/ScheduleCard.jsx
 msgid "Week"
 msgstr "주"
-
-#: src/components/CanvasSurface.jsx
-msgid "Week{value}"
-msgstr "주{value}"
 
 #: src/pages/ResumePage.jsx
 msgid "Welcome back — pick up where you left off."
@@ -23877,10 +23851,6 @@ msgstr "용도가 무엇인가요? 예: 샷 리스트 스크립트"
 #: src/components/UpgradeReasonAsk.jsx
 msgid "What is it?"
 msgstr "무엇인가요?"
-
-#: src/components/SidebarTags.jsx
-msgid "What kind of thing is it?"
-msgstr "어떤 종류인가요?"
 
 #: src/components/setup/WorkspaceSetup.jsx
 msgid "What kind of work do you do?<0>Optional</0>"
@@ -24990,6 +24960,10 @@ msgstr "내 초대 링크"
 msgid "Your invites and referral link →"
 msgstr "내 초대와 친구 초대 링크 →"
 
+#: src/lib/menus/clusterMenu.js
+msgid "Your last cluster can't be deleted"
+msgstr "마지막 클러스터는 삭제할 수 없어요"
+
 #: src/lib/docResets.js
 msgid "Your last edits on this page didn’t make it before the cluster reloaded."
 msgstr "클러스터가 다시 불러와지기 전에 이 페이지의 마지막 편집 내용이 반영되지 않았어요."
@@ -25162,8 +25136,8 @@ msgid "yourself"
 msgstr "나 자신"
 
 #: src/components/CanvasSurface.jsx
-msgid "Z — rows, left→right{value}"
-msgstr "Z — 행 기준, 왼쪽→오른쪽{value}"
+msgid "Z — rows, left→right"
+msgstr "Z — 행 순서, 왼쪽→오른쪽"
 
 #: src/lib/importCopy.js
 msgid "Zip file"

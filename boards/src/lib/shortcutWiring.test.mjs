@@ -39,7 +39,13 @@ test('the canvas draws it, opens it on double-click and from its menu, nothing o
   const c = src('../components/CanvasSurface.jsx');
   assert.match(c, /else if \(c\.kind === 'shortcut'\)  inner = <ShortcutCard shareToken=\{c\.shareToken\} isPublic=\{isPublic\}\s+onRemove=\{canEdit && !isPublic \? \(\) => doDeleteIds\(\[c\.id\]\) : null\} \/>;/);
   assert.match(c, /if \(c\.kind === 'shortcut'\) \{\s+if \(c\.shareToken && !isPublic\) \{ e\.stopPropagation\?\.\(\); openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\); \}\s+return;\s+\}/);
-  assert.match(c, /\} else if \(c\.kind === 'shortcut' && c\.shareToken && !isPublic\) \{\s+openItems\.push\(\{ id: 'open', label: tr`Open`, run: \(\) => openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\) \}\);/);
+  // The menu (src/lib/menus): a viewer's Open only off a public board; an
+  // editor's the same act. The row is the catalogue's Open.
+  assert.match(c, /\} else if \(c\.kind === 'shortcut' && c\.shareToken && !isPublic\) \{\s+acts\.open = \(\) => openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\);\s+\}/);
+  assert.match(c, /\} else if \(c\.kind === 'shortcut'\) \{\s+(?:\/\/[^\n]*\n\s+)*if \(c\.shareToken\) acts\.open = \(\) => openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\);/);
+  assert.match(src('./menus/cardMenu.js'), /\n  shortcut: \{ open: \['open'\] \},/);
+  assert.match(src('./menus/cardMenu.js'), /const VIEWER_OPEN = \[[^\]]*'open'[^\]]*\];/);
+  assert.match(src('./menus/rows.js'), /\n  open: R\('ArrowSquareOut', \(\) => t\(\{ message: 'Open', context: 'verb' \}\)\),/);
   // Never "Share file…": a shortcut is not the file.
   assert.match(src('./fileShares.js'), /export const SHAREABLE_KINDS = Object\.freeze\(\['image', 'video', 'audio', 'pdf', 'file'\]\);/);
 });

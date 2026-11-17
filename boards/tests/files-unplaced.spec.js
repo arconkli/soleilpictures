@@ -26,14 +26,19 @@ const canvasCount = (page) => page.locator('.canvas-wrap [data-card-id]').count(
 
 async function removeFromBoard(page, id) {
   await onCanvas(page, id).click({ button: 'right' });
-  await page.locator('.ctx-menu .ctx-item', { hasText: 'Remove from board' }).click();
+  // "Remove from board" is now "Keep in Files only", the last row of Move to
+  // cluster › (plan.md §3 Card: "Move to cluster › = … · Keep in Files only").
+  await page.locator('.ctx-menu:not(.ctx-submenu)').getByRole('menuitem', { name: 'Move to cluster', exact: true }).hover();
+  await page.locator('.ctx-submenu').getByRole('menuitem', { name: /^Keep in Files only/ }).click();
   await expect(onCanvas(page, id)).toHaveCount(0);
 }
 
-test('Remove from board takes a card off the canvas and keeps it in Files, marked; undo puts it back', async ({ page }) => {
+test('Keep in Files only takes a card off the canvas and keeps it in Files, marked; undo puts it back', async ({ page }) => {
   await go(page);
   await removeFromBoard(page, 'home-image');
-  await expect(page.locator('.toast-msg').getByText('Removed from board — it’s still in Files')).toBeVisible();
+  // The toast says what the row says now (plan.md §3 Card, Keep in Files only:
+  // "Takes it off the canvas").
+  await expect(page.locator('.toast-msg').getByText('Taken off the canvas. It’s still in Files.')).toBeVisible();
   await page.keyboard.press('f');
   const tile = panel(page).locator('[data-item-id="home-image"]');
   await expect(tile).toBeVisible();

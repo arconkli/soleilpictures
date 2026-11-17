@@ -50,7 +50,7 @@ Direct and group conversations in one list, ordered by recency.
 
 Right-click a card or a cluster and choose **Send to…** to send it to people in
 Messages. It's on any card on the canvas, on several selected cards at once
-(**Send 3 cards to…**, up to 50), on a cluster's card, and on
+(up to 50; the menu's title shows how many), on a cluster's card, and on
 a cluster in the sidebar. On a phone or tablet, use a card's **⋯** menu, or hold
 a cluster in the sidebar.
 

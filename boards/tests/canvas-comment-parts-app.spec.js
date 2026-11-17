@@ -5,7 +5,9 @@
 // pin, the comments island, the list behind it and the open conversation.
 // None of them is the canvas or a card, so none opens the canvas's menu or a
 // card's, even where a card lies under the pin; and the part that was
-// right-clicked is left as it was. A right-click beside them still opens the
+// right-clicked is left as it was. A pin has a menu of its own now (plan.md
+// §1.7 and §3 "Comment pin": Open · Resolve / Reopen · Copy link · Delete),
+// which is neither of those. A right-click beside them still opens the
 // canvas's menu, and one on the card its own.
 //
 // The held finger's half is tests/touch/canvas-comment-parts-hold.spec.js.
@@ -32,6 +34,20 @@ async function noMenu(page) {
   await page.waitForTimeout(350);
   await expect(menu(page)).toHaveCount(0);
   await expect(page.locator('.canvas-wrap .card.is-selected')).toHaveCount(0);
+}
+
+// The pin's own menu, and only it: no canvas rows (Select all), no card's
+// quick row, no card picked. Escape puts it away.
+async function pinMenuOnly(page) {
+  await page.waitForTimeout(350);
+  await expect(menu(page)).toHaveCount(1);
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Comment');
+  await expect(menu(page).getByRole('menuitem', { name: 'Open', exact: true })).toBeVisible();
+  await expect(menu(page).getByRole('menuitem', { name: 'Select all' })).toHaveCount(0);
+  await expect(menu(page).locator('.ctx-quick')).toHaveCount(0);
+  await expect(page.locator('.canvas-wrap .card.is-selected')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveCount(0);
 }
 
 test('a right-click on a pin, the island, the list or the open conversation opens no canvas menu and no card menu', async ({ page, baseURL }) => {
@@ -67,13 +83,13 @@ test('a right-click on a pin, the island, the list or the open conversation open
   await page.mouse.click(empty.x, empty.y);
   await expect(page.locator('.canvas-wrap .card.is-selected')).toHaveCount(0);
 
-  // a pin (over the card): nothing opens, not even the conversation
+  // a pin (over the card): its own menu only, not even the conversation
   await pin(page, POINT.theirs).click({ button: 'right' });
-  await noMenu(page);
+  await pinMenuOnly(page);
   await expect(card(page)).toHaveCount(0);
   await expect(pin(page, POINT.theirs)).not.toHaveClass(/is-open/);
   await pin(page, POINT.mine).click({ button: 'right' });
-  await noMenu(page);
+  await pinMenuOnly(page);
 
   // the island: no menu, and the list is not opened by it
   await island(page).click({ button: 'right' });
@@ -101,9 +117,9 @@ test('a right-click on a pin, the island, the list or the open conversation open
   await open.locator('.cmt-head').click({ button: 'right', position: { x: 12, y: 8 } });
   await noMenu(page);
   await expect(open).toBeVisible();
-  // its pin, while open
+  // its pin, while open: its own menu, and the conversation stays
   await pin(page, POINT.theirs).click({ button: 'right' });
-  await noMenu(page);
+  await pinMenuOnly(page);
   await expect(open).toBeVisible();
   await expect(pin(page, POINT.theirs)).toHaveClass(/is-open/);
 

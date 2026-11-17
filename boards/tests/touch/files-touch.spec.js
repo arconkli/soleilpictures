@@ -21,6 +21,10 @@ const folder = (page, name) => files(page).locator('.ft', { hasText: name });
 const quickLook = (page) => page.getByRole('dialog', { name: /^Quick look/ });
 const menu = (page) => page.locator('.ctx-menu').last();
 const bar = (page) => files(page).locator('.list-selbar');
+// The phone's shell (phones, and touch tablets up to 1024px wide: an upright
+// iPad; lib/deviceShell.js) gets its menus as a bottom sheet; a wider one, an
+// iPad held sideways, keeps the menu beside the finger (plan.md §1, decision 11).
+const sheetShell = (page) => (page.viewportSize()?.width ?? 0) <= 1024;
 
 // `filesrules`: the harness's stand-in for moving and copying between
 // clusters (window.__filesRulesQa), which Copy to… needs.
@@ -114,25 +118,33 @@ test.describe('Files', () => {
     await expect(quickLook(page)).toBeVisible();
   });
 
-  test('a hold opens the menu at the finger, Select first, and letting go picks nothing from it', async ({ page, browserName }) => {
+  test('a hold opens the menu at the finger (a sheet on a phone), Select first, and letting go picks nothing from it', async ({ page, browserName }) => {
     needsHold(test, browserName);
     await openFiles(page);
     const at = await middle(tile(page, 'home-note'));
     await hold(page, at);
     await expect(menu(page).getByRole('menuitem').first()).toHaveText('Select');
-    const box = await menu(page).boundingBox();
-    // At the finger: the hold point is on the menu's edge or beside it, even
-    // where a tall menu is lifted to end above the phone's tab bar
-    // (lib/ctxMenuFit.js), which puts the finger halfway down its side.
-    const gap = Math.hypot(
-      Math.max(box.x - at.x, 0, at.x - (box.x + box.width)),
-      Math.max(box.y - at.y, 0, at.y - (box.y + box.height)));
-    expect(gap).toBeLessThan(48);
-    const navTop = await page.evaluate(() => {
-      const r = document.querySelector('.mb-nav')?.getBoundingClientRect();
-      return r && r.height > 0 ? r.top : innerHeight;
-    });
-    expect(box.y + box.height).toBeLessThanOrEqual(navTop);
+    if (sheetShell(page)) {
+      // A phone's menu rises from the foot of the screen, over the tab bar
+      // (plan.md §1, decision 11; steps 2-3: the sheet "covers the tab bar").
+      await expect(menu(page)).toHaveClass(/is-sheet/);
+      // Once it has risen (sheet-up, 260ms): its foot on the window's.
+      await expect.poll(async () => {
+        const panel = await page.locator('.sheet-panel').boundingBox();
+        return !!panel && Math.abs(panel.y + panel.height - page.viewportSize().height) < 2;
+      }).toBe(true);
+    } else {
+      const box = await menu(page).boundingBox();
+      // At the finger: the hold point is on the menu's edge or beside it, even
+      // where a tall menu is lifted to stay in the window (lib/ctxMenuFit.js),
+      // which puts the finger halfway down its side.
+      await expect(menu(page)).not.toHaveClass(/is-sheet/);
+      const gap = Math.hypot(
+        Math.max(box.x - at.x, 0, at.x - (box.x + box.width)),
+        Math.max(box.y - at.y, 0, at.y - (box.y + box.height)));
+      expect(gap).toBeLessThan(48);
+      expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize().height);
+    }
     await page.waitForTimeout(300);
     await expect(menu(page)).toBeVisible();
     await expect(quickLook(page)).toHaveCount(0);
@@ -284,6 +296,10 @@ test.describe('the sidebar’s files', () => {
     await take.scrollIntoViewIfNeeded();
     const b = await take.boundingBox();
     await hold(page, { x: b.x + 24, y: b.y + b.height / 2 });
+    // On a phone the sheet rises under the finger still held: letting go
+    // picks nothing from it, and it stays open.
+    await page.waitForTimeout(300);
+    await expect(menu(page)).toBeVisible();
     await expect(menu(page).getByRole('menuitem').first()).toHaveText('Select');
     await menu(page).getByRole('menuitem', { name: 'Select', exact: true }).tap();
     await expect(bulk(page)).toContainText('1 selected');

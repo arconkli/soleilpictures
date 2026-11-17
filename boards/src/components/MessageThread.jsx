@@ -1,7 +1,8 @@
 import { useContext, useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { ChevronLeft, X, Search, Pin, MoreHorizontal, UserPlus, LogOut, Edit, ArrowDown } from '../lib/icons.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { ChevronLeft, X, Search, Pin, MoreHorizontal, ArrowDown } from '../lib/icons.js';
 import { useMessageThread } from '../hooks/useMessageThread.js';
 import { useStickToBottom } from '../hooks/useStickToBottom.js';
 import { useLongPress } from '../hooks/useLongPress.js';
@@ -892,6 +893,12 @@ export function MessageThread({
 
   // ── Group chat actions ───────────────────────────────────────────────
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const menuOpenRef = useRef({ el: null, byKey: false });
+  const openGroupMenu = (e) => {
+    // detail 0: the click came from the keyboard, so the menu opens on its first row.
+    menuOpenRef.current = { el: e.currentTarget, byKey: e.detail === 0 };
+    setMenuAnchor(e.currentTarget.getBoundingClientRect());
+  };
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [addPickerAnchor, setAddPickerAnchor] = useState(null);
@@ -1043,9 +1050,11 @@ export function MessageThread({
         {!isDm && !card && (
           <button
             className="msg-panel-icon"
-            onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
+            onClick={openGroupMenu}
             title={tr`Conversation actions`}
             aria-label={tr`Conversation actions`}
+            aria-haspopup="menu"
+            aria-expanded={!!menuAnchor}
           >
             <Icon as={MoreHorizontal} size={14} />
           </button>
@@ -1064,9 +1073,11 @@ export function MessageThread({
         {!isDm && card && (
           <button
             className={`msg-panel-icon ${menuAnchor ? 'is-active' : ''}`}
-            onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
+            onClick={openGroupMenu}
             title={tr`Conversation actions`}
             aria-label={tr`Conversation actions`}
+            aria-haspopup="menu"
+            aria-expanded={!!menuAnchor}
           >
             <Icon as={MoreHorizontal} size={14} />
           </button>
@@ -1081,6 +1092,8 @@ export function MessageThread({
       {menuAnchor && (
         <GroupChatMenu
           anchor={menuAnchor}
+          byKey={menuOpenRef.current.byKey}
+          opener={menuOpenRef.current.el}
           onRename={beginRename}
           onAdd={() => { setAddPickerAnchor(menuAnchor); setMenuAnchor(null); }}
           onLeave={openLeaveConfirm}
@@ -1391,50 +1404,26 @@ function ReadOnlyComposerNotice({ reason }) {
 }
 
 // ── Group chat menu (rename / add / leave) ──────────────────────────
-function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) {
-  const popRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  useLayoutEffect(() => {
-    if (!anchor) return;
-    const vw = window.innerWidth;
-    const top = anchor.bottom + 4;
-    const left = Math.min(anchor.left, vw - 180);
-    setPos({ top, left });
-  }, [anchor]);
-
-  useEffect(() => {
-    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
-    // doesn't close on the same press.
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
+// The shared menu (CardContextMenu), under the header's ⋯ button; portaled to
+// body like the conversation row's menu in MessagesPanel.
+function GroupChatMenu({ anchor, byKey, opener, onRename, onAdd, onLeave, canLeave, onClose }) {
+  const items = [
+    { id: 'rename', label: tr`Rename…`, icon: 'PencilSimple', run: onRename },
+    { id: 'add', label: tr`Add people`, icon: 'UserPlus', run: onAdd },
+    { id: 'leave', label: tr`Leave…`, icon: 'SignOut', danger: true, disabled: !canLeave,
+      hint: canLeave ? undefined : tr`Need 3+ members to leave`, run: onLeave },
+  ];
   return createPortal((
-    <div ref={popRef} className="msg-group-menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
-      <button className="msg-group-menu-item" onClick={onRename}>
-        <Icon as={Edit} size={12} /> <Trans>Rename</Trans>
-      </button>
-      <button className="msg-group-menu-item" onClick={onAdd}>
-        <Icon as={UserPlus} size={12} /> <Trans>Add people</Trans>
-      </button>
-      <button
-        className="msg-group-menu-item is-danger"
-        onClick={canLeave ? onLeave : undefined}
-        disabled={!canLeave}
-        title={canLeave ? tr`Leave conversation` : tr`Need 3+ members to leave`}
-      >
-        <Icon as={LogOut} size={12} /> <Trans>Leave</Trans>
-      </button>
-    </div>
+    <CardContextMenu
+      open={!!anchor}
+      x={anchor?.left ?? 0}
+      y={(anchor?.bottom ?? 0) + 4}
+      items={items}
+      root="menu"
+      byKey={byKey}
+      returnFocus={opener}
+      onClose={onClose}
+    />
   ), document.body);
 }
 

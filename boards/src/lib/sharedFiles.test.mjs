@@ -82,8 +82,15 @@ test('the Shared page, the in-app viewer and the sidebar row all answer to share
 
 test('the Shared page’s menus and undo are the app’s', () => {
   const page = src('../components/shared/SharedPage.jsx');
-  assert.match(page, /\{ id: 'hide', label: tr`Remove from my list`/);
-  assert.match(page, /\{ id: 'stop', label: tr`Stop sharing`, danger: true/);
+  // The rows are the app's catalogue (src/lib/menus/rows.js): Remove from my list,
+  // and Stop sharing on the Delete row, which is red.
+  const rows = src('./menus/rows.js');
+  assert.match(rows, /'remove-from-list': R\('MinusCircle', \(\) => t`Remove from my list`\)/);
+  assert.match(rows, /\n  delete: R\('Trash', \(\) => t`Delete`, \{ shortcut: \(\) => del\(\), danger: true \}\),/);
+  assert.match(page, /\['remove-from-list'\],\s+\], \{/);
+  assert.match(page, /'remove-from-list': \(\) => removeFromList\(item\),/);
+  assert.match(page, /clusterMenu\(\{ name: it\.name \}, \{ edit: false, canRemoveFromList: true \}, \{[\s\S]*?'remove-from-list': \(\) => onRemoveCluster\?\.\(it\.id\),/);
+  assert.match(page, /delete: \{ run: \(\) => stopSharing\(row\), label: tr`Stop sharing`, shortcut: null \},/);
   assert.match(page, /label: tr`Undo`/);
   assert.match(page, /undoStopFileShare\(row\.board_id, row\.card_id,\s+\{ linkAccess: data\.link_access, stoppedAt: data\.stopped_at \}\)/);
   assert.match(page, /item\.allow_download && SAVEABLE\.has\(item\.kind\)/, 'Save a copy only where downloading is allowed');

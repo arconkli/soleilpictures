@@ -3,7 +3,7 @@
 // Comments on a note's and a doc's words, in the real signed-in app on a real
 // cluster (tests/commentApp.js answers Supabase): the paths the ?noteqa and
 // ?docqa harnesses cannot reach. A note's menu on the canvas lists its
-// comments ("Comments (n)"); Copy link says so and copies a link that names
+// comments ("1 comment", "2 comments"); Copy link says so and copies a link that names
 // the cluster, the card and the comment; opening that link goes through
 // App.jsx to the card and the thread, and leaves a clean address; a link to a
 // comment that is gone says so once the cluster is in.
@@ -64,7 +64,7 @@ test.describe('a note on a real cluster', () => {
 
     // the note's own menu on the canvas
     await noteBody(page).click({ button: 'right' });
-    const item = page.locator('.ctx-menu').getByRole('menuitem', { name: 'Comments (1)' });
+    const item = page.locator('.ctx-menu').getByRole('menuitem', { name: '1 comment', exact: true });
     await expect(item).toBeVisible();
     await item.click();
     const rows = page.locator('.cmt-float-host .cmt-list-row');

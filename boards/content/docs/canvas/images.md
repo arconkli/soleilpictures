@@ -162,7 +162,7 @@ For a fixed layout with defined cells instead, use a [grid](/docs/canvas/grids).
 ## Cropping and thumbnails
 
 Cluster cover images use the same machinery: right-click a cluster →
-**Upload custom thumbnail** to pick your own, with a 16:9 crop and reposition
+**Color and cover ›** → **Upload custom thumbnail…** to pick your own, with a 16:9 crop and reposition
 step. **Reset to auto thumbnail** returns to the generated miniature of the
 board itself.
 

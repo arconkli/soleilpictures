@@ -15,6 +15,7 @@ import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
 import { SidebarSharedBoards } from '../components/SidebarSharedBoards.jsx';
+import { ClusterActionsContext } from '../hooks/useClusterActions.js';
 import { sharedChildrenMap } from '../lib/sharedList.js';
 import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, TOUCH_FILES_QUERY, filesFolded, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout, shownLayout, keepStoredFold, withFilesHidden } from '../lib/sidebarLayout.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
@@ -651,6 +652,43 @@ export function SidebarQaHarness() {
   const moveApi = useMemo(() => makeMoveApi(source.calls), [source]);
   const feedback = useMemo(() => ({ toast: (t) => setToast(t) }), []);
   const say = (msg) => setLog((l) => [...l.slice(-4), msg]);
+  // App's shared cluster action set (hooks/useClusterActions.js), every act recorded in the log.
+  // The sets live in refs so the object stays stable; a menu reads them as it opens.
+  const qaStarred = useRef(new Set());
+  const qaOpensInFiles = useRef(new Set());
+  const qaClusterActs = useMemo(() => {
+    const log = (msg) => setLog((l) => [...l.slice(-4), msg]);
+    return {
+      open: (id) => log(`open ${id}`),
+      share: (id) => log(`share ${id}`),
+      copyLink: (id) => log(`copy-link ${id}`),
+      newInside: (id) => log(`new-inside ${id}`),
+      moveTo: (id) => log(`move-to ${id}`),
+      setTint: (id, tint) => log(`tint ${id} ${tint || 'neutral'}`),
+      pickColor: (id) => log(`pick-color ${id}`),
+      pickThumb: (id) => log(`pick-thumb ${id}`),
+      resetThumb: (id) => log(`reset-thumb ${id}`),
+      isStarred: (id) => qaStarred.current.has(id),
+      toggleStar: (id) => {
+        if (qaStarred.current.has(id)) qaStarred.current.delete(id); else qaStarred.current.add(id);
+        log(`star ${id}`);
+      },
+      info: (id) => log(`info ${id}`),
+      copy: (id) => log(`copy ${id}`),
+      pasteInto: (id) => log(`paste-into ${id}`),
+      canPaste: () => false,
+      opensInFiles: (id) => qaOpensInFiles.current.has(id),
+      setOpensInFiles: (id, on) => {
+        if (on) qaOpensInFiles.current.add(id); else qaOpensInFiles.current.delete(id);
+        log(`opens-as ${id} ${on ? 'list' : 'canvas'}`);
+      },
+      remove: (id) => log(`remove ${id}`),
+      removeFromList: (id) => log(`remove-from-list ${id}`),
+      can: (board) => ({ edit: true, isRoot: board?.id === 'root', isLastTop: false, sharedWithMe: false, canRemoveFromList: false }),
+      canSend: () => false,
+      send: (id) => log(`send ${id}`),
+    };
+  }, []);
   // App's fold for the Files page in direction A: shown, never kept.
   const pageFold = !!FILES_LOOK && !mobileShell && surface === 'files';
   const shown = useMemo(() => shownLayout(layout, { pageOpen: pageFold }), [layout, pageFold]);
@@ -726,6 +764,7 @@ export function SidebarQaHarness() {
   return (
     <>
     <style>{QA_STYLE}</style>
+    <ClusterActionsContext.Provider value={qaClusterActs}>
     <FilesLookContext.Provider value={FILES_LOOK}>
     <div className={`app sb-files${mobileShell ? '' : ' is-floating-chrome'}${collapsed ? ' sb-collapsed' : ''}${surface === 'home' ? ' is-home' : ''}${pageFold ? ' is-files-page' : ''}`}
          style={{ ...(mobileShell ? null : { '--sb-w': `${collapsed ? 0 : sidebarFootprint(shown, fit)}px` }), height: '100vh' }}
@@ -795,7 +834,6 @@ export function SidebarQaHarness() {
               if (window.__sidebarQa.putFails) throw putRefusal('view_only', window.__sidebarQa.putFails);
               return { placed: cardIds.length, left: 0 };
             }}
-            onSetOpensAs={(id, v) => say(`opens-as ${id} ${v}`)}
             onDropFilesOnCluster={(b, files) => say(`drop ${files.length} on ${b}`)}
             // A folder or zips on a cluster: the bulk import's door, recorded;
             // a loose file beside the zips comes back to go in as a drop.
@@ -1047,6 +1085,7 @@ export function SidebarQaHarness() {
       )}
     </div>
     </FilesLookContext.Provider>
+    </ClusterActionsContext.Provider>
     {notifOpen && createPortal((
       <NotificationsPanel
         items={notifItems} unread={notifUnread} loading={false}

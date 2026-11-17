@@ -526,19 +526,28 @@ test.describe('grid templates — applying to an existing grid', () => {
   // there is no backend, so the entry is absent rather than present-and-broken
   // — which is also what this asserts: the menu must not offer an action that
   // cannot work.
+  // Both live in the grid's Templates › now (plan.md §3, the grid row of the
+  // kind table).
+  const templatesMenu = async (page) => {
+    await page.locator('.card-kind-grid').first().dispatchEvent('contextmenu');
+    await expect(page.locator('.ctx-menu').first()).toBeVisible();
+    await page.locator('.ctx-menu:not(.ctx-submenu)').getByRole('menuitem', { name: 'Templates', exact: true }).hover();
+    const sub = page.locator('.ctx-submenu');
+    await expect(sub).toBeVisible();
+    return sub;
+  };
+
   test('save-as-template is absent without a backend', async ({ page }) => {
     await placeTemplate(page, '2 × 2');
-    await page.locator('.card-kind-grid').first().dispatchEvent('contextmenu');
-    await expect(page.locator('.ctx-menu')).toBeVisible();
-    await expect(page.locator('.ctx-menu').getByText('Apply template…', { exact: true })).toBeVisible();
+    const sub = await templatesMenu(page);
+    await expect(sub.getByText('Apply template…', { exact: true })).toBeVisible();
     await expect(page.locator('.ctx-menu').getByText('Save as template…', { exact: true })).toHaveCount(0);
   });
 
   // Reaching the same panel from the card, which also does the selecting.
   test('the card context menu opens the panel targeting that grid', async ({ page }) => {
     await placeTemplate(page, '2 × 2');
-    await page.locator('.card-kind-grid').first().dispatchEvent('contextmenu');
-    await page.locator('.ctx-menu').getByText('Apply template…', { exact: true }).click();
+    await (await templatesMenu(page)).getByText('Apply template…', { exact: true }).click();
 
     await expect(panel(page)).toBeVisible();
     await expect(panel(page).locator('.tplt-hint')).toContainText('Replaces');

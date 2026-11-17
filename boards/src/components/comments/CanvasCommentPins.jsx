@@ -2,7 +2,10 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExt
 import { Icon } from '../Icon.jsx';
 import { Edit } from '../../lib/icons.js';
 import { useFeedback } from '../AppFeedback.jsx';
-import { updateComment } from '../../lib/commentsApi.js';
+import { updateComment, deleteComment, restoreComment } from '../../lib/commentsApi.js';
+import { commentLinkUrl } from '../../lib/commentLinkUrl.js';
+import { undoToast } from '../../lib/undoToast.js';
+import { commentPinMenu } from '../../lib/menus/index.js';
 import { commentPowers } from '../../lib/commentRules.js';
 import { rescanParked } from '../../lib/commentParked.js';
 import {
@@ -66,9 +69,11 @@ function countLabel(n, unsent, unread) {
 //   upsertLocally(row)   useCanvasComments' own, for a moved point comment
 //   boardId       the cluster: where this person's unsent comments are filed
 //   ydoc, workspaceId   for the comments on the words of its notes (NoteCommentsLayer.jsx)
+//   removeLocally(id)   useCanvasComments' own, for a pin's Delete
+//   onPinMenu({ x, y, menu })   a right-click on a pin: the menu to show there (commentPinMenu's), the canvas draws it
 export const CanvasCommentPins = memo(function CanvasCommentPins({
   comments, currentUser, viewsByRootId, ui, zoom = 1, cards, groupBox, visible = true, view, onZoomTo,
-  canEdit = false, upsertLocally, boardId, ydoc = null, workspaceId = null,
+  canEdit = false, upsertLocally, removeLocally, boardId, ydoc = null, workspaceId = null, onPinMenu,
 }) {
   const feedback = useFeedback();
   // Comments started here and left with words in them each keep a pin where
@@ -166,6 +171,66 @@ export const CanvasCommentPins = memo(function CanvasCommentPins({
   const meId = currentUser?.id || null;
   const movable = (t) => t.root.meta?.anchorKind === 'point'
     && commentPowers({ me: meId ? { id: meId } : null, row: t.root, thread: t, canRead: true, canWrite: !!canEdit }).delete;
+  // Right-click a pin: Open, Resolve / Reopen, Copy link, Delete, each only
+  // where the comment's powers allow (lib/commentRules.js), each doing what the
+  // open conversation's own buttons do (CanvasCommentCard.jsx).
+  const pinMenu = (e, t) => {
+    if (!onPinMenu) return;
+    const powers = commentPowers({ me: meId ? { id: meId } : null, row: t.root, thread: t, canRead: true, canWrite: !!canEdit });
+    const setResolved = async (next) => {
+      try {
+        const row = await updateComment(t.id, next ? { resolved: true } : { resolved: false, hidden: false });
+        upsertLocally?.(row || (next ? { id: t.id, resolved: true } : { id: t.id, resolved: false, hidden: false }));
+        return true;
+      } catch (err) {
+        const why = shownError(err);
+        feedback.toast({ type: 'error', code: 'comment_update_failed', message: next ? tr`Couldn't resolve: ${why}` : tr`Couldn't reopen: ${why}` });
+        return false;
+      }
+    };
+    const acts = {
+      'open-comment': () => ui.set({ openId: t.id, draft: null, flashRowId: null }),
+      ...(powers.resolve ? { resolve: async () => {
+        if (!await setResolved(true)) return;
+        undoToast(feedback, {
+          message: tr`Comment resolved`,
+          onUndo: () => { setResolved(false); },
+        });
+      } } : {}),
+      ...(powers.reopen ? { reopen: () => { setResolved(false); } } : {}),
+      ...(powers.copyLink ? { 'copy-comment-link': async () => {
+        try {
+          const url = commentLinkUrl(window.location.href, { surface: 'canvas', boardId, commentId: t.id });
+          if (!url) throw new Error('no link');
+          await navigator.clipboard.writeText(url);
+          feedback.toast({ type: 'success', message: tr`Link copied` });
+        } catch (_) {
+          feedback.toast({ type: 'error', code: 'link_copy_failed', message: tr`Could not copy link` });
+        }
+      } } : {}),
+      ...(powers.delete ? { 'delete-comment': async () => {
+        // what leaves the canvas with it, kept so Undo can put it back at once
+        const gone = (comments || []).filter((r) => r.id === t.id || r.reply_to === t.id);
+        try {
+          await deleteComment(t.id);
+          removeLocally?.(t.id);
+          undoToast(feedback, {
+            message: tr`Comment deleted`,
+            onUndo: async () => {
+              try {
+                await restoreComment(t.id);
+                gone.forEach((r) => upsertLocally?.(r));
+              } catch (err) { const why = shownError(err); feedback.toast({ type: 'error', code: 'comment_restore_failed', message: tr`Couldn't bring it back: ${why}` }); }
+            },
+          });
+        } catch (err) {
+          const why = shownError(err);
+          feedback.toast({ type: 'error', code: 'comment_delete_failed', message: tr`Couldn't delete: ${why}` });
+        }
+      } } : {}),
+    };
+    onPinMenu({ x: e.clientX, y: e.clientY, menu: commentPinMenu({}, acts) });
+  };
   const drag = useRef(null);
   const dragged = useRef(null);
   const putBack = (d) => { d.at.style.left = `${d.wx}px`; d.at.style.top = `${d.wy}px`; d.at.classList.remove('is-dragging'); };
@@ -340,6 +405,7 @@ export const CanvasCommentPins = memo(function CanvasCommentPins({
                     aria-label={pinLabel(t, meId)}
                     aria-expanded={on}
                     {...quiet}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); endHover(); pinMenu(e, t); }}
                     onPointerDown={(e) => onPinDown(e, p)}
                     onPointerMove={onPinMove}
                     onPointerUp={(e) => onPinUp(e, false)}

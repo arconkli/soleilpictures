@@ -1,4 +1,7 @@
-// move-to-cluster.spec.js — "Move to cluster…" on a card selection.
+// move-to-cluster.spec.js — "Move to cluster ›" on a card selection.
+//
+// Move to cluster is a submenu now, one word for one card or several: the
+// count is in the menu's title (plan.md §1.6, §3 Several cards).
 //
 // The menu entry runs the SAME move a drop onto a cluster card runs
 // (CanvasSurface's moveCardsIntoBoard): the target saves first, the source
@@ -45,14 +48,17 @@ test.describe('move to cluster', () => {
     await recordMoves(page);
 
     await card(page, 'mixqa-0').click({ button: 'right' });
-    const item = page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' });
+    const item = page.locator('.ctx-menu:not(.ctx-submenu)').getByRole('menuitem', { name: 'Move to cluster', exact: true });
     await expect(item).toBeVisible();
     await item.click();
     const sub = page.locator('.ctx-submenu');
-    await expect(sub.locator('.ctx-item', { hasText: 'Spec ad' })).toBeVisible();
+    // Recent clusters first, then all of them, so a project just made shows in
+    // both (plan.md §1.6); the first is the recent one.
+    await expect(sub.locator('.ctx-item', { hasText: 'Spec ad' })).toHaveCount(2);
+    await expect(sub.locator('.ctx-item', { hasText: 'Spec ad' }).first()).toBeVisible();
     // Never the cluster the card is already on.
     await expect(sub.locator('.ctx-item', { hasText: 'Studio' })).toHaveCount(0);
-    await sub.locator('.ctx-item', { hasText: 'Spec ad' }).click();
+    await sub.locator('.ctx-item', { hasText: 'Spec ad' }).first().click();
 
     // The source loses exactly that card…
     await expect(card(page, 'mixqa-0')).toHaveCount(0);
@@ -78,10 +84,12 @@ test.describe('move to cluster', () => {
     await card(page, 'mixqa-0').click();
     await card(page, 'mixqa-1').click({ modifiers: ['Shift'] });
     await card(page, 'mixqa-1').click({ button: 'right' });
-    const item = page.locator('.ctx-menu .ctx-item', { hasText: 'Move 2 cards to…' });
+    await expect(page.locator('.ctx-menu .ctx-title')).toHaveText('2 cards');
+    const item = page.locator('.ctx-menu:not(.ctx-submenu)').getByRole('menuitem', { name: 'Move to cluster', exact: true });
     await expect(item).toBeVisible();
     await item.click();
-    await page.locator('.ctx-submenu .ctx-item', { hasText: 'Spec ad' }).click();
+    // Recent first, then all clusters (plan.md §1.6): the first is the recent one.
+    await page.locator('.ctx-submenu .ctx-item', { hasText: 'Spec ad' }).first().click();
 
     // Said once: the canvas the cards came from adds nothing of its own.
     const errors = page.locator('.toast.toast-error .toast-msg');
@@ -101,7 +109,7 @@ test.describe('move to cluster', () => {
 
     // A cluster alone still nests through its own entry.
     await cluster.click({ button: 'right' });
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' })).toBeVisible();
+    await expect(page.locator('.ctx-menu').getByRole('menuitem', { name: 'Move to cluster', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
 
     await card(page, 'mixqa-0').click();
@@ -122,9 +130,11 @@ test.describe('move to cluster wiring (source guard)', () => {
     expect(fnAt).toBeGreaterThan(-1);
     expect(dispatchAt).toBeGreaterThan(fnAt);
     expect(cs).toMatch(/moveCardsIntoBoard\(dragIds, targetBoardId, movedCards\);/);
-    expect(cs).toMatch(/moveCardsIntoBoard\(ids, t\.id, moving, \{ via: 'menu' \}\)/);
+    // The menu's pick now hands over the ids of what moves (the group pulled in
+    // too) and its target row `tg` (moveToClusterRows, lib/menus/moveMenu.js).
+    expect(cs).toMatch(/moveCardsIntoBoard\(movingIds, tg\.id, moving, \{ via: 'menu' \}\)/);
     // A group travels whole from the menu, as it does in a drag.
-    expect(cs).toMatch(/const moving = \[\.\.\.expandWithGroupmates\(actingCards\.map\(cc => cc\.id\)\)\]/);
+    expect(cs).toMatch(/const moving = \[\.\.\.expandWithGroupmates\(actingCards\.map\(\(cc\) => cc\.id\)\)\]/);
     // The source still deletes only after the target saved.
     const body = cs.slice(fnAt, cs.indexOf('const onCardPointerDown = (e, c) =>'));
     expect(body.indexOf('await targetSaved')).toBeGreaterThan(-1);

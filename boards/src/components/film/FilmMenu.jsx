@@ -28,6 +28,8 @@ export function FilmMenu({ anchor, container, items, onClose, label = t`Menu`, p
     const i = items.findIndex((it) => selectable(it) && it.checked);
     return i >= 0 ? i : items.findIndex(selectable);
   });
+  // Walking with the keys marks the row in soft gold; the pointer moving puts it back to hover.
+  const [keys, setKeys] = useState(false);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const host = container || (typeof document !== 'undefined' ? document.body : null);
@@ -88,6 +90,7 @@ export function FilmMenu({ anchor, container, items, onClose, label = t`Menu`, p
   };
   const onKeyDown = (e) => {
     const k = e.key;
+    if (k.startsWith('Arrow') || k === 'Home' || k === 'End') setKeys(true);
     if (k === 'ArrowDown') { e.preventDefault(); move(1); }
     else if (k === 'ArrowUp') { e.preventDefault(); move(-1); }
     else if (k === 'Home') { e.preventDefault(); setActive(items.findIndex(selectable)); }
@@ -108,9 +111,9 @@ export function FilmMenu({ anchor, container, items, onClose, label = t`Menu`, p
   if (!host) return null;
   const hasChecks = items.some((it) => it.checked !== undefined);
   return createPortal(
-    <div ref={ref} className={`film-menu ${className}`} role="menu" aria-label={label} tabIndex={-1}
+    <div ref={ref} className={`film-menu${keys ? ' is-keys' : ''} ${className}`} role="menu" aria-label={label} tabIndex={-1}
          style={pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden', left: 0, top: 0 }}
-         onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()}>
+         onKeyDown={onKeyDown} onPointerMove={() => keys && setKeys(false)} onContextMenu={(e) => e.preventDefault()}>
       {items.map((it, i) => {
         if (it.divider) return <div key={`d${i}`} className="film-menu-sep" role="separator" />;
         if (it.header) return <div key={`h${i}`} className="film-menu-head">{it.header}</div>;
@@ -121,7 +124,7 @@ export function FilmMenu({ anchor, container, items, onClose, label = t`Menu`, p
                className={`film-menu-item${i === active ? ' is-active' : ''}${it.disabled ? ' is-disabled' : ''}`}
                onPointerEnter={() => selectable(it) && setActive(i)}
                onClick={() => choose(it)}>
-            {hasChecks && <span className="film-menu-check">{it.checked ? <Icon as={Check} size={14} weight="bold" /> : null}</span>}
+            {hasChecks && <span className="film-menu-check">{it.checked ? <Icon as={Check} size={14} weight="regular" /> : null}</span>}
             {it.thumb && <span className="film-menu-thumb">{it.thumb}</span>}
             <span className="film-menu-label">
               {it.label}

@@ -19,6 +19,10 @@ async function boot(page) {
 }
 
 const rowFor = (page, name) => page.locator('.ws-menu-row-wrap', { has: page.locator('.ws-menu-name', { hasText: name }) });
+// The row's menu is the one menu every right-click and ⋯ opens now (plan.md
+// §1.1), so its items are that menu's rows, not .ws-menu-row-pop-item.
+const rowMenu = (page) => page.locator('.ctx-menu');
+const item = (page, name) => rowMenu(page).getByRole('menuitem', { name: new RegExp(`^${name}`) });
 
 test('right-click a workspace → its menu, with Share workspace… for the owner and a co-owner only', async ({ page }) => {
   await boot(page);
@@ -29,7 +33,7 @@ test('right-click a workspace → its menu, with Share workspace… for the owne
 
   // Owner: right-click opens the row's menu (not the browser's), Share first.
   await rowFor(page, 'Mine').click({ button: 'right' });
-  const share = page.locator('.ws-menu-row-pop-item', { hasText: 'Share workspace' });
+  const share = item(page, 'Share workspace');
   await expect(share).toBeVisible();
   await share.click();
   expect(await page.evaluate(() => window.__shareProbe.share)).toEqual(['ws-mine']);
@@ -39,17 +43,16 @@ test('right-click a workspace → its menu, with Share workspace… for the owne
   // The second line is the row's tooltip now.
   await expect(rowFor(page, 'Co-owned').locator('.ws-menu-row')).toHaveAttribute('title', 'You co-own this');
   await rowFor(page, 'Co-owned').click({ button: 'right' });
-  const pop = page.locator('.ws-menu-row-pop');
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Share workspace' })).toBeVisible();
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Rename' })).toBeVisible();
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Leave workspace' })).toBeVisible();
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Delete workspace' })).toHaveCount(0);
+  await expect(item(page, 'Share workspace')).toBeVisible();
+  await expect(item(page, 'Rename')).toBeVisible();
+  await expect(item(page, 'Leave workspace')).toBeVisible();
+  await expect(item(page, 'Delete workspace')).toHaveCount(0);
 
   // Editor: no Share, no Rename — only Leave.
   await rowFor(page, 'Edited').click({ button: 'right' });
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Share workspace' })).toHaveCount(0);
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Rename' })).toHaveCount(0);
-  await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Leave workspace' })).toBeVisible();
+  await expect(item(page, 'Leave workspace')).toBeVisible();
+  await expect(item(page, 'Share workspace')).toHaveCount(0);
+  await expect(item(page, 'Rename')).toHaveCount(0);
 });
 
 test('the ⋯ on a workspace row offers Share workspace… too', async ({ page }) => {
@@ -60,7 +63,7 @@ test('the ⋯ on a workspace row offers Share workspace… too', async ({ page }
   }, { workspaces: WORKSPACES, me: ME });
   await rowFor(page, 'Mine').hover();
   await rowFor(page, 'Mine').locator('.ws-menu-row-more').click();
-  await expect(page.locator('.ws-menu-row-pop-item', { hasText: 'Share workspace' })).toBeVisible();
+  await expect(item(page, 'Share workspace')).toBeVisible();
 });
 
 for (const who of ['owner', 'coowner']) {

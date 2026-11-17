@@ -161,8 +161,10 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
   });
 
   // Touch parity: long-press (the mobile "right-click") opens the same
-  // background menu and must place at the touch point. Drives the
-  // useLongPress path (CanvasSurface.jsx onLongPress → clientToCanvas).
+  // background menu and must place at the touch point. On empty canvas the
+  // hold opens it on letting go where it was held, not on the timer, so a hold
+  // can still become a selection box (CanvasSurface.jsx startTouchCanvasPress
+  // → clientToCanvas; plan.md §1.12: on empty canvas a hold opens the menu).
   test('touch long-press Add drops the card centered on the touch point', async ({ page }) => {
     await page.goto('/?local=1&reset=1&blank=1');
     await expect(page.locator('.canvas-wrap')).toBeVisible();
@@ -181,13 +183,20 @@ test.describe('right-click Add drops the card centered on the cursor', () => {
       // Primary touch pointerdown, held in place — the long-press timer
       // (480ms) fires onLongPress(clientX, clientY) which opens the menu.
       wrap.dispatchEvent(new PointerEvent('pointerdown', {
-        clientX: cx, clientY: cy, pointerType: 'touch', isPrimary: true,
+        clientX: cx, clientY: cy, pointerType: 'touch', isPrimary: true, pointerId: 7,
         button: 0, bubbles: true, cancelable: true,
       }));
       const m = new DOMMatrixReadOnly(getComputedStyle(document.querySelector('.canvas')).transform);
       return { cx, cy, x: (cx - r.left - m.e) / m.a, y: (cy - r.top - m.f) / m.a };
     });
-    // Wait out the 480ms long-press timer, then place via the menu.
+    // Hold past the 480ms long-press timer, then let go where it was held.
+    await page.waitForTimeout(650);
+    await page.evaluate(({ cx, cy }) => {
+      window.dispatchEvent(new PointerEvent('pointerup', {
+        clientX: cx, clientY: cy, pointerType: 'touch', isPrimary: true, pointerId: 7,
+        button: 0, bubbles: true, cancelable: true,
+      }));
+    }, exp);
     await expect(page.locator('.ctx-menu')).toBeVisible({ timeout: 2000 });
     await addTextNoteViaMenu(page);
     await expect.poll(async () => (await cardIds(page)).length).toBeGreaterThan(before.length);

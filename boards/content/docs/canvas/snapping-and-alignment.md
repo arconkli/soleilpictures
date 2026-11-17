@@ -13,7 +13,7 @@ faq:
   - q: Does snapping work with many cards on screen?
     a: Yes. Candidate guides are culled to what is actually near the card you are moving, so a board with hundreds of cards does not turn into a screen full of lines.
   - q: Can I align a selection all at once?
-    a: Yes. Select several cards, right-click, and use Arrange → Align or Distribute. To repack a whole board, Arrange → Tidy up.
+    a: Yes. Select several cards, right-click, and use Align › (Distribute is inside it, for three or more cards). Arrange › sets front-to-back order. To repack a whole board, Tidy up ›.
 related:
   - /docs/canvas
   - /docs/canvas/cards
@@ -45,7 +45,7 @@ setting you have to remember to turn back on is a setting that stays wrong.
 
 ## Aligning a selection
 
-Select several cards and right-click. Under **Arrange** you get:
+Select several cards and right-click. Under **Align ›** you get:
 
 **Align** — Left, Center, Right, Top, Middle, Bottom. Every selected card moves
 to that edge of the selection's own bounding box. Nothing is resized, and
@@ -53,7 +53,7 @@ nothing lands on top of anything else: cards that would meet on the edge line
 up one after another instead, in the order they were in. Left on a grid of
 pictures makes one column, in reading order, rather than a pile.
 
-**Distribute** — Horizontally or Vertically. The two outermost cards stay put
+**Distribute** (inside **Align ›**, for three or more cards) — Horizontally or Vertically. The two outermost cards stay put
 and the ones between them are spread so the **gaps** are equal. Equal gaps
 rather than equal centres, because with cards of different sizes equal centres
 still looks uneven, which is the thing you were trying to fix. Needs at least
@@ -61,7 +61,7 @@ three cards — two have no gap between them to even out.
 
 ## Tidying up
 
-**Arrange → Tidy up** repacks cards rather than nudging them:
+**Tidy up ›** repacks cards rather than nudging them:
 
 | | |
 |---|---|

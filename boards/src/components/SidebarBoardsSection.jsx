@@ -36,8 +36,6 @@ export function SidebarBoardsSection({
   onCreateBoard = null,     // () => void — also used as the header "+" when present
   onCreateBoardInside,      // (parentBoardId) => void — context-menu "New board inside"
   onSetBoardCover,          // (boardId, coverKey|null) => void
-  onSetBoardBgColor,        // (boardId, hex|null) => void
-  onSetBoardThumb,          // (boardId, blob) => Promise — custom thumbnail
   onResetBoardThumb,        // (boardId) => Promise — revert to auto thumbnail
   onCopyBoard,              // (board) => void
   onPasteBoardInto,         // (targetBoardId) => void
@@ -47,6 +45,7 @@ export function SidebarBoardsSection({
   peersHereByBoard,
   peersBelowByBoard,
   onJumpToPeer,
+  starStore = null,         // the files sidebar's stars (SidebarBoardTree's `starStore`)
   filesView = null,         // the files sidebar's hook-in (SidebarBoardTree's `filesView`)
 }) {
   const [open, setOpen] = useState(() => loadOpen(workspaceId));
@@ -88,8 +87,6 @@ export function SidebarBoardsSection({
             onCreateBoard={onCreateBoard}
             onCreateBoardInside={onCreateBoardInside}
             onSetBoardCover={onSetBoardCover}
-            onSetBoardBgColor={onSetBoardBgColor}
-            onSetBoardThumb={onSetBoardThumb}
             onResetBoardThumb={onResetBoardThumb}
             onCopyBoard={onCopyBoard}
             onPasteBoardInto={onPasteBoardInto}
@@ -99,6 +96,7 @@ export function SidebarBoardsSection({
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={onJumpToPeer}
             filesView={filesView}
+            starStore={starStore}
           />
           <div className="sb-row sb-row-all" onClick={onOpenPicker}>
             <Icon as={MoreHorizontal} size={14} />

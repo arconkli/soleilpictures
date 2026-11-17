@@ -21,7 +21,7 @@ faq:
   - q: What happens if the page closes while photos are still uploading?
     a: Photos upload from your device while the page is open. While anything is still going up, the browser asks before the tab closes. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
   - q: How do I upload a new version of a file?
-    a: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again.
+    a: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version… (on the board, under Edit ›; in Files, a top-level row). Info lists every version, and any of them can be made current again.
 related:
   - /docs/files/pdf
   - /docs/files/video-and-audio
@@ -205,7 +205,8 @@ file of its own. Hold `⌥` while you drop to skip all of that and add it as a
 separate file straight away.
 
 **Upload new version…** in the right-click menu does the same with a file
-picker — for images it's under **Edit**. Images, videos, audio, PDFs and other
+picker — on the canvas it's under **Edit ›**, and in Files it is a top-level
+row. Images, videos, audio, PDFs and other
 files all take versions; the new one has to be the same kind as the old.
 
 Once a file has more than one, a small **v2** chip on the card (and beside its
@@ -220,6 +221,8 @@ version's menu:
 | **Download** | That version's original file |
 | **Add a label…** | A name for it — "Picture lock", "Director's cut" |
 | **Delete version** | Removes it, with undo |
+
+Each version's row in the list also has its own menu, with **Look at it** and **Rename label…**.
 
 A deleted version waits under **Recently deleted** for
 {{fact:versionDeletedDays}} days, where **Restore** brings it back; after that

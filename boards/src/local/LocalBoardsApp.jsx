@@ -62,6 +62,8 @@ import { useFeedback } from '../components/AppFeedback.jsx';
 import { failMove } from '../lib/moveFailure.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { shellOf } from '../lib/deviceShell.js';
+import { idlePrefetch } from '../lib/idlePrefetch.js';
+import { loadMenuIcons } from '../lib/menuIconsLoad.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.jsx';
 import { OnboardingCoachmark } from '../components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from '../components/OnboardingTour.jsx';
@@ -485,6 +487,8 @@ export function LocalBoardsApp({ user, signOut }) {
   const { mobileShell } = shellOf(useBreakpoint());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => { if (!mobileShell) setMobileNavOpen(false); }, [mobileShell]);
+  // The menus' icons, once the page is idle. TWIN of App.jsx's Workspace.
+  useEffect(() => idlePrefetch([loadMenuIcons]), []);
   const [selectedTool, setSelectedTool] = useState('select');
   const [autoFocusId, setAutoFocusId] = useState(null);
   // ?richdocs=1: where the doc tool's cards keep their doc store (RICH_DOCS_QA).

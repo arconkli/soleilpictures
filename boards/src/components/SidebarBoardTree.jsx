@@ -15,12 +15,14 @@ import { BOARD_REF_MIME, BOARD_REF_LIST_MIME, readBoardRefIds } from '../lib/dra
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { sortSiblings } from '../lib/clusterSwitchList.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
-import { ColorPicker } from './ColorPicker.jsx';
-import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
+import { openClusterColor, openClusterThumb } from '../lib/clusterCoverBus.js';
 import { boardClipboardSize } from '../lib/boardClipboard.js';
 import { openInfo } from '../lib/infoBus.js';
 import { openSend, sendAvailable } from '../lib/sendBus.js';
-import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
+import { clusterMenu, clusterActsFrom, coverTints } from '../lib/menus/clusterMenu.js';
+import { useClusterActions } from '../hooks/useClusterActions.js';
+import { logEvent } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
 import { INDENT } from '../lib/sidebarRows.js';
 import { Icon } from './Icon.jsx';
 import { ChevronRight } from '../lib/icons.js';
@@ -28,6 +30,7 @@ import { isComposingKey } from '../lib/composerKeys.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownAuthor } from '../lib/commentAuthor.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -60,8 +63,6 @@ export function SidebarBoardTree({
   onCreateBoard = null,    // () => void — empty-state "create first board" CTA
   onCreateBoardInside,     // (parentBoardId) => void — context-menu "New board inside"
   onSetBoardCover,         // (boardId, coverKey|null) => void
-  onSetBoardBgColor,       // (boardId, hex|null) => void
-  onSetBoardThumb,         // (boardId, blob) => Promise — save a custom thumbnail
   onResetBoardThumb,       // (boardId) => Promise — revert to the auto thumbnail
   onCopyBoard,             // (board) => void
   onPasteBoardInto,        // (targetBoardId) => void
@@ -83,7 +84,10 @@ export function SidebarBoardTree({
   // cluster drags still reparent exactly as before.
   // Without it the tree is exactly what it was.
   filesView = null,
+  starStore = null,        // the files sidebar's { isStarred(id), toggleStar(id) }: its Star row reads these
 }) {
+  // The shared cluster action set (App's); null without App.
+  const cc = useClusterActions();
   const [expanded, setExpanded] = useState(() => loadExpanded(workspaceId, rootId));
   // Inline rename: { boardId, draft }. Double-click a row to enter,
   // Enter/blur to commit, Escape to cancel.
@@ -103,34 +107,6 @@ export function SidebarBoardTree({
   // Right-click context menu: { open, x, y, board }.
   const [menu, setMenu] = useState({ open: false, x: 0, y: 0, board: null });
   const closeMenu = () => setMenu(m => ({ ...m, open: false }));
-  // "Custom…" full color picker for bg_color: { boardId, value, x, y } | null.
-  const [picker, setPicker] = useState(null);
-  // Custom-thumbnail flow: a hidden file input (opened from the context menu),
-  // then a crop/reposition modal on the picked file. thumbCrop = { boardId, file }
-  // while the modal is up; thumbSaving covers the upload round-trip.
-  const thumbInputRef = useRef(null);
-  const pendingThumbBoardId = useRef(null);
-  const [thumbCrop, setThumbCrop] = useState(null);
-  const [thumbSaving, setThumbSaving] = useState(false);
-
-  const triggerThumbPick = (boardId) => {
-    pendingThumbBoardId.current = boardId;
-    const input = thumbInputRef.current;
-    if (input) { input.value = ''; input.click(); }
-  };
-  const onThumbFileChange = (e) => {
-    const file = e.target.files?.[0];
-    const boardId = pendingThumbBoardId.current;
-    pendingThumbBoardId.current = null;
-    if (file && boardId) setThumbCrop({ boardId, file });
-  };
-  const saveThumbCrop = async (blob) => {
-    const boardId = thumbCrop?.boardId;
-    if (!boardId) { setThumbCrop(null); return; }
-    setThumbSaving(true);
-    try { await onSetBoardThumb?.(boardId, blob); }
-    finally { setThumbSaving(false); setThumbCrop(null); }
-  };
   // Multi-select set for dragging several boards at once (cmd/shift-click).
   const [selectedTreeBoards, setSelectedTreeBoards] = useState(() => new Set());
   // Live boards map for the touch DnD listener (its effect deps are []).
@@ -203,95 +179,55 @@ export function SidebarBoardTree({
     });
   };
 
-  // Build the right-click context-menu items for a board row. Mutating items
-  // are gated behind canEditBoard; Open + Copy are always available.
+  // The right-click menu of a board row: the one cluster menu
+  // (lib/menus/clusterMenu.js). What the shared action set (App's, through
+  // useClusterActions) has comes from it; this tree's own openers and its inline
+  // rename are spread over. Edit rows show for editors only, whoever may open it
+  // gets Open, Send to…, Copy link, Star and Info.
   const buildRowMenu = (board) => {
-    const canEdit = canEditBoard ? canEditBoard(board.id) : false;
-    const currentCover = board.cover || 'neutral';
-
-    // Same grouped vocabulary as the canvas menus: primary (Open) · EDIT ·
-    // CLIPBOARD · meta (Delete). Empty groups drop out for non-editors.
-    // Share sits with Open as a primary action, not under a labeled group:
-    // it was previously reachable only from the board toolbar and ⌘K, which
-    // is the whole reason most owners never found it. Anyone who can read a
-    // cluster can hand out a view link, so this is not gated on canEdit —
-    // the modal itself renders read-only for viewers.
-    const openItems = [
-      { id: 'open', label: tr`Open`, run: () => onOpenBoard?.(board.id) },
-      ...(sendAvailable() ? [{ id: 'send-to', label: tr`Send to…`,
-        run: () => openSend({ boardId: board.id, boardTitle: board.name, surface: 'sidebar_menu' }) }] : []),
-      { id: 'share', label: tr`Share…`, run: () => onShareBoard?.(board.id) },
-      // The files sidebar's own: Star, and "Always open in Files".
-      ...(filesView?.menuItems?.(board, canEdit) || []),
-    ];
-    const editItems = [];
-    const clipboardItems = [{ id: 'copy', label: tr`Copy`, run: () => onCopyBoard?.(board) }];
-    const metaItems = [{ id: 'info', label: tr`Info`, run: () => openInfo({ clusterId: board.id }) }];
-
-    if (canEdit) {
-      editItems.push({ id: 'rename', label: tr`Rename`, run: () => beginRename(board) });
-      editItems.push({
-        id: 'new-inside', label: tr`New cluster inside`,
-        run: () => { expandBoard(board.id); onCreateBoardInside?.(board.id); },
-      });
-      editItems.push({
-        id: 'color', label: tr`Change color`,
-        submenu: [
-          ...Object.keys(COVER_TINTS).map(k => ({
-            id: `cover-${k}`,
-            swatch: COVER_TINTS[k],
-            label: k.charAt(0).toUpperCase() + k.slice(1),
-            checked: currentCover === k,
-            run: () => onSetBoardCover?.(board.id, k === 'neutral' ? null : k),
-          })),
-          { divider: true },
-          {
-            id: 'cover-custom', label: tr`Custom…`,
-            run: () => setPicker({
-              boardId: board.id,
-              value: board.bg_color || '#1c1c1f',
-              x: menu.x, y: menu.y,
-            }),
-          },
-        ],
-      });
-      editItems.push({
-        id: 'custom-thumb', label: tr`Upload custom thumbnail…`,
-        run: () => triggerThumbPick(board.id),
-      });
-      if (board.thumb_custom) {
-        editItems.push({
-          id: 'reset-thumb', label: tr`Reset to auto thumbnail`,
-          run: () => onResetBoardThumb?.(board.id),
-        });
-      }
-      clipboardItems.push({
-        id: 'paste', label: tr`Paste into this cluster`,
-        disabled: boardClipboardSize() === 0,
-        run: () => onPasteBoardInto?.(board.id),
-      });
-      // A workspace with no top-level cluster left has nothing to open, and
-      // the app can't render a workspace without one. Deleting the last one
-      // used to be allowed and stranded the account on a loading screen.
-      const isLastRootCluster = !board.parent_board_id
-        && Object.values(boards || {}).filter(b => (
-          b && b.workspace_id === board.workspace_id && !b.parent_board_id && !b.deleted_at
-        )).length <= 1;
-      metaItems.push({
-        id: 'delete',
-        label: isLastRootCluster ? tr`Delete (last cluster)` : tr`Delete`,
-        danger: !isLastRootCluster,
-        disabled: isLastRootCluster,
-        run: () => { if (!isLastRootCluster) onDeleteBoard?.(board.id); },
-      });
+    const id = board.id;
+    const canEdit = canEditBoard ? canEditBoard(id) : false;
+    // A workspace with no top-level cluster left has nothing to open, and
+    // the app can't render a workspace without one. Deleting the last one
+    // used to be allowed and stranded the account on a loading screen.
+    const isLastTop = !board.parent_board_id
+      && Object.values(boards || {}).filter(b => (
+        b && b.workspace_id === board.workspace_id && !b.parent_board_id && !b.deleted_at
+      )).length <= 1;
+    // Star and "Always open in Files" are the files sidebar's.
+    const files = !!filesView;
+    // The workspace root (App's rootBoard) can't move or be deleted. Other
+    // top-level clusters keep Delete unless they are the last one (isLastTop).
+    const isRoot = cc ? !!cc.can(board)?.isRoot : (!!rootId && id === rootId);
+    const acts = {
+      ...clusterActsFrom(cc, board, { surface: 'sidebar_menu', star: files, opensInFiles: files && canEdit }),
+      open: () => onOpenBoard?.(id),
+      'share-cluster': () => onShareBoard?.(id),
+      rename: () => beginRename(board),
+      'new-inside': () => { expandBoard(id); onCreateBoardInside?.(id); },
+      'copy-cluster': () => onCopyBoard?.(board),
+      'paste-into': { run: () => onPasteBoardInto?.(id), disabled: boardClipboardSize() === 0 },
+      delete: () => onDeleteBoard?.(id),
+      info: { run: () => openInfo({ clusterId: id }), shortcut: null },
+      'color-cover': {
+        tints: coverTints(COVER_TINTS),
+        current: board.cover || 'neutral',
+        setTint: (k) => onSetBoardCover?.(id, k === 'neutral' ? null : k),
+        custom: () => openClusterColor({ id, x: menu.x, y: menu.y }),
+        upload: () => openClusterThumb({ id }),
+        reset: board.thumb_custom ? () => onResetBoardThumb?.(id) : undefined,
+      },
+    };
+    if (!cc && sendAvailable()) {
+      acts.send = () => openSend({ boardId: id, boardTitle: board.name, surface: 'sidebar_menu' });
     }
-
-    return composeMenuSections([
-      { items: openItems },
-      { header: SECTION.EDIT, items: editItems },
-      { header: SECTION.CLIPBOARD, items: clipboardItems },
-      { items: metaItems },
-    ]);
+    // The files sidebar's own stars load with it, ahead of the shared action set's.
+    if (files && starStore) acts.star = { run: () => starStore.toggleStar(id), starred: starStore.isStarred(id) };
+    if (files && acts.star) {
+      const star = acts.star;
+      acts.star = { ...star, run: () => { star.run(); logEvent(EV.FILES_STAR, { on: !star.starred, what: 'cluster' }); } };
+    }
+    return clusterMenu(board, { edit: canEdit, isLastTop, isRoot, f2: true }, acts);
   };
 
   // Reset expansion state when switching workspaces — we keep per-workspace
@@ -649,7 +585,7 @@ export function SidebarBoardTree({
     const LONG_PRESS_MS = 350;
     // Opening the row menu on release needs the platform's long-press length:
     // a slow tap (350–500ms) is still a tap and opens the cluster.
-    const MENU_HOLD_MS = 500;
+    const MENU_HOLD_MS = 480;
 
     const startGhost = (name) => {
       const g = document.createElement('div');
@@ -770,6 +706,9 @@ export function SidebarBoardTree({
           setSelectedTreeBoards(new Set([board.id]));
           lastClickedRef.current = board.id;
           setMenu({ open: true, x: Math.min(e.clientX, r.right - 8), y: r.bottom, board });
+          // The finger just lifted: the click it leaves would land on the menu (on a
+          // phone, the sheet's backdrop) and close it at once.
+          swallowNextClick();
         }
         suppressClick();
       }
@@ -812,6 +751,7 @@ export function SidebarBoardTree({
     );
   }
 
+  const rowMenu = menu.open && menu.board ? buildRowMenu(menu.board) : null;
   return (
     <div className="sb-tree" ref={treeRef} role="tree" aria-label={tr`Clusters`}>
       {roots.map(b => renderRow(b, 0))}
@@ -825,33 +765,16 @@ export function SidebarBoardTree({
           open={menu.open}
           x={menu.x}
           y={menu.y}
-          items={menu.board ? buildRowMenu(menu.board) : []}
+          items={rowMenu ? rowMenu.items : []}
+          label={rowMenu?.label}
+          title={rowMenu?.title}
+          root="cluster"
           onClose={closeMenu}
           workspaceId={workspaceId}
           boardId={menu.board?.id}
           card={null}
         />,
         document.body
-      )}
-      {picker && (
-        <ColorPicker
-          value={picker.value}
-          onChange={(c) => onSetBoardBgColor?.(picker.boardId, c)}
-          onClose={() => setPicker(null)}
-          position={{ x: picker.x, y: picker.y }}
-          allowTransparent
-        />
-      )}
-      {/* Hidden picker for the "Upload custom thumbnail…" menu item. */}
-      <input ref={thumbInputRef} type="file" accept="image/*"
-             style={{ display: 'none' }} onChange={onThumbFileChange} />
-      {thumbCrop && (
-        <ThumbnailCropModal
-          file={thumbCrop.file}
-          saving={thumbSaving}
-          onCancel={() => { if (!thumbSaving) setThumbCrop(null); }}
-          onSave={saveThumbCrop}
-        />
       )}
     </div>
   );

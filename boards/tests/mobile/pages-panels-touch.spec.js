@@ -82,7 +82,8 @@ test.describe('a doc\'s page list', () => {
     await openDocPages(page);
     await hold(page, await mid(pageRow(page, 'Chapter Two')));
     await expect(menu(page)).toBeVisible();
-    for (const name of ['Rename', 'New sub-page', 'Delete']) {
+    // "Rename…", with the ellipsis of a row that asks for more (plan.md §3, Doc page tree).
+    for (const name of ['Rename…', 'New sub-page', 'Delete']) {
       await expect(menu(page).getByRole('menuitem', { name, exact: true })).toBeVisible();
     }
     // The lift's click did not open the page: the drawer is still up.
@@ -93,7 +94,7 @@ test.describe('a doc\'s page list', () => {
     needsHold(test, browserName);
     await openDocPages(page);
     await hold(page, await mid(pageRow(page, 'Chapter Two')));
-    await menu(page).getByRole('menuitem', { name: 'Rename', exact: true }).tap();
+    await menu(page).getByRole('menuitem', { name: 'Rename…', exact: true }).tap();
     const field = page.getByLabel('Page name');
     await expect(field).toBeVisible();
     await field.fill('Second act');

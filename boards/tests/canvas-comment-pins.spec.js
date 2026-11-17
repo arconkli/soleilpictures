@@ -980,7 +980,8 @@ test.describe('a link to a comment', () => {
 // The canvas has a menu of its own on a right-click (a card's, or the
 // background's). A comment part is not the canvas: a right-click on a pin, an
 // open conversation, the island or the list opens neither menu, selects no
-// card and changes nothing.
+// card and changes nothing. A pin has a menu of its own now (plan.md §1.7 and
+// §3 "Comment pin"), which is neither of those.
 test.describe('a right-click on a comment part', () => {
   const menu = (page) => page.locator('.ctx-menu');
   const selected = (page) => page.locator('.canvas-wrap [data-card-id].selected');
@@ -999,9 +1000,16 @@ test.describe('a right-click on a comment part', () => {
     const p = pin(page, IDS.mine);
     await p.click({ button: 'right' });
     await page.waitForTimeout(300);
-    await expect(menu(page)).toHaveCount(0);
+    // the pin's own menu, no canvas rows and no card's quick row
+    await expect(menu(page)).toHaveCount(1);
+    await expect(menu(page)).toHaveAttribute('aria-label', 'Comment');
+    await expect(menu(page).getByRole('menuitem', { name: 'Open', exact: true })).toBeVisible();
+    await expect(menu(page).getByRole('menuitem', { name: 'Select all' })).toHaveCount(0);
+    await expect(menu(page).locator('.ctx-quick')).toHaveCount(0);
     await expect(card(page)).toHaveCount(0);
     await expect(selected(page)).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(menu(page)).toHaveCount(0);
 
     await p.click();
     await expect(card(page).locator(`[data-cmt-card="${IDS.mine}"]`)).toBeVisible();

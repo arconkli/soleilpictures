@@ -7,7 +7,9 @@
 // Escape close it.
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check, Share2, Lock, Users, ChevronRight } from '../lib/icons.js';
+import { createPortal } from 'react-dom';
+import { Plus, Search, MoreHorizontal, Check, Lock, Users, ChevronRight } from '../lib/icons.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
 import { Icon } from './Icon.jsx';
 import { R2Image } from './R2Image.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
@@ -68,9 +70,18 @@ export function WorkspaceMenu({
   const findRef = useRef(null);
   // Which shared workspaces you opened last on this device: read once per open.
   const opened = useMemo(() => readOpenedWorkspaces(), []);
-  // Per-row mini-menu state — only one open at a time. Stores the
-  // workspace id whose ⋯ button was clicked.
-  const [openMenuId, setOpenMenuId] = useState(null);
+  // The per-row menu (the shared right-click menu), one at a time:
+  // { id, x, y, byKey?, returnEl? } for the workspace whose ⋯ or right-click opened it.
+  const [rowMenu, setRowMenu] = useState(null);
+  const openMenuId = rowMenu?.id ?? null;
+  // When the row menu last closed, and which row's: a ⋯ press that closed it
+  // (as an outside press) must not reopen it with its own click, and the
+  // Escape that closed it must not also close this switcher.
+  const rowMenuClosedRef = useRef({ id: null, at: 0 });
+  const closeRowMenu = () => {
+    rowMenuClosedRef.current = { id: rowMenu?.id ?? null, at: Date.now() };
+    setRowMenu(null);
+  };
   // Close on outside click + Escape. Capture-phase mousedown so we beat
   // any handlers that might re-focus or repaint inside the menu.
   // Important: ignore clicks on the trigger button itself — its own
@@ -80,10 +91,18 @@ export function WorkspaceMenu({
     const onDown = (e) => {
       if (!ref.current) return;
       if (ref.current.contains(e.target)) return;
+      // The row menu is portaled out of this popover: a press in it is inside.
+      if (e.target.closest?.('.ctx-menu')) return;
       if (triggerSelector && e.target.closest?.(triggerSelector)) return;
       onClose?.();
     };
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (isComposingKey(e)) return;
+      if (e.key !== 'Escape') return;
+      // The row menu takes this Escape (it closed in the capture phase, just now).
+      if (rowMenuOpenRef.current || Date.now() - rowMenuClosedRef.current.at < 100) return;
+      onClose?.();
+    };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -93,6 +112,9 @@ export function WorkspaceMenu({
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose, triggerSelector]);
+
+  const rowMenuOpenRef = useRef(false);
+  rowMenuOpenRef.current = !!rowMenu;
 
   const list = workspaces || [];
   const owners = useWorkspaceOwners(list, selfUserId);
@@ -228,7 +250,7 @@ export function WorkspaceMenu({
            onMouseMove={() => setHl(w.id)}
            // Right-click a workspace → the same menu its ⋯ opens, instead of
            // the browser's.
-           onContextMenu={hasRowMenu ? (e) => { e.preventDefault(); setOpenMenuId(w.id); } : undefined}>
+           onContextMenu={hasRowMenu ? (e) => { e.preventDefault(); setRowMenu({ id: w.id, x: e.clientX, y: e.clientY }); } : undefined}>
         <button id={rowDomId(w.id)}
                 title={subtitle}
                 className={`ws-menu-row is-short ${isActive ? 'is-active' : ''} ${hlId === w.id ? 'is-kb' : ''}`}
@@ -254,50 +276,39 @@ export function WorkspaceMenu({
                     aria-expanded={isMenuOpen}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenMenuId(isMenuOpen ? null : w.id);
+                      // The press that closed the menu is this toggle's own.
+                      const was = rowMenuClosedRef.current;
+                      if (isMenuOpen || (was.id === w.id && Date.now() - was.at < 400)) { rowMenuClosedRef.current = { id: null, at: 0 }; setRowMenu(null); return; }
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setRowMenu({ id: w.id, x: r.left, y: r.bottom + 2, byKey: e.detail === 0, returnEl: e.currentTarget });
                     }}>
               <Icon as={MoreHorizontal} size={14} />
             </button>
-            {isMenuOpen && (
-              <div className="ws-menu-row-pop" role="menu"
-                   onClick={(e) => e.stopPropagation()}>
-                {canShare && (
-                  <button className="ws-menu-row-pop-item"
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            onShare?.(w);
-                            onClose?.();
-                          }}>
-                    <Icon as={Share2} size={12} />
-                    <span><Trans>Share workspace…</Trans></span>
-                  </button>
-                )}
-                {canRename && (
-                  <button className="ws-menu-row-pop-item"
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            onOpenSettings?.(w);
-                          }}>
-                    <Icon as={Edit} size={12} />
-                    <span><Trans>Rename &amp; icon…</Trans></span>
-                  </button>
-                )}
-                {canRemove && (
-                  <button className="ws-menu-row-pop-item danger"
-                          onClick={() => {
-                            setOpenMenuId(null);
-                            onRemove?.(w, removeAction);
-                          }}>
-                    <Icon as={removeAction === 'delete' ? Trash2 : LogOut} size={12} />
-                    <span>{removeAction === 'delete' ? t`Delete workspace` : t`Leave workspace`}</span>
-                  </button>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>
     );
+  };
+
+  // One workspace's menu: the same gates the old ⋯ pop had. Share and Rename
+  // are for an owner or co-owner; the red row is Delete (owner) or Leave
+  // (shared member), never on the personal workspace.
+  const rowMenuItems = (w) => {
+    if (!w) return [];
+    const isPersonal = w.id === personalWorkspaceId;
+    const isOwner = w.created_by === selfUserId;
+    const canManage = isOwner || (!isOwner && w._myRole === 'coowner');
+    const removeAction = isOwner ? 'delete' : 'leave';
+    const out = [];
+    if (onShare && canManage) out.push({ id: 'share', label: t`Share workspace…`, icon: 'ShareNetwork', run: () => { onShare(w); onClose?.(); } });
+    if (onOpenSettings && canManage) out.push({ id: 'rename', label: t`Rename & icon…`, icon: 'PencilSimple', run: () => onOpenSettings(w) });
+    if (onRemove && !isPersonal) {
+      if (out.length) out.push({ divider: true });
+      out.push(removeAction === 'delete'
+        ? { id: 'delete', label: t`Delete workspace`, icon: 'Trash', danger: true, run: () => onRemove(w, removeAction) }
+        : { id: 'leave', label: t`Leave workspace`, icon: 'SignOut', danger: true, run: () => onRemove(w, removeAction) });
+    }
+    return out;
   };
 
   return (
@@ -392,6 +403,21 @@ export function WorkspaceMenu({
         </span>
       </button>
       {countLine && <div className="ws-menu-count">{countLine}</div>}
+      {/* Portaled: this popover is not a place for a fixed menu to live, and
+          the outside-press check above counts .ctx-menu as inside. */}
+      {createPortal((
+        <CardContextMenu
+          open={!!rowMenu}
+          x={rowMenu?.x ?? 0}
+          y={rowMenu?.y ?? 0}
+          items={rowMenu ? rowMenuItems(list.find(w => w.id === rowMenu.id)) : []}
+          label={t`More actions`}
+          root="menu"
+          byKey={!!rowMenu?.byKey}
+          returnFocus={rowMenu?.returnEl}
+          onClose={closeRowMenu}
+        />
+      ), document.body)}
     </div>
   );
 }

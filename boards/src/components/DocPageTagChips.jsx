@@ -5,7 +5,7 @@
 // navigates to the tag detail view via the standard entity-navigate
 // hook. Realtime-subscribed so AI applies appear without refresh.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { untagDocPage, restoreDocTagRows, TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
@@ -13,14 +13,28 @@ import { isDeleteEvent } from '../lib/tagSurface.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
-import { isComposingKey } from '../lib/composerKeys.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
+import { t } from '@lingui/core/macro';
 
 export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
   const navigate = useEntityNavigate();
   const feedback = useFeedback();
   const [tagIds, setTagIds] = useState([]);
   const [tagsById, setTagsById] = useState(new Map());
-  const [menuFor, setMenuFor] = useState(null); // { tagId, name, x, y } when right-click is active
+  const [menuFor, setMenuFor] = useState(null); // { tagId, name, x, y, byKey?, returnEl? } while the menu is open
+  // A hold on a chip (touch) opens the same menu; iOS never raises contextmenu.
+  const wrapRef = useRef(null);
+  useLongPress(wrapRef, (x, y, e) => {
+    const el = e.target?.closest?.('.doc-page-tag-chip');
+    if (!el) return false;
+    const c = chips.find(ch => ch.id === el.dataset.tagId);
+    if (!c) return false;
+    swallowNextClick({ held: true });
+    setMenuFor({ tagId: c.id, name: c.name, x, y });
+    return true;
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
 
   // Fetch applied-tag ids for this page.
   useEffect(() => {
@@ -94,26 +108,6 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     }).filter(c => c.name);
   }, [tagIds, tagsById]);
 
-  // Outside-click + Escape close the right-click menu.
-  useEffect(() => {
-    if (!menuFor) return;
-    const onDown = (e) => {
-      if (e.target.closest && e.target.closest('.doc-page-tag-menu')) return;
-      setMenuFor(null);
-    };
-    // Claimed: the open doc is a layer (lib/modalGuard) that would close on
-    // the same Escape at the window.
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setMenuFor(null); } };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuFor]);
-
   const removeTag = async (tagId) => {
     setMenuFor(null);
     // Optimistic local drop — realtime will reconcile.
@@ -121,7 +115,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     try {
       const removed = await untagDocPage({ workspaceId, docCardId, pageId, tagId });
       undoToast(feedback, {
-        message: 'Tag removed',
+        message: t`Tag removed`,
         onUndo: async () => {
           try {
             // Exactly the rows that came off: the page row and every range,
@@ -136,20 +130,29 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     }
   };
 
-  if (chips.length === 0) return null;
-
+  // Always rendered, so the hold above finds its element once chips arrive.
   return (
-    <>
+    <div ref={wrapRef} style={{ display: 'contents' }}>
+      {chips.length > 0 && (
       <div className="doc-page-tag-chips" role="list">
         {chips.map(c => (
           <button key={c.id}
                   className="doc-page-tag-chip"
                   role="listitem"
+                  data-tag-id={c.id}
                   style={{ '--tag-c': c.color }}
-                  title={`Open tag "${c.name}" — right-click to remove`}
+                  title={t`Open tag "${c.name}"`}
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate({ kind: 'tag', id: c.id });
+                  }}
+                  onKeyDown={(e) => {
+                    // ⇧F10 / the Menu key on a focused chip.
+                    if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setMenuFor({ tagId: c.id, name: c.name, x: r.left, y: r.bottom + 4, byKey: true, returnEl: e.currentTarget });
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -161,15 +164,21 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
           </button>
         ))}
       </div>
-      {menuFor && (
-        <div className="doc-page-tag-menu"
-             style={{ position: 'fixed', top: menuFor.y, left: menuFor.x, zIndex: 1000 }}>
-          <button className="doc-page-tag-menu-item"
-                  onClick={() => removeTag(menuFor.tagId)}>
-            Remove tag
-          </button>
-        </div>
       )}
-    </>
+      <CardContextMenu
+        open={!!menuFor}
+        x={menuFor?.x ?? 0}
+        y={menuFor?.y ?? 0}
+        label={menuFor?.name}
+        root="menu"
+        byKey={!!menuFor?.byKey}
+        returnFocus={menuFor?.returnEl}
+        items={menuFor ? [
+          { id: 'open-tag', label: t`Open tag`, icon: 'Tag', run: () => navigate({ kind: 'tag', id: menuFor.tagId }) },
+          { id: 'remove-tag', label: t`Remove tag`, icon: 'X', run: () => removeTag(menuFor.tagId) },
+        ] : []}
+        onClose={() => setMenuFor(null)}
+      />
+    </div>
   );
 }

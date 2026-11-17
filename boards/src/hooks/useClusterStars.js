@@ -7,7 +7,9 @@ import { STARS_CHANGED, announceStars } from '../lib/starsChanged.js';
 // sidebar's Starred list reads (0420's sidebar_starred: a cluster's star is a
 // row of kind 'cluster'), written the way the sidebar writes it, and the two
 // keep each other current through STARS_CHANGED. Reads nothing unless enabled.
-export function useClusterStars(workspaceId, { enabled = false } = {}) {
+// defer: nothing on screen needs the stars yet (a cluster's menu asks later),
+// so read them once the boot has settled instead of beside it.
+export function useClusterStars(workspaceId, { enabled = false, defer = false } = {}) {
   const [ids, setIds] = useState(() => new Set());
   // What's starred as of the last change, for a toggle that comes before the
   // re-render (two quick presses must not both insert).
@@ -21,7 +23,13 @@ export function useClusterStars(workspaceId, { enabled = false } = {}) {
     setIds(new Set(data.filter((r) => r.kind === 'cluster').map((r) => r.board_id)));
   }, [enabled, workspaceId]);
 
-  useEffect(() => { setIds(new Set()); load(); }, [load]);
+  useEffect(() => { setIds(new Set()); }, [workspaceId]);
+  useEffect(() => {
+    if (!defer) { load(); return undefined; }
+    const ric = typeof window !== 'undefined' ? window.requestIdleCallback : null;
+    const h = ric ? ric(() => load(), { timeout: 4000 }) : setTimeout(load, 2000);
+    return () => { if (ric) window.cancelIdleCallback?.(h); else clearTimeout(h); };
+  }, [load, defer]);
   useEffect(() => {
     if (!enabled) return undefined;
     const onChanged = (e) => { if (e?.detail?.from !== 'home') load(); };

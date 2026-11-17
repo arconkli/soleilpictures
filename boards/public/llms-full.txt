@@ -120,7 +120,7 @@ The fastest way is to drag files straight from your desktop onto the canvas. Dro
 Everything else lives in two places:
 
 The tool rail down the left edge — select, pan, image, note, doc, cluster, grid, arrow.
-Right-click the canvas — an Add menu grouped into Cards, Visual, Web and Annotate, plus paste, select all, background colour and export.
+Right-click the canvas — quick buttons for note, picture, cluster, doc and link, an Add › menu, plus paste, select all, background and export.
 
 A few things worth knowing on day one:
 
@@ -273,7 +273,14 @@ Key | Action
 ⌘K or / | Search and commands
 ⌘B | Toggle sidebar
 ⌘. | Clean mode — hide all chrome
-↑ / ↓ in a right-click menu | Move through it — → opens a submenu and ← closes it, Enter chooses
+⇧F10 or Menu | On the canvas, open the selection's menu, or the canvas menu at the centre of the screen when nothing is selected (not on public links)
+↑ / ↓ in a right-click menu | Move through it — Home and End jump to the first and last row, and typing jumps to a row
+→ or Enter in a right-click menu | Open a submenu — ← goes back
+Enter or Space in a right-click menu | Choose the row
+← / → on a row of icon buttons | Move along the row
+Esc in a right-click menu | Step back out of a submenu, then close the menu — Tab closes it too
+
+Every menu row that has a keyboard shortcut shows it.
 
 ⌘K is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — "share", "trash", "theme", "invite" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you.
 
@@ -661,11 +668,11 @@ Right-click
 
 Right-clicking is the fastest path to almost everything, and the menu differs by what is under the cursor.
 
-On empty canvas: Add (Cards / Visual / Web / Annotate), Paste, Select all, Background colour, Reset zoom, Export to PNG or PDF, and Clear all drawings.
+On empty canvas: a row of buttons on top that add a note, a picture, a cluster, a doc or a link; then Add › (everything else you can add), Paste here, Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy link, Tag cluster…, Cluster info, and Clear all drawings when there are drawings. ⌘0 still resets the zoom.
 
-On a card: everything specific to that card kind, plus the universal operations — duplicate, delete, layer order, tag, comment, copy link, and Send to….
+On a card: a row of icon buttons on top — Cut, Copy, Duplicate, Delete — then everything specific to that card kind, plus the universal operations — layer order, tag, comment, copy link, and Send to….
 
-On a group: rename, outline shape and colour, add to group, ungroup, group comment, group tag.
+On a group: Rename group…, Add comment, Tag group…, Outline, Label, Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup.
 
 Inside text you are editing: your browser's own menu, not ours. Right-clicking mid-sentence in a note is a text gesture, so you get Paste, Copy, Look Up and Emoji & Symbols rather than card operations. Click away first to get the card menu.
 
@@ -681,7 +688,7 @@ With a finger, touch and hold empty canvas until the ring under it fills, then d
 
 With several cards selected you can move them as one, align them, delete them together, or press ⌘G to make them a group — which is a selection that persists, gets a name, and can be commented on as a unit.
 
-On a computer, two or more picked get a bar along the bottom of the canvas: how many, Tidy up and Align (with Distribute), Group, New cluster from N cards and Move N cards to…, then ⋯ for the rest of the right-click menu, and Delete. Each does what the right-click menu does with the same selection.
+On a computer, two or more picked get a bar along the bottom of the canvas: how many, Tidy up and Align (with Distribute), Group, New cluster from these and Move to cluster, then ⋯ for the rest of the right-click menu, and Delete. Each does what the right-click menu does with the same selection.
 
 Drawing
 
@@ -693,7 +700,7 @@ For a bigger drawing surface, the sketch pad overlay covers the whole viewport. 
 
 Background
 
-Right-click → Background colour. Seven presets plus a custom picker, set per cluster. Useful for separating a scratch board from a client-facing one at a glance.
+Right-click → Background. Seven presets plus a custom picker, set per cluster. Useful for separating a scratch board from a client-facing one at a glance.
 
 Getting it out
 
@@ -707,7 +714,7 @@ Q: How big is the canvas?
 A: There is no boundary. Cards can go anywhere, and Shift-1 fits everything you have made back on screen no matter how far it spread.
 
 Q: Can I change the background?
-A: Yes. Right-click the canvas and pick a background colour — seven presets plus a custom picker. The setting is per cluster.
+A: Yes. Right-click the canvas, choose Background and pick a colour — seven presets plus a custom picker. The setting is per cluster.
 
 Q: Does the canvas work on a tablet?
 A: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger.
@@ -756,7 +763,7 @@ What every card does
 
 Move by dragging. Resize from the corners. Hold Alt while dragging to ignore snapping.
 
-Layer order — [ and ] send backward and forward. Also in the right-click menu.
+Layer order — [ and ] send backward and forward. Also in the right-click menu, under Arrange ›.
 
 Duplicate — ⌘D.
 
@@ -764,13 +771,13 @@ Delete — ⌫. A toast offers undo; ⌘Z also works.
 
 Cut and paste — ⌘X / ⌘V, including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on.
 
-Move to another cluster — drag cards onto a cluster card, or onto a cluster's name in the sidebar to put them in its Files, off its board, or right-click → Move to cluster… to send them to any cluster in the workspace, including one that isn't on this canvas. A move is one action: its toast undoes both sides at once. Moving cards doesn't change how many you have.
+Move to another cluster — drag cards onto a cluster card, or onto a cluster's name in the sidebar to put them in its Files, off its board, or right-click → Move to cluster to send them to any cluster in the workspace, including one that isn't on this canvas. A move is one action: its toast undoes both sides at once. Moving cards doesn't change how many you have.
 
 Group — select several and press ⌘G. See Groups.
 
 Tag — right-click → tag. See Tags.
 
-Comment — right-click → comment, which puts a pin at the corner of that card. See Comments.
+Comment — right-click → Add comment, which puts a pin at the corner of that card. See Comments.
 
 Copy link — a deep link that opens the board with that card selected. Useful in a message or a doc.
 
@@ -778,7 +785,7 @@ On a touch screen the selection carries a gold ⋯ at its top-right corner. It o
 
 Info
 
-Right-click anything — a card, several cards, a group, the empty board, a cluster in the sidebar or a folder in Files — and choose Info, or select it and press ⌘I. A panel opens at the right with what it is and where it came from:
+Right-click anything — a card, several cards, a group, the empty board, a cluster in the sidebar or a folder in Files — and choose Info (Cluster info on a cluster card, Group info on a group), or select it and press ⌘I. A panel opens at the right with what it is and where it came from:
 
  | What Info shows
 Details | The kind and file format, the name it was uploaded with, its size — plus what that kind has: dimensions for an image; resolution and length for a video; length, tempo, key, sample rate and channels for audio; pages for a PDF; words in a note; the address of a link
@@ -791,7 +798,7 @@ Info follows the selection while it's open, so clicking through cards walks it t
 
 Removing a card from the board
 
-Right-click a file — an image, video, audio clip, PDF, file, link, palette or note — and choose Remove from board to take it off the canvas without deleting it. It stays in the cluster, waiting in Files with a Not on board mark, until you drag it back onto the board or choose Put on board there. The toast that follows can undo it. ⌫ still deletes.
+Right-click a file — an image, video, audio clip, PDF, file, link, palette or note — and choose Move to cluster ›, then Keep in Files only, to take it off the canvas without deleting it. It stays in the cluster, waiting in Files with a Not on board mark, until you drag it back onto the board or choose Put on board there. The toast that follows can undo it. ⌫ still deletes.
 
 Titles
 
@@ -902,7 +909,7 @@ For a fixed layout with defined cells instead, use a grid.
 
 Cropping and thumbnails
 
-Cluster cover images use the same machinery: right-click a cluster → Upload custom thumbnail to pick your own, with a 16:9 crop and reposition step. Reset to auto thumbnail returns to the generated miniature of the board itself.
+Cluster cover images use the same machinery: right-click a cluster → Color and cover › → Upload custom thumbnail… to pick your own, with a 16:9 crop and reposition step. Reset to auto thumbnail returns to the generated miniature of the board itself.
 
 Limits
 
@@ -985,7 +992,7 @@ Notes are collaborative in real time. Two people can type in the same note at on
 
 Colours and defaults
 
-A note's background and text colour are set from the toolbar or the right-click menu. Text colour is always resolved for readability, so a note stays legible if someone switches between light and dark themes.
+A note's background and text colour are set from the toolbar. Text colour is always resolved for readability, so a note stays legible if someone switches between light and dark themes.
 
 To stop setting the same thing every time, Settings → Card defaults sets the background, text colour, font and size every new note starts with.
 
@@ -1320,7 +1327,7 @@ Cells have a defined order, which is what makes a grid different from a set of i
 
 Grid families
 
-A family is a live link between grids on one board: change the layout in one and the change carries to the others — the mechanism that keeps a twelve-page storyboard from drifting into twelve slightly different layouts. Right-click a grid and choose Share layout to start one, Unlink layout to leave.
+A family is a live link between grids on one board: change the layout in one and the change carries to the others — the mechanism that keeps a twelve-page storyboard from drifting into twelve slightly different layouts. Right-click a grid and choose Templates ›, then Share layout to start one, Unlink layout to leave.
 
 Discovering grids
 
@@ -1337,7 +1344,7 @@ Q: How do I change the layout after I have made it?
 A: Drag the dividers between cells. Cells split and merge as you go, and the rest of the grid reflows around what you changed.
 
 Q: Can several grids share a layout?
-A: Yes. Right-click a grid and choose Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Unlink layout takes a grid back out.
+A: Yes. Right-click a grid and choose Templates › Share layout to start a family — a live link between grids on one board, where changing the layout of one reflows the rest. Templates › Unlink layout takes a grid back out.
 
 
 ========================================================================
@@ -1426,7 +1433,7 @@ Shapes | Stroke, fill
 Arrows | Line colour
 Groups | Outline colour
 Canvas | Background — seven presets plus custom
-Clusters | Cover colour
+Clusters | Cover colour (Color and cover in the cluster's menu)
 You | Your presence colour
 
 Readability
@@ -1478,15 +1485,15 @@ This is deliberately momentary rather than a persistent setting: the case for di
 
 Aligning a selection
 
-Select several cards and right-click. Under Arrange you get:
+Select several cards and right-click. Under Align › you get:
 
 Align — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized, and nothing lands on top of anything else: cards that would meet on the edge line up one after another instead, in the order they were in. Left on a grid of pictures makes one column, in reading order, rather than a pile.
 
-Distribute — Horizontally or Vertically. The two outermost cards stay put and the ones between them are spread so the gaps are equal. Equal gaps rather than equal centres, because with cards of different sizes equal centres still looks uneven, which is the thing you were trying to fix. Needs at least three cards — two have no gap between them to even out.
+Distribute (inside Align ›, for three or more cards) — Horizontally or Vertically. The two outermost cards stay put and the ones between them are spread so the gaps are equal. Equal gaps rather than equal centres, because with cards of different sizes equal centres still looks uneven, which is the thing you were trying to fix. Needs at least three cards — two have no gap between them to even out.
 
 Tidying up
 
-Arrange → Tidy up repacks cards rather than nudging them:
+Tidy up › repacks cards rather than nudging them:
 
  | 
 Justified rows | Rows of equal height with every picture at its true shape, flush on both edges. The best answer for photographs — there are no holes in it.
@@ -1524,7 +1531,7 @@ Q: Does snapping work with many cards on screen?
 A: Yes. Candidate guides are culled to what is actually near the card you are moving, so a board with hundreds of cards does not turn into a screen full of lines.
 
 Q: Can I align a selection all at once?
-A: Yes. Select several cards, right-click, and use Arrange → Align or Distribute. To repack a whole board, Arrange → Tidy up.
+A: Yes. Select several cards, right-click, and use Align › (Distribute is inside it, for three or more cards). Arrange › sets front-to-back order. To repack a whole board, Tidy up ›.
 
 
 ========================================================================
@@ -1676,7 +1683,7 @@ Versions
 
 A file can have versions. Drop a new file onto a file of the same kind — on the board or in Files — and it becomes that file's next version: the card shows the new one, and the old one is kept. The card lights up and says Drop to add as v2 before you let go. A toast confirms it with Undo, and with Keep as separate file for when you meant it as a file of its own. Hold ⌥ while you drop to skip all of that and add it as a separate file straight away.
 
-Upload new version… in the right-click menu does the same with a file picker — for images it's under Edit. Images, videos, audio, PDFs and other files all take versions; the new one has to be the same kind as the old.
+Upload new version… in the right-click menu does the same with a file picker — on the canvas it's under Edit ›, and in Files it is a top-level row. Images, videos, audio, PDFs and other files all take versions; the new one has to be the same kind as the old.
 
 Once a file has more than one, a small v2 chip on the card (and beside its name in Files) says which version is on show; it opens Info, whose Versions section lists every version, newest first, with who uploaded it, when, and its size. From each version's menu:
 
@@ -1685,6 +1692,8 @@ Make current | Shows that version on the card again, everywhere the card appears
 Download | That version's original file
 Add a label… | A name for it — "Picture lock", "Director's cut"
 Delete version | Removes it, with undo
+
+Each version's row in the list also has its own menu, with Look at it and Rename label….
 
 A deleted version waits under Recently deleted for 30 days, where Restore brings it back; after that it's gone. A file keeps up to 50 versions, and the one on show can't be deleted while it's the only one left — deleting the card is how you delete the file. Every change is one step of ⌘Z.
 
@@ -1717,7 +1726,7 @@ Q: What happens if the page closes while photos are still uploading?
 A: Photos upload from your device while the page is open. While anything is still going up, the browser asks before the tab closes. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
 
 Q: How do I upload a new version of a file?
-A: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again.
+A: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version… (on the board, under Edit ›; in Files, a top-level row). Info lists every version, and any of them can be made current again.
 
 
 ========================================================================
@@ -1824,7 +1833,7 @@ A file the browser can't decode, ProRes outside Safari for instance, plays from 
 
 Autoplay and looping
 
-Right-click a video card for Autoplay (muted) and Loop. Together they turn a short clip into the thing a GIF used to be on a reference board — a moving still you never have to press play on — while the file stays a real video you can scrub, download and hand to an editor.
+Right-click a video card, then Edit ›, for Autoplay (its hint says "Plays muted") and Loop. Together they turn a short clip into the thing a GIF used to be on a reference board — a moving still you never have to press play on — while the file stays a real video you can scrub, download and hand to an editor.
 
 Autoplay is muted, and not as a preference: every browser blocks an autoplaying clip that makes noise, and a board of self-starting soundtracks would fight the one-at-a-time rule audio cards follow. Unmute from the card's own controls when you want to hear it.
 
@@ -1832,7 +1841,7 @@ A clip only plays while it is on screen. Scroll it out of view and it pauses. On
 
 Autoplaying clips keep the same time for everyone. Open a board nobody else is on and its autoplaying clips all start from the beginning, together. Anyone who opens it while you're there lands on the frame you're seeing, and the clips stay in step from then on, quietly catching up if one stalls to load. A clip that loops goes round; one that doesn't plays through once and stops on its last frame at the same moment for everyone. Pause one from its controls and it stays paused for you alone; press play and it rejoins everyone else.
 
-To line clips up against each other, give one a start point: the frame it shows when the board starts. Right-click an autoplaying clip and choose Start here to use the frame on screen (pause on the exact frame first if you like), or Start at… to type a time such as 0:12 or 1:05.5. A looping clip still plays the whole clip, just shifted; one that plays once begins at its start point. The start point is saved on the card, so everyone sees the same alignment, and Clear start point puts the clip back to its beginning.
+To line clips up against each other, give one a start point: the frame it shows when the board starts. Right-click an autoplaying clip, open Edit › and choose Start here to use the frame on screen (pause on the exact frame first if you like), or Start at… to type a time such as 0:12 or 1:05.5. A looping clip still plays the whole clip, just shifted; one that plays once begins at its start point. These rows show only with Autoplay on. The start point is saved on the card, so everyone sees the same alignment, and Clear start point puts the clip back to its beginning.
 
 What Clusters knows about a clip
 
@@ -1866,7 +1875,7 @@ Cover art
 
 MP3, M4A and FLAC files can carry artwork inside them, and Clusters reads it as the file uploads — a released track arrives on the canvas looking like itself.
 
-WAV and AIFF have no standard way to carry a picture, so a loop exported to either will not have one. Right-click any audio card for Set cover image to add one by hand; a cover you set that way is never overwritten.
+WAV and AIFF have no standard way to carry a picture, so a loop exported to either will not have one. Right-click any audio card, open Edit › and choose Cover image… (Replace cover image… and Remove cover image once it has one) to add one by hand; a cover you set that way is never overwritten.
 
 Downloading audio
 
@@ -1925,7 +1934,7 @@ Q: Can I trim a clip?
 A: No. Clusters plays media, it does not edit it. Trim in your editor and upload the version you want to show.
 
 Q: Can a video loop like a GIF?
-A: Yes. Right-click the card for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen.
+A: Yes. Right-click the card, then Edit ›, for Autoplay and Loop. Autoplay is always muted because browsers block clips that start themselves with sound, and a clip only plays while it is on screen.
 
 Q: What formats work?
 A: Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are. A file some browser can't play, such as ProRes, HEVC, MKV, AVI, WMV or AIFF, gets a copy that every browser can, and plays from that. Download always gives you the original.
@@ -2012,8 +2021,8 @@ Making a cluster from cards you already have
 
 Cards that belong together can move into a cluster of their own in one step, and one undo puts them back and removes the cluster:
 
-Pick two or more cards, right-click → New cluster from N cards
-Right-click a card → Move to cluster… → New cluster… — there even when this is your only cluster
+Pick two or more cards, right-click → New cluster from these
+Right-click a card → Move to cluster › → New cluster… — there even when this is your only cluster
 Right-click a group → Turn into cluster… — the group moves in whole, and the cluster takes its name
 In Files, pick files and press New cluster on the selection bar
 
@@ -2025,7 +2034,7 @@ A cluster inside a cluster appears as a card on the parent's canvas that opens i
 
 This is how structure emerges without anybody designing it: a film becomes scenes, a scene becomes setups, a setup becomes a reference wall — each a real board you can open, share and work on independently.
 
-Moving a cluster: drag it in the sidebar tree (on a touch screen, hold the row first — a swipe scrolls the list), drag it onto another cluster's card on a canvas, or right-click it → Move to cluster…. Moves are cycle-safe — dragging a cluster into one of its own descendants is refused rather than creating a loop. Cards move the same way — see Cards.
+Moving a cluster: drag it in the sidebar tree (on a touch screen, hold the row first — a swipe scrolls the list), drag it onto another cluster's card on a canvas, or right-click it → Move to… (on its card on a canvas, the row is Move to cluster). Moves are cycle-safe — dragging a cluster into one of its own descendants is refused rather than creating a loop. Cards move the same way — see Cards.
 
 Linked clusters are different: a reference to a cluster that lives elsewhere, placed on this canvas. The board itself does not move. Use it when something belongs in two places.
 
@@ -2052,10 +2061,11 @@ Thumbnails
 
 Every cluster gets a thumbnail rendered from what is actually on it — a miniature of the board, not a generic icon. It updates as the board changes.
 
-To override it, right-click the cluster:
+To override it, right-click the cluster and choose Color and cover ›:
 
-Cover colour — a flat colour instead of a render
-Upload custom thumbnail — your own image, with a 16:9 crop and reposition step
+Neutral, Warm, Cool, Sun, Dusk, Sand and Sea — a flat tint instead of a render
+Custom… — a colour of your own
+Upload custom thumbnail… — your own image, with a 16:9 crop and reposition step
 Reset to auto thumbnail — back to the generated render
 
 A custom thumbnail is respected — editing the board afterwards will not silently overwrite the image you chose.
@@ -2109,7 +2119,7 @@ The top card:
 The workspace — its name opens the switcher, to change workspace or start a new one. Under it, who else is here right now, or whose workspace it is when it was shared with you.
 Search — the magnifying glass, or ⌘K, searches everything in the workspace. See search.
 Home and Messages — Home is where your projects are; Messages opens over the cluster you are in and shows an unread count.
-Your clusters — the cluster tree, with Shared with you and your tags below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu, which adds Star and, if you can edit it, Always open in Files to the usual cluster actions.
+Your clusters — the cluster tree, with Shared with you and your tags below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu: Open, Send to…, Share…, Copy link; Rename…, New cluster inside, Move to…, Color and cover ›; Star (or Unstar), Info, More › (Copy, Paste into this cluster, Always open in Files); and Delete (or Remove from my list for a cluster shared with you). See the usual cluster actions.
 
 Shared with you
 
@@ -2117,7 +2127,7 @@ Shared with you lists the clusters people shared with you on their own, the newe
 
 Only the newest few are listed. Below them, All shared opens the Shared page, with every cluster and file shared with you or by you, and counts what you haven't opened yet. Once more are shared with you than the list shows, the magnifying glass beside Shared with you opens that page ready to search.
 
-A cluster's ⋯ menu has Open, Copy link and Remove from my list. Removing one takes it off your list, with an undo, and changes nothing for the person who shared it. Opening it again, from a link or a search, puts it back, and so does their sharing it with you again. When someone stops sharing a cluster with you, it leaves the list and a note says so.
+A cluster's ⋯ menu has Open, Send to…, Copy link and Remove from my list. Removing one takes it off your list, with an undo, and changes nothing for the person who shared it. Opening it again, from a link or a search, puts it back, and so does their sharing it with you again. When someone stops sharing a cluster with you, it leaves the list and a note says so.
 
 Inside a cluster shared with you, the trail at the top of the canvas starts with whoever shared it, when Clusters knows who did.
 
@@ -2153,7 +2163,7 @@ Looking at a file
 
 Click a file for Quick look: it opens large, in front of the board. ← and → step through the files beside it; Esc closes it.
 Double-click it, or press Enter, to go to it: the board flies to its card and selects it, or, for a file that isn't on the board, the full Files page opens with it picked out.
-Right-click it, or press ⇧F10, for its menu: Quick look, Show on board (or Show in Files), Put on board, Star, Download, Share file…, Move to…, Copy to… and Delete. Delete has an undo.
+Right-click it, or press ⇧F10, for its menu: Quick look, Show on board (or Show in Files), Put on board, Send to…, Copy link, Share file…, Download, Move to…, Copy to…, Star, Info and Delete. Delete has an undo.
 
 Selecting several
 
@@ -2161,7 +2171,7 @@ Selecting several
 
 The full Files page
 
-⤢ at the top right of Files, or F, opens the cluster's files full screen: the full Files page — this card grown, with folders, a grid or a list, Info and downloads. While it's open, this card folds to a bar, Files · full screen, so the files are listed once; its Shrink, F again or ⌘\ brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose Always open in Files from its menu in the sidebar.
+⤢ at the top right of Files, or F, opens the cluster's files full screen: the full Files page — this card grown, with folders, a grid or a list, Info and downloads. While it's open, this card folds to a bar, Files · full screen, so the files are listed once; its Shrink, F again or ⌘\ brings the board back. Opening the page this way is yours alone; it never changes how the cluster opens for anyone else. To make a cluster open in Files for everyone, choose More ›, then Always open in Files, from its menu in the sidebar.
 
 Moving and copying files
 
@@ -2242,7 +2252,7 @@ Go back to the board | F again, ⌘\, or Shrink — at the top right of the page
 Find a file on the board | Show on board in its menu, in Quick look or in Info — the board brings it into view and selects it
 Put a file somewhere on the board | Drag it from the sidebar's Files onto the board
 
-⌘K → "Show Files" does the same as F. Opening the page this way is yours alone, on this device; it never changes the cluster for anyone else. To make a cluster open in Files for everyone, and on shared and published links, choose Always open in Files from its menu in the sidebar (if you can edit it); the same menu turns it back with Open on the board by default. Visitors on those links get this same page, read-only: the search, All files ⌄, Grid and List, Quick look, Info and downloads, but nothing that adds, moves or deletes. The title is just the cluster's name there, and its clusters open from their tiles.
+⌘K → "Show Files" does the same as F. Opening the page this way is yours alone, on this device; it never changes the cluster for anyone else. To make a cluster open in Files for everyone, and on shared and published links, choose More ›, then Always open in Files, from its menu (if you can edit it; it is a tick, offered in the sidebar tree and on folders in Files, not on Home); untick it to turn it back. Visitors on those links get this same page, read-only: the search, All files ⌄, Grid and List, Quick look, Info and downloads, but nothing that adds, moves or deletes. The title is just the cluster's name there, and its clusters open from their tiles.
 
 In split view, F acts on the pane you last worked in, and Files there fills that pane.
 
@@ -2254,7 +2264,7 @@ Files dragged from this page onto a folder move into that cluster, as they do fr
 
 Not on board
 
-A file can be in a cluster without being on its board. Files you add in Files start that way, and so does a card you take off: right-click it on the board and choose Remove from board. Either way it waits in Files with a Not on board mark. Not on board in the View menu shows just those.
+A file can be in a cluster without being on its board. Files you add in Files start that way, and so does a card you take off: right-click it on the board and choose Move to cluster ›, then Keep in Files only. Either way it waits in Files with a Not on board mark. Not on board in the View menu shows just those.
 
 To put one on the board, drag it there from the sidebar, or right-click it in Files — or use the selection bar, or Quick look — and choose Put on board, which places it in the clear space nearest the middle of where the board was last looking. A link or search result that points at a file that isn't on the board opens Files with it picked out instead.
 
@@ -2323,7 +2333,9 @@ With a finger
 
 On a touch screen a tap opens what it lands on, as the iPad's Files app does: a folder opens and a file opens in Quick look. Touch and hold a file or a folder for its menu, the same one a right-click opens, with Select first. Select puts a check on every file, and each tap then adds one or takes it out; a hold adds the one it is on and opens the menu for them all. The bar gains Copy to…, since there is no right-click to find it, and ends with Done. A hold opens the menu rather than picking a file up, so a finger moves files with Move to… or Put on board, not by dragging. A trackpad or mouse on a tablet still clicks and selects as it does on a computer.
 
-Right-click a file, a folder or a selection for everything you can do with it — Quick look, Show on board, Rename, Download, Copy link, Move to…, Copy to…, Get info and Delete — or press ⇧F10 to open the same menu from the keyboard.
+Right-click a file, a folder or a selection for everything you can do with it, or press ⇧F10 to open the same menu from the keyboard. A file's menu runs in this order: Quick look, Open in player, Show on board (or Put on board); Send to…, Copy link, Share file… (Share doc… for a doc), Download; Rename, Upload new version…, Move to…, Copy to…; Info, Linked from N places, Delete. A row that doesn't apply to the file is left out. With several files selected the menu's title is the count, and it holds Put on board, Send to…, Download, Move to…, Copy to…, Info and Delete.
+
+Right-click empty space in Files for a menu with New cluster, Upload files… and Select all. It is right-click only.
 
 Rename a file or folder with F2, or Rename in that menu: the name becomes editable in place, Enter saves and Esc puts it back. Renaming a file changes what it's called in the cluster, not the file — it still downloads under the name it was uploaded with. Notes are named by their text, so they don't rename. ⌘Z and ⌘⇧Z undo and redo in Files just as they do on the board.
 
@@ -2363,7 +2375,7 @@ On an audio row in the List layout, Space still auditions it in place, so a pack
 
 Info
 
-Info — ⌘I, Get info in the right-click menu, or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same Info opens from the board. On the Files page it opens as a card beside the files (on a phone or tablet, as a sheet from the bottom), and whether it's open is remembered on your device. From there:
+Info — ⌘I, Info in the right-click menu (it reads Hide info while the panel is open), or the button in Quick look and on the selection bar — describes whatever is selected: a file's large preview, its kind and format, size, dimensions, who uploaded it and exactly when, and where it lives; a folder's contents; a summary of several things; and, with nothing selected, the cluster you're in. The same Info opens from the board. On the Files page it opens as a card beside the files (on a phone or tablet, as a sheet from the bottom), and whether it's open is remembered on your device. From there:
 
 Action | What it does
 Show on board | Jumps to the card, selected, on the canvas — or Put on board for a file that's waiting in Files
@@ -2420,7 +2432,7 @@ Coming from a reference tool that only does one of these? See how Clusters compa
 ## Frequently asked questions
 
 Q: Does opening Files change my board?
-A: No. It is a different view of the same contents. Positions on the canvas are untouched, and opening the full Files page never changes how anyone else sees the cluster — only Always open in Files, in the cluster's menu in the sidebar, does that.
+A: No. It is a different view of the same contents. Positions on the canvas are untouched, and opening the full Files page never changes how anyone else sees the cluster — only Always open in Files, under More › in the cluster's menu, does that.
 
 Q: Can I see my files and my board at the same time?
 A: Yes. The sidebar's Files card lists the cluster's files beside the board, all the time. The full Files page is for when you want only files; F brings the board back.
@@ -2432,7 +2444,7 @@ Q: Can I upload from Files?
 A: Yes. Drag files into it, or use Add files beside the search (on a phone or tablet, the + in the bottom bar). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
 
 Q: Can I make Files the default?
-A: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, in a cluster's menu in the sidebar, makes that cluster open in Files for everyone.
+A: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, under More › in a cluster's menu, makes that cluster open in Files for everyone.
 
 Q: Can I use Clusters like Google Drive?
 A: For the files a project is working from, largely yes. You can browse, sort, filter, preview and download them, nest folders as clusters, and share a whole cluster with one link, or one file on its own. It is not a backup or sync service — no desktop sync, no offline copy — so keep a drive for that.
@@ -2958,6 +2970,8 @@ Tags on a range
 
 A tag can apply to a passage rather than the whole document: select the words, right-click and choose Tag selection…. Tagged text is underlined, with dots in the left margin.
 
+A tag chip in a document has its own menu, with Open tag and Remove tag. ⇧F10 opens it from the keyboard.
+
 This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it.
 
 Words that clearly refer to one of your tags are underlined on their own, marked auto, in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes.
@@ -3014,9 +3028,9 @@ Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you eve
 Tagging
 
 A card — right-click it and choose Tag…. The picker suggests as you type, and Enter creates a tag that does not exist yet.
-Several cards at once — select them and press Tag in the selection bar (or right-click one and choose Tag … cards…). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection.
+Several cards at once — select them and press Tag in the selection bar (or right-click one and choose Tag…). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection.
 A group, as a unit — right-click its label and choose Tag group….
-A whole cluster — right-click an empty part of it and choose Tag this cluster…, or drag a tag from the sidebar onto it.
+A whole cluster — right-click an empty part of it and choose Tag cluster…, or drag a tag from the sidebar onto it.
 A passage of text — in a document, select the words, right-click and choose Tag selection…; a name the app has noticed can also become a tag right where it appears.
 
 An item can carry several tags. A card's show as chips just under it (four, then a +N for the rest). A tag is not a location. Tagging moves nothing.
@@ -3027,7 +3041,7 @@ Click a tag chip — on a card, on a group's label, or on the cluster's own stri
 
 The tag page
 
-Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu (Open tag page), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: "12 tagged · 40 inside" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups.
+Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu (Open tag), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: "12 tagged · 40 inside" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups.
 
 This is the payoff. "Show me everything about the diner" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping.
 
@@ -3579,12 +3593,13 @@ With you lists the clusters, files and docs people shared with you, and the file
 
 Option | What it does
 Open | Opens the cluster, or the file in the app
+Send to… | Sends the cluster to someone in Messages — clusters only
 Copy link | Copies the cluster's link — clusters only
 Save a copy… | Copies the file into one of your clusters — files only, when downloading is allowed
 Add shortcut… | Puts a live shortcut to the file on one of your clusters — files only
 Remove from my list | Takes it off your list, with an undo. It changes nothing for the person who shared it
 
-By you lists the clusters and files you have shared that are still shared, the newest first, each with who has it and Link on while its link works. Click a cluster to open it, or a file to open its sharing dialog. A cluster's ⋯ menu has Open, Manage sharing… and Copy link; a file's has Manage sharing…, Copy link and Stop sharing, which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again.
+By you lists the clusters and files you have shared that are still shared, the newest first, each with who has it and Link on while its link works. Click a cluster to open it, or a file to open its sharing dialog. A cluster's ⋯ menu has Open, Send to…, Manage sharing… and Copy link; a file's has Share file…, Copy link and Stop sharing, which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again.
 
 The search field at the top finds anything on the open tab by its name, by who shared it or who has it, by its workspace or cluster, or by what it is, such as video. Esc or ✕ clears it, and switching tabs starts afresh.
 
@@ -3722,6 +3737,7 @@ A dot on a pin means there is something in it you haven't read.
 Zoomed out, pins that would crowd each other gather into one pin with a number. Click it and the board zooms in until they come apart.
 Point at a pin to read how it begins, who wrote it and when, and how many replies it has.
 Click a pin to open the conversation in a card beside what it is about. The open pin and its card are ringed in gold.
+Right-click a pin for its own menu: Open, Resolve (or Reopen), Copy link and Delete.
 Drag a pin that sits on a point to move it, if you wrote it or can edit the board. A pin on a card or a group follows what it is on.
 
 On a phone or an iPad, tap a pin and the conversation opens as a sheet from the bottom of the screen. A new comment starts in the same sheet; see Mobile and tablet.
@@ -3781,7 +3797,7 @@ On the words of a note or a document
 
 Select words in a note or a document and comment on them. The words are tinted while their conversation is open for discussion, turn gold while you have it open, and read as plain text again once it is resolved. Click commented words to open their conversation.
 
-A note with comments has Comments in its right-click menu, with a number: it lists the note's conversations, Open and Resolved. A document lists its own in its side panel; see comments in documents.
+A note with comments has a row in its right-click menu that reads like 3 comments: it lists the note's conversations, Open and Resolved. A document lists its own in its side panel; see comments in documents.
 
 Who can comment
 
@@ -3862,7 +3878,7 @@ A message that can't be sent stays in the conversation marked Not sent, with Try
 
 Sending a card or cluster
 
-Right-click a card or a cluster and choose Send to… to send it to people in Messages. It's on any card on the canvas, on several selected cards at once (Send 3 cards to…, up to 50), on a cluster's card, and on a cluster in the sidebar. On a phone or tablet, use a card's ⋯ menu, or hold a cluster in the sidebar.
+Right-click a card or a cluster and choose Send to… to send it to people in Messages. It's on any card on the canvas, on several selected cards at once (up to 50; the menu's title shows how many), on a cluster's card, and on a cluster in the sidebar. On a phone or tablet, use a card's ⋯ menu, or hold a cluster in the sidebar.
 
 Who's listed — your recent conversations first, groups included, then everyone you can message. Search by name, or type a whole email address to send it to someone who isn't listed
 Picking — up to 25 at once: people, groups and email addresses together. Each person gets it in your direct conversation with them, and a group gets one message
@@ -4843,7 +4859,7 @@ With the draw tool active, one finger draws and two fingers still pinch-zoom. St
 
 Menus under a finger
 
-On a phone, a row with a › (Arrange, Edit, Background, Export, Tidy up, Move to cluster) steps into the menu itself instead of opening beside it. The back row at its top goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls.
+On a phone the menu is a sheet from the bottom. What you held is shown at its top, and a row of tiles holds the quick actions. A row with a › (Arrange, Edit, Background, Export, Tidy up, Move to cluster) steps into the menu itself instead of opening beside it. Inside a submenu a Back row goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls.
 
 On an iPad held sideways, a tap on a row with a › opens its list beside the menu and leaves it open. A list's own list, such as a group's Outline shape, opens beside it.
 

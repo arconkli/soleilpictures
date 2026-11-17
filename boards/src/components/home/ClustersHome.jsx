@@ -28,9 +28,15 @@
 // the Share window); the rules are lib/homeMap.js's.
 
 import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
+import { flushSync, createPortal } from 'react-dom';
 import { R2Image } from '../R2Image.jsx';
 import { Icon } from '../Icon.jsx';
+import { COVER_TINTS } from '../primitives.jsx';
+import { CardContextMenu } from '../CardContextMenu.jsx';
+import { clusterMenu, clusterActsFrom, coverTints } from '../../lib/menus/clusterMenu.js';
+import { useClusterActions } from '../../hooks/useClusterActions.js';
+import { useLongPress } from '../../hooks/useLongPress.js';
+import { swallowNextClick } from '../../lib/swallowClick.js';
 import { Plus, X, Search } from '../../lib/icons.js';
 import { boardRecency } from '../../lib/projectsHome.js';
 import { clusterName, findClusters, starLabels, workspaceLine } from '../../lib/homeMap.js';
@@ -89,7 +95,7 @@ function Faces({ people, max = 3 }) {
 // The picked cluster's card, drawn by the universe beside its star.
 function StarCard({
   board, boards, rootId, workspaceId, photos, here, editable, starred,
-  onClose, onOpen, onRename, onCover, onMove, onStar, onDelete, onPick,
+  onClose, onOpen, onRename, onCover, onMove, onStar, onDelete, onPick, onMenu,
 }) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState('');
@@ -124,6 +130,11 @@ function StarCard({
 
   return (
     <section className="ch-card" aria-label={name}
+             onContextMenu={(e) => {
+               if (!onMenu || e.target.closest?.('input, textarea')) return;
+               e.preventDefault();
+               onMenu(e.clientX, e.clientY, editable && !renaming ? () => { setDraft(name); setRenaming(true); } : null);
+             }}
              onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && !renaming) { e.stopPropagation(); onClose?.(); } }}>
       <button type="button" className="ch-x" aria-label={tr`Close`} title={tr`Close (Esc)`} onClick={onClose}>
         <Icon as={X} size={14} weight="regular" />
@@ -300,6 +311,43 @@ export function ClustersHome({
     when: newest ? relativeTimeShort(newest) : '',
   });
 
+  // The cluster menu (lib/menus/clusterMenu.js): a star's card (right-click),
+  // and on a phone a row (hold, right-click, Shift+F10). What this page has its
+  // own verbs for (open, move, star, delete, with their Undo and analytics)
+  // stays with them; the shared action set (useClusterActions) fills the rest.
+  const cc = useClusterActions();
+  const [menu, setMenu] = useState(null);          // { x, y, id, rename }
+  const openMenu = (id, x, y, rename = null) => setMenu({ x, y, id, rename });
+  useLongPress(rootRef, (x, y, e) => {
+    const id = e.target.closest?.('[data-ch-id]')?.getAttribute('data-ch-id');
+    if (!id || !boards?.[id]) return false;
+    openMenu(id, x, y);
+    swallowNextClick({ held: true });
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  const menuModel = () => {
+    const b = menu && boards?.[menu.id];
+    if (!b) return null;
+    const id = b.id;
+    const edit = !!canEditCluster?.(id);
+    const isRoot = id === rootId;
+    const base = clusterActsFrom(cc, b, { surface: 'home_menu', tints: coverTints(COVER_TINTS), at: { x: menu.x, y: menu.y }, star: false, opensInFiles: false });
+    const acts = {
+      ...base,
+      open: () => open(id, menu.rename ? 'card' : 'row'),
+      rename: menu.rename,
+      'move-cluster': edit && !isRoot && onMoveCluster ? () => onMoveCluster(id) : null,
+      star: onToggleStar ? { run: () => onToggleStar(id), starred: !!isStarred?.(id) } : null,
+      delete: onDeleteCluster ? () => { if (selectedId === id) setSelectedId(null); onDeleteCluster(id); } : null,
+    };
+    return clusterMenu({ name: isRoot ? (b.name || tr`Studio`) : clusterName(b) }, { edit, isRoot }, acts);
+  };
+  const shownMenu = menu ? menuModel() : null;
+  const menuHost = shownMenu ? createPortal(
+    <CardContextMenu open x={menu.x} y={menu.y} items={shownMenu.items} label={shownMenu.label} title={shownMenu.title}
+                     root="cluster" onClose={() => setMenu(null)} />,
+    document.body,
+  ) : null;
+
   const header = (
     <HomeWorkspace
       workspace={workspace} workspaces={workspaces} personalWorkspaceId={personalWorkspaceId}
@@ -371,7 +419,14 @@ export function ClustersHome({
         <ul className="ch-rows" aria-label={tr`Clusters`}>
           {rows.map(b => (
             <li key={b.id}>
-              <button type="button" className="ch-row" onClick={() => open(b.id, 'row')}>
+              <button type="button" className="ch-row" data-ch-id={b.id} onClick={() => open(b.id, 'row')}
+                      onContextMenu={(e) => { e.preventDefault(); openMenu(b.id, e.clientX, e.clientY); }}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) return;
+                        e.preventDefault();
+                        const r = e.currentTarget.getBoundingClientRect();
+                        openMenu(b.id, r.left + 24, r.bottom - 8);
+                      }}>
                 <Cover board={b} />
                 <span className="ch-row-text">
                   <span className="ch-row-name">{b.id === rootId ? (b.name || tr`Studio`) : clusterName(b)}</span>
@@ -382,6 +437,7 @@ export function ClustersHome({
           ))}
           {lit && !found.length && <li className="ch-none"><Trans>Nothing called that.</Trans></li>}
         </ul>
+        {menuHost}
       </div>
     );
   }
@@ -402,6 +458,7 @@ export function ClustersHome({
       onStar={onToggleStar ? () => onToggleStar(selected.id) : null}
       onDelete={() => { const id = selected.id; setSelectedId(null); onDeleteCluster?.(id); }}
       onPick={(id) => setSelectedId(id)}
+      onMenu={(x, y, rename) => openMenu(selected.id, x, y, rename)}
     />
   ) : null;
 
@@ -463,6 +520,7 @@ export function ClustersHome({
         {!onlyStudio && <p className="ch-hint">{touch ? tr`Tap a star to see it · Double-tap to open it` : tr`Click a star to see it · Double-click to open it`}</p>}
         {coverInput}
         {cropWindow}
+        {menuHost}
       </div>
     </>
   );

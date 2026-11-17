@@ -103,17 +103,21 @@ function appPreload() {
 // Which Phosphor icons an open of the app draws: the ones the entry and AppShell
 // import, statically, through lib/icons.js or straight from the package. Those
 // stay in vendor-icons, which the app loads at once; manualChunks below sends
-// every other icon to vendor-icons-lazy, which only a lazy chunk (Share,
-// Messages, the doc editor, the admin page…) ever asks for. It only regroups
-// modules, so a use this misses costs bytes, never a missing icon: the closure
-// then imports vendor-icons-lazy too, and scripts/bundleBudget.mjs fails on that.
+// the icons only the menus add to vendor-icons-menu, which lib/menuIconsLoad.js
+// fetches once the app is idle, and every other non-boot icon to
+// vendor-icons-lazy, which only a lazy chunk (Share, Messages, the doc editor,
+// the admin page…) ever asks for. It only regroups modules, so a use this
+// misses costs bytes, never a missing icon: the closure then imports
+// vendor-icons-lazy too, and scripts/bundleBudget.mjs fails on that.
 let bootIcons = null;   // null: keep every icon in vendor-icons
+let menuIcons = null;
 function iconSplit() {
   return {
     name: 'soleil-icon-split',
     apply: 'build',
     async buildEnd() {
       bootIcons = null;
+      menuIcons = null;
       const ids = [...this.getModuleIds()];
       const find = (suffix) => ids.find((id) => id.endsWith(suffix));
       const iconsId = find('/src/lib/icons.js');
@@ -153,6 +157,25 @@ function iconSplit() {
         }
       }
       bootIcons = icons;
+      // The icons components/menuIcons.js names that the boot set lacks.
+      const menuId = find('/src/components/menuIcons.js');
+      if (menuId) {
+        const menu = new Set();
+        for (const node of astOf(menuId).body) {
+          const from = node.source?.value;
+          if (node.type !== 'ImportDeclaration' || !from) continue;
+          const viaIcons = from !== '@phosphor-icons/react' && /(^|\/)icons(\.js)?$/.test(from)
+            && (await this.resolve(from, menuId))?.id === iconsId;
+          if (!viaIcons && from !== '@phosphor-icons/react') continue;
+          for (const s of node.specifiers) {
+            if (s.type !== 'ImportSpecifier') continue;
+            const name = s.imported.name;
+            const real = viaIcons ? (alias.get(name) || name) : name;
+            if (!icons.has(real)) menu.add(real);
+          }
+        }
+        menuIcons = menu;
+      }
     },
   };
 }
@@ -188,7 +211,7 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
           const icon = /@phosphor-icons\/react\/dist\/(?:csr|defs)\/([^/.]+)\.es\.js$/.exec(id);
-          if (icon && bootIcons && !bootIcons.has(icon[1])) return 'vendor-icons-lazy';
+          if (icon && bootIcons && !bootIcons.has(icon[1])) return menuIcons?.has(icon[1]) ? 'vendor-icons-menu' : 'vendor-icons-lazy';
           // Most specific first.
           // three.js on its own: the admin Universe needs only this, and it
           // used to arrive with HomeGraph's react-force-graph stack attached.

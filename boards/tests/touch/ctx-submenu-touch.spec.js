@@ -25,7 +25,7 @@ const tapOn = async (page, locator) => {
   await tap(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
 };
 
-// Every card of the board in one group, and the selection's menu from its ⋯.
+// Every card of the board in one group, and one card's menu from its ⋯.
 async function openGroupedCardMenu(page) {
   await page.goto('/?local=1&reset=1');
   await page.waitForSelector('.canvas-wrap .card', { timeout: 30000 });
@@ -39,6 +39,12 @@ async function openGroupedCardMenu(page) {
   await page.keyboard.press('ControlOrMeta+g');
   await expect(page.locator('.group-label').first()).toBeVisible();
   await expect(hugOutline(page)).toHaveCount(0);
+  // One card's menu, not the selection's: the menu of several cards has no
+  // Group "Name" › (plan.md §3, Several cards), so the selection goes first.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.card.is-selected')).toHaveCount(0);
+  await tap(page, { x: b.x + b.width / 2, y: b.y + b.height - 6 });
+  await expect(page.locator('.sel-menu > .card-menu-btn')).toBeVisible();
   await tapOn(page, page.locator('.sel-menu > .card-menu-btn'));
   await expect(menu(page)).toBeVisible();
   return menu(page).locator('.ctx-has-submenu', { hasText: /^Group "/ });
@@ -77,7 +83,8 @@ test('a tap opens a submenu\'s flyout and it stays; a nested row\'s opens beside
   const m = await menu(page).boundingBox();
   expect(s.x >= m.x + m.width || s.x + s.width <= m.x, `nested ${s.x}..${s.x + s.width} off the menu ${m.x}..${m.x + m.width}`).toBe(true);
 
-  await tapOn(page, shape.getByRole('menuitem', { name: /^Hug/ }));
+  // Box and Hug are a choice of one, checked (plan.md §3, Group: "Box / Hug, checked").
+  await tapOn(page, shape.getByRole('menuitemradio', { name: /^Hug/ }));
   await expect(page.locator('.ctx-menu')).toHaveCount(0);
   await expect(hugOutline(page)).toHaveCount(1);
 });

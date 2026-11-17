@@ -60,6 +60,8 @@ line up along its top edge.
   replies it has.
 - **Click a pin** to open the conversation in a card beside what it is about.
   The open pin and its card are ringed in gold.
+- **Right-click a pin** for its own menu: **Open**, **Resolve** (or **Reopen**),
+  **Copy link** and **Delete**.
 - **Drag a pin that sits on a point** to move it, if you wrote it or can edit
   the board. A pin on a card or a group follows what it is on.
 
@@ -155,7 +157,7 @@ while their conversation is open for discussion, turn gold while you have it
 open, and read as plain text again once it is resolved. Click commented words
 to open their conversation.
 
-A note with comments has **Comments** in its right-click menu, with a number:
+A note with comments has a row in its right-click menu that reads like **3 comments**:
 it lists the note's conversations, **Open** and **Resolved**. A document lists
 its own in its side panel; see [comments in
 documents](/docs/documents/comments-and-tags).

@@ -74,6 +74,13 @@ async function boxOverTwo(page) {
 }
 
 const menu = (page) => page.locator('.ctx-menu').first();
+// The phone's shell (phones, and touch tablets up to 1024px wide: an upright
+// iPad; lib/deviceShell.js) gets its menus as a bottom sheet; a wider one, an
+// iPad held sideways, keeps the menu beside the finger (plan.md §1, decision 11).
+const sheetShell = (page) => (page.viewportSize()?.width ?? 0) <= 1024;
+// Cut, Copy, Duplicate and Delete are the quick row's buttons on a card's
+// menu, not rows in its list (plan.md §2.3); on a phone, the sheet's tiles.
+const quick = (page, name) => page.locator('.ctx-quick').getByRole('menuitem', { name, exact: true });
 
 // Empty canvas near the middle of the board, and how far apart two fingers
 // either side of it can start and both land on the board, not on its chrome
@@ -164,7 +171,7 @@ test.describe('a finger on empty canvas', () => {
     await expect(page.locator('.cnv-selcount')).toHaveText(`${expected.length} selected`);
   });
 
-  test('a hold let go where it was held opens the menu at the finger, with Select…', async ({ page, browserName }) => {
+  test('a hold let go where it was held opens the menu at the finger (a sheet on a phone), with Select…', async ({ page, browserName }) => {
     needsHold(test, browserName);
     await open(page);
     const p = await emptyNear(page, { x: (await rectOf(page, 'home-note')).right + 60, y: (await rectOf(page, 'home-note')).y });
@@ -177,10 +184,24 @@ test.describe('a finger on empty canvas', () => {
     await expect(menu(page)).toBeVisible();
     await expect(page.locator('.cnv-hold-cue.is-on')).toHaveCount(0);
     await expect(menu(page).getByRole('menuitem', { name: 'Select…' })).toBeVisible();
-    // At the finger, or as near as the window's edge lets a 240px menu be.
-    const box = await menu(page).boundingBox();
-    const vw = page.viewportSize().width;
-    expect(Math.abs(box.x - Math.min(p.x, vw - 248))).toBeLessThan(12);
+    if (sheetShell(page)) {
+      // A phone's menu rises from the foot of the screen (plan.md §1, decision 11).
+      await expect(menu(page)).toHaveClass(/is-sheet/);
+      // Once it has risen (sheet-up, 260ms): its foot on the window's.
+      await expect.poll(async () => {
+        const panel = await page.locator('.sheet-panel').boundingBox();
+        return !!panel && Math.abs(panel.y + panel.height - page.viewportSize().height) < 2;
+      }).toBe(true);
+    } else {
+      // At the finger: its left edge there, or, without the room to its
+      // right, flipped to end there (plan.md §2.2: "flip left/up at the
+      // edges", lib/ctxMenuFit.js placeMenu).
+      await expect(menu(page)).not.toHaveClass(/is-sheet/);
+      const box = await menu(page).boundingBox();
+      const vw = page.viewportSize().width;
+      const fitsRight = p.x + box.width <= vw - 8;
+      expect(Math.abs((fitsRight ? box.x : box.x + box.width) - p.x)).toBeLessThan(12);
+    }
     // The click that letting go raises didn't pick anything off the menu.
     await page.waitForTimeout(300);
     await expect(menu(page)).toBeVisible();
@@ -349,7 +370,7 @@ test.describe('the selection’s ⋯', () => {
     expect(Math.min(m.hit.w, m.hit.h)).toBeGreaterThanOrEqual(42);
     await dots(page).tap();
     await expect(menu(page)).toBeVisible();
-    await expect(menu(page).getByRole('menuitem', { name: /^Delete$/ })).toBeVisible();
+    await expect(quick(page, 'Delete')).toBeVisible();
   });
 
   test('stays a finger’s size zoomed out', async ({ page, browserName }) => {
@@ -388,6 +409,9 @@ test.describe('the selection’s ⋯', () => {
     await expect(dots(page)).toHaveCount(1);
     await expect(dots(page)).toHaveAttribute('aria-label', `Options for ${expected.length} cards`);
     await dots(page).tap();
-    await expect(menu(page).getByRole('menuitem', { name: `Delete (${expected.length})` })).toBeVisible();
+    // The count is the menu's title now, not glued onto Delete (plan.md §3,
+    // Several cards: "No (N) glued onto labels").
+    await expect(page.locator('.ctx-sheet-name, .ctx-title').first()).toHaveText(`${expected.length} cards`);
+    await expect(quick(page, 'Delete')).toBeVisible();
   });
 });

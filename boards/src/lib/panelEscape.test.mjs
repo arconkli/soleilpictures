@@ -54,8 +54,10 @@ test('the Notifications panel and the Messages list close on Escape, and take fo
 test('the nested controls claim Escape', () => {
   const thread = read('../components/MessageThread.jsx');
   assert.match(thread, /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); setRenaming\(false\); \}/, 'rename');
-  // GroupChatMenu and AddParticipantsPicker
-  assert.equal((thread.match(/if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); onClose\?\.\(\); \}/g) || []).length, 2);
+  // AddParticipantsPicker. GroupChatMenu is the shared menu, which claims Escape itself.
+  assert.equal((thread.match(/if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); onClose\?\.\(\); \}/g) || []).length, 1);
+  assert.match(thread, /function GroupChatMenu[\s\S]*?<CardContextMenu/);
+  assert.match(read('../components/CardContextMenu.jsx'), /if \(!sheet\) \{ e\.preventDefault\(\); closeAllRef\.current\(\); \}/);
   assert.match(thread, /if \(e\.defaultPrevented \|\| isComposingKey\(e\)\) return;/);
   assert.match(thread, /escapeClosesPanel\(e, '\.msg-panel'\)/);
   assert.match(read('../components/EmojiPalette.jsx'), /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); onClose\?\.\(\); \}/);

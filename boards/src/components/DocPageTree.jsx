@@ -5,7 +5,8 @@
 //   - ▸ / ▾ chevron → expand/collapse, on this device only
 //     (hooks/useDocTreeExpansion)
 //   - Dbl-click name → inline rename
-//   - Right-click row → context menu (rename / duplicate-as-child / delete);
+//   - Right-click row (or ⇧F10 / the Menu key on a focused row) → context menu
+//     (rename / new sub-page / delete);
 //     under a finger, a hold on the row opens the same menu
 //   - HTML5 drag-drop → reorder (drop on row top/bottom) or nest
 //                       (drop on row middle)
@@ -13,6 +14,7 @@
 //   - "+ New page" at the bottom → root-level page
 
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   buildPageTree, addPage, deletePage, renamePage, movePage,
   getDocUndoManager, readPages, DOC_ORIGIN,
@@ -121,10 +123,10 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     const p = pages.find(x => x.id === pageId);
     if (!p) return [];
     return [
-      { id: 'rename', label: t`Rename`, run: () => startRename(p) },
-      { id: 'addchild', label: t`New sub-page`, run: () => onAddChild(pageId) },
+      { id: 'rename', label: t`Rename…`, icon: 'PencilSimple', run: () => startRename(p) },
+      { id: 'addchild', label: t`New sub-page`, icon: 'FilePlus', run: () => onAddChild(pageId) },
       { divider: true },
-      { id: 'delete', label: t`Delete`, danger: true, run: async () => {
+      { id: 'delete', label: t`Delete`, icon: 'Trash', danger: true, run: async () => {
         // Leaf pages match the canvas convention: no confirm, an Undo toast
         // instead. A page WITH sub-pages keeps the dialog (whole-subtree
         // cascade) — but is now just as undoable: deletePage runs in one
@@ -258,9 +260,19 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
              onDrop={(e) => onDrop(e, p)}
              onClick={() => onSelectPage(p.id)}
              onDoubleClick={() => startRename(p)}
-             onContextMenu={(e) => {
+             tabIndex={canEdit ? 0 : undefined}
+             onKeyDown={(e) => {
+               // ⇧F10 / the Menu key on the focused row (not a key typed in its name field).
+               if (!canEdit || e.target !== e.currentTarget) return;
+               if (e.key !== 'ContextMenu' && !(e.shiftKey && e.key === 'F10')) return;
                e.preventDefault();
+               const r = e.currentTarget.getBoundingClientRect();
+               setCtx({ open: true, x: r.left + 24, y: r.bottom, pageId: p.id, byKey: true, returnEl: e.currentTarget });
+             }}
+             onContextMenu={(e) => {
+               // View-only people get no menu, and the browser's own comes through.
                if (!canEdit) return;
+               e.preventDefault();
                setCtx({ open: true, x: e.clientX, y: e.clientY, pageId: p.id });
              }}>
           <button className="doc-tree-chev"
@@ -343,13 +355,17 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         )) : tree.map(p => renderRow(p, 0))}
       </div>
 
-      <CardContextMenu
+      {/* To <body>: inside the tree's column the page drew over it. */}
+      {createPortal(<CardContextMenu
         open={ctx.open}
         x={ctx.x}
         y={ctx.y}
         items={ctx.pageId ? buildContextMenuItems(ctx.pageId) : []}
+        byKey={!!ctx.byKey}
+        returnFocus={ctx.returnEl}
+        root="menu"
         onClose={() => setCtx(c => ({ ...c, open: false }))}
-      />
+      />, document.body)}
     </div>
   );
 }

@@ -16,5 +16,6 @@ export const IconWeightContext = createContext(null);
 
 export function Icon({ as: Component, size = 16, weight = 'thin', strokeWidth, ...rest }) {
   const floor = useContext(IconWeightContext);
+  if (!Component) return null;   // a menu icon that has not loaded yet
   return <Component size={size} weight={shownWeight(weight, floor)} style={{ display: 'block' }} {...rest} />;
 }

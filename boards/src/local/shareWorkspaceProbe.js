@@ -75,14 +75,19 @@ export function mountSharedWithMe(props = {}) {
   const asMap = (v) => (v instanceof Map ? v : new Map(Array.isArray(v) ? v : Object.entries(v || {})));
   const el = host();
   el.style.cssText = 'width:260px;padding:8px;background:var(--bg-1, var(--bg-0));position:fixed;top:0;left:0;max-height:100vh;overflow:auto;z-index:9999';
-  mountIn(el, React.createElement(SidebarSharedBoards, {
-    roots: roots || shared || [],
-    childrenOf: asMap(childrenOf),
-    meta: asMap(meta),
-    onOpenBoard: (id) => calls.opened.push(id),
-    onCopyLink: (id) => calls.copied.push(id),
-    onRemove: (id) => calls.removed.push(id),
-    ...rest,
-  }));
+  // The app drops a removed row from its list; the wrapper does the same, so the probe can show where focus goes.
+  function Host() {
+    const [rows, setRows] = React.useState(roots || shared || []);
+    return React.createElement(SidebarSharedBoards, {
+      roots: rows,
+      childrenOf: asMap(childrenOf),
+      meta: asMap(meta),
+      onOpenBoard: (id) => calls.opened.push(id),
+      onCopyLink: (id) => calls.copied.push(id),
+      onRemove: (id) => { calls.removed.push(id); setRows((rs) => rs.filter((r) => r.board_id !== id)); },
+      ...rest,
+    });
+  }
+  mountIn(el, React.createElement(Host));
   return true;
 }

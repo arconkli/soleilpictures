@@ -7,7 +7,12 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved } from '../lib/recentColors.js';
+import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved, getSavedColors } from '../lib/recentColors.js';
+import { CardContextMenu } from './CardContextMenu.jsx';
+import { useOptionalFeedback } from './AppFeedback.jsx';
+import { undoToast } from '../lib/undoToast.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { useRecentColors, useSavedColors } from '../hooks/useRecentColors.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { isComposingKey } from '../lib/composerKeys.js';
@@ -118,6 +123,8 @@ export function ColorPicker({
   // down on unmount). Using a ref for onClose avoids re-attaching on every
   // parent re-render, which would otherwise reset our "first event" guard
   // and let the next outside click slip through.
+  const swatchMenuOpenRef = useRef(false);
+  const swatchMenuClosedRef = useRef(0);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const disableRecentRef = useRef(disableRecent);
@@ -127,9 +134,19 @@ export function ColorPicker({
     const t = setTimeout(() => { armed = true; }, 0);
     const onDocDown = (e) => {
       if (!armed) return;
-      if (ref.current && !ref.current.contains(e.target)) onCloseRef.current?.();
+      if (ref.current && !ref.current.contains(e.target)) {
+        // The saved-colour menu is portaled out of the panel: a press in it is inside.
+        if (e.target.closest?.('.ctx-menu')) return;
+        onCloseRef.current?.();
+      }
     };
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onCloseRef.current?.(); };
+    const onKey = (e) => {
+      if (isComposingKey(e)) return;
+      if (e.key !== 'Escape') return;
+      // The menu took this Escape (it closed in the capture phase, just now).
+      if (swatchMenuOpenRef.current || Date.now() - swatchMenuClosedRef.current < 100) return;
+      onCloseRef.current?.();
+    };
     // Capture phase + both mouse and pointer so card stopPropagation can't
     // swallow it. Pointer events fire before mouse on most platforms.
     document.addEventListener('pointerdown', onDocDown, true);
@@ -224,6 +241,36 @@ export function ColorPicker({
 
   const recentColors = useRecentColors();
   const savedColors = useSavedColors();
+  const feedback = useOptionalFeedback();
+  // A saved swatch's menu: Remove colour { color, x, y }, opened by right-click or a hold.
+  const [swatchMenu, setSwatchMenu] = useState(null);
+  swatchMenuOpenRef.current = !!swatchMenu;
+  const [savedEl, setSavedEl] = useState(null);
+  const savedRef = useMemo(() => ({ current: savedEl }), [savedEl]);
+  useLongPress(savedRef, (x, y, e) => {
+    const c = e.target?.closest?.('[data-saved-color]')?.getAttribute('data-saved-color');
+    if (!c) return false;
+    swallowNextClick({ held: true });
+    setSwatchMenu({ color: c, x, y });
+    return true;
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  // Remove it, and offer to put it back in the same place in the row.
+  const removeSaved = (c) => {
+    const before = getSavedColors();
+    const at = before.findIndex(x => x.toLowerCase() === c.toLowerCase());
+    removeSavedColor(c);
+    undoToast(feedback, {
+      message: tr`Color removed`,
+      onUndo: () => {
+        // Saving puts a colour first: take the ones that stood ahead of it out,
+        // save it, then save them back, last one first.
+        const ahead = before.slice(0, Math.max(0, at));
+        for (const a of ahead) removeSavedColor(a);
+        addSavedColor(c);
+        for (let i = ahead.length - 1; i >= 0; i--) addSavedColor(ahead[i]);
+      },
+    });
+  };
 
   // ── Saturation / Value pad ────────────────────────────────────────────────
   const onSvDown = (e) => {
@@ -412,13 +459,14 @@ export function ColorPicker({
       {savedColors.length > 0 && (
         <>
           <div className="cp-section"><Trans context="colors">Saved</Trans></div>
-          <div className="cp-presets">
+          <div className="cp-presets" ref={setSavedEl}>
             {savedColors.slice(0, 24).map(c => (
               <button key={'s' + c} className={`cp-sw ${currentHex.toLowerCase() === c.toLowerCase() ? 'is-active' : ''}`}
                       style={{ background: c }}
-                      title={tr`${ph({ upperCase: c.toUpperCase() })} — right-click to remove`}
+                      data-saved-color={c}
+                      title={c.toUpperCase()}
                       onClick={() => pickHex(c)}
-                      onContextMenu={(e) => { e.preventDefault(); removeSavedColor(c); }} />
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSwatchMenu({ color: c, x: e.clientX, y: e.clientY }); }} />
             ))}
           </div>
         </>
@@ -492,8 +540,27 @@ export function ColorPicker({
 
   // Portal to body so position:fixed actually pins to the viewport even when
   // the picker was opened from inside the transformed cards-layer.
-  if (typeof document !== 'undefined') return createPortal(panel, document.body);
-  return panel;
+  // Wrapped with the panel's stopPropagation: React bubbles portal events to
+  // the picker's owner (a palette card would re-select and arm a drag).
+  const swatchMenuEl = (
+    <div style={{ display: 'contents' }}
+         onPointerDown={(e) => e.stopPropagation()}
+         onMouseDown={(e) => e.stopPropagation()}
+         onClick={(e) => e.stopPropagation()}
+         onDoubleClick={(e) => e.stopPropagation()}>
+    <CardContextMenu
+      open={!!swatchMenu}
+      x={swatchMenu?.x ?? 0}
+      y={swatchMenu?.y ?? 0}
+      label={swatchMenu?.color?.toUpperCase()}
+      root="menu"
+      items={swatchMenu ? [{ id: 'remove-color', label: tr`Remove color`, icon: 'Trash', danger: true, run: () => removeSaved(swatchMenu.color) }] : []}
+      onClose={() => { swatchMenuClosedRef.current = Date.now(); setSwatchMenu(null); }}
+    />
+    </div>
+  );
+  if (typeof document !== 'undefined') return createPortal(<>{panel}{swatchMenuEl}</>, document.body);
+  return <>{panel}{swatchMenuEl}</>;
 }
 
 // Modal that lists every palette currently in scope, with a text filter.

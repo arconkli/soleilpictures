@@ -1,7 +1,7 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
-import { Plus, X, EyeOff, LogOut, Search } from '../lib/icons.js';
+import { Plus, X, Search } from '../lib/icons.js';
 import { useConversationList } from '../hooks/useConversationList.js';
 import { useMessagesLook } from './messagesLook.js';
 import { conversationMatches, previewText } from '../lib/messagesCard.js';
@@ -27,6 +27,7 @@ import { thingLine } from '../lib/messageThing.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { PersonFace } from './PersonFace.jsx';
+import { CardContextMenu } from './CardContextMenu.jsx';
 
 const NO_PARTICIPANTS = [];
 
@@ -378,17 +379,18 @@ export function MessagesPanel({
 
       {thread}
 
-      {rowMenu && (() => {
-        const isGroup = !isDmConversation(participantsByConv.get(rowMenu.convId));
-        return (
-          <ConversationRowMenu
-            x={rowMenu.x} y={rowMenu.y}
-            isGroup={isGroup}
-            onPick={() => { const id = rowMenu.convId; setRowMenu(null); handleHideRow(id); }}
-            onClose={() => setRowMenu(null)}
-          />
-        );
-      })()}
+      {createPortal((
+        <CardContextMenu
+          open={!!rowMenu}
+          x={rowMenu?.x ?? 0}
+          y={rowMenu?.y ?? 0}
+          items={rowMenu ? (isDmConversation(participantsByConv.get(rowMenu.convId))
+            ? [{ id: 'hide', label: t`Hide conversation`, icon: 'EyeSlash', run: () => handleHideRow(rowMenu.convId) }]
+            : [{ id: 'leave', label: t`Leave…`, icon: 'SignOut', danger: true, run: () => handleHideRow(rowMenu.convId) }]) : []}
+          root="menu"
+          onClose={() => setRowMenu(null)}
+        />
+      ), document.body)}
 
       {composeAnchor && (
         <NewConversationPicker
@@ -517,45 +519,6 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
       )}
     </button>
   );
-}
-
-// The row's right-click / long-press menu: Hide (a DM) or Leave (a group).
-function ConversationRowMenu({ x, y, isGroup, onPick, onClose }) {
-  const popRef = useRef(null);
-  const [pos, setPos] = useState({ top: y, left: x });
-  useLayoutEffect(() => {
-    const el = popRef.current;
-    const w = el?.offsetWidth || 180, h = el?.offsetHeight || 40;
-    setPos({
-      top: Math.max(8, Math.min(y, window.innerHeight - h - 8)),
-      left: Math.max(8, Math.min(x, window.innerWidth - w - 8)),
-    });
-  }, [x, y]);
-  useEffect(() => {
-    const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
-    // Claim Escape so the panel underneath stays open.
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
-    document.addEventListener('pointerdown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-  useEffect(() => { popRef.current?.querySelector('button:not(:disabled)')?.focus(); }, []);
-  return createPortal((
-    <div ref={popRef} className="msg-group-menu" role="menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
-      {isGroup ? (
-        <button type="button" role="menuitem" className="msg-group-menu-item is-danger" onClick={onPick}>
-          <Icon as={LogOut} size={12} /> <Trans>Leave…</Trans>
-        </button>
-      ) : (
-        <button type="button" role="menuitem" className="msg-group-menu-item" onClick={onPick}>
-          <Icon as={EyeOff} size={12} /> <Trans>Hide conversation</Trans>
-        </button>
-      )}
-    </div>
-  ), document.body);
 }
 
 function relTime(iso) {

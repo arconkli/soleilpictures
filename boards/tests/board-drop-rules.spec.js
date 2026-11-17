@@ -127,29 +127,31 @@ async function openSub(page, label) {
   await expect(page.locator('.ctx-submenu')).toBeVisible();
 }
 
+// The rows are submenus now, "Move to cluster ›" and "Copy to cluster ›"
+// (plan.md §1.6, §3 Card), so their words have no "…".
 test.describe('the card menu and full Files, by the rules', () => {
-  test('Move to cluster… and Copy to cluster… on a card go by the route', async ({ page }) => {
+  test('Move to cluster and Copy to cluster on a card go by the route', async ({ page }) => {
     await open(page);
     const card = page.locator('.card[data-card-id="home-image"]');
     await card.click({ button: 'right' });
-    await openSub(page, 'Move to cluster…');
+    await openSub(page, 'Move to cluster');
     await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(1);
     expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: false });
 
     await card.click({ button: 'right' });
-    await openSub(page, 'Copy to cluster…');
+    await openSub(page, 'Copy to cluster');
     await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(2);
     expect((await calls(page))[1]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });
   });
 
-  test('a board you can only view still offers Copy to cluster…, and no Move', async ({ page }) => {
+  test('a board you can only view still offers Copy to cluster, and no Move', async ({ page }) => {
     await page.goto('/?local=1&reset=1&filesrules=1&viewonly=1');
     await page.waitForSelector('.canvas-wrap.is-readonly');
     await page.locator('.card[data-card-id="home-image"]').click({ button: 'right' });
-    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster…' })).toHaveCount(0);
-    await openSub(page, 'Copy to cluster…');
+    await expect(page.locator('.ctx-menu .ctx-item', { hasText: 'Move to cluster' })).toHaveCount(0);
+    await openSub(page, 'Copy to cluster');
     await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Sundown Highway', exact: true }).click();
     await expect.poll(async () => (await calls(page)).length).toBe(1);
     expect((await calls(page))[0]).toMatchObject({ from: 'root', to: 'b-sundown', cardIds: ['home-image'], copy: true });

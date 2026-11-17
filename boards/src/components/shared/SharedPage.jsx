@@ -20,7 +20,11 @@ import { accessSummary, typeTile } from '../../lib/sharedFiles.js';
 import { openSharedFile, notifySharedFilesChanged } from '../../lib/sharedFileBus.js';
 import { openFileShare, notifyFileShareChanged } from '../../lib/fileShareBus.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
-import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
+import { clusterMenu } from '../../lib/menus/clusterMenu.js';
+import { layout } from '../../lib/menus/rows.js';
+import { useClusterActions } from '../../hooks/useClusterActions.js';
+import { useLongPress } from '../../hooks/useLongPress.js';
+import { swallowNextClick } from '../../lib/swallowClick.js';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { PersonFace } from '../PersonFace.jsx';
 import { COVER_TINTS } from '../primitives.jsx';
@@ -130,6 +134,8 @@ export function SharedPage({
   onRemoveCluster = null, onCopyClusterLink = null, onManageClusterSharing = null,
 }) {
   const shared = useSharedFiles({ enabled: true });
+  const cc = useClusterActions();
+  const secRef = useRef(null);
   const [tab, setTab] = useState(initialTab === 'by_me' ? 'by_me' : 'with_me');
   const [hidden, setHidden] = useState(() => new Set());     // optimistic file removes
   const [stopped, setStopped] = useState(() => new Set());   // optimistic file stops
@@ -264,32 +270,39 @@ export function SharedPage({
     }
   };
 
-  const fileWithYouMenu = (item) => composeMenuSections([
-    { items: [
-      { id: 'open', label: tr`Open`, run: () => openSharedFile({ token: item.token, via: 'shared_page' }) },
-      ...(onSaveCopy && item.allow_download && SAVEABLE.has(item.kind)
-        ? [{ id: 'copy', label: tr`Save a copy…`, run: () => onSaveCopy({ token: item.token, res: { file: item, allow_download: true } }) }]
-        : []),
-      // A live card on one of your clusters that opens this file (only the
-      // share's token goes on it: components/cards/ShortcutCard.jsx).
-      ...(onAddShortcut
-        ? [{ id: 'shortcut', label: tr`Add shortcut…`, run: () => onAddShortcut({ token: item.token, res: { file: item } }) }]
-        : []),
-    ] },
-    { header: SECTION.EDIT, items: [
-      { id: 'hide', label: tr`Remove from my list`, run: () => removeFromList(item) },
-    ] },
-  ]);
+  // The menus are the app's (lib/menus): a cluster's through clusterMenu, a
+  // file's by its rows. These clusters aren't in the app's own list (they are
+  // shared with you, or yours seen from here), so they get the rows that need
+  // only the cluster's id: Open, Send to…, Copy link and the list change.
+  const sendOf = (id) => (cc?.canSend?.() ? () => cc.send(id, 'shared_page_menu') : null);
 
-  const clusterWithYouMenu = (it) => composeMenuSections([
-    { items: [
-      { id: 'open', label: tr`Open`, run: () => onOpenBoard?.(it.id) },
-      { id: 'link', label: tr`Copy link`, run: () => onCopyClusterLink?.(it.id) },
-    ] },
-    { header: SECTION.EDIT, items: [
-      { id: 'hide', label: tr`Remove from my list`, run: () => onRemoveCluster?.(it.id) },
-    ] },
-  ]);
+  const fileWithYouMenu = (item) => {
+    const name = item.name || tr`File`;
+    return {
+      label: name,
+      title: name,
+      items: layout([
+        ['open', 'copy-file', 'add'],
+        ['remove-from-list'],
+      ], {
+        open: () => openSharedFile({ token: item.token, via: 'shared_page' }),
+        'copy-file': onSaveCopy && item.allow_download && SAVEABLE.has(item.kind)
+          ? { run: () => onSaveCopy({ token: item.token, res: { file: item, allow_download: true } }), label: tr`Save a copy…` } : null,
+        // A live card on one of your clusters that opens this file (only the
+        // share's token goes on it: components/cards/ShortcutCard.jsx).
+        add: onAddShortcut
+          ? { run: () => onAddShortcut({ token: item.token, res: { file: item } }), label: tr`Add shortcut…`, icon: 'ArrowSquareOut' } : null,
+        'remove-from-list': () => removeFromList(item),
+      }),
+    };
+  };
+
+  const clusterWithYouMenu = (it) => clusterMenu({ name: it.name }, { edit: false, canRemoveFromList: true }, {
+    open: () => onOpenBoard?.(it.id),
+    send: sendOf(it.id),
+    'copy-link': () => onCopyClusterLink?.(it.id),
+    'remove-from-list': () => onRemoveCluster?.(it.id),
+  });
 
   const openFileByYou = (row) => openFileShare({
     boardId: row.board_id, cardId: row.card_id,
@@ -297,28 +310,46 @@ export function SharedPage({
     boardName: row.board_name || null, surface: 'shared_page',
   });
 
-  const fileByYouMenu = (row) => composeMenuSections([
-    { items: [
-      { id: 'manage', label: tr`Manage sharing…`, run: () => openFileByYou(row) },
-      { id: 'link', label: tr`Copy link`, run: () => copyLink(row) },
-    ] },
-    { header: SECTION.EDIT, items: [
-      { id: 'stop', label: tr`Stop sharing`, danger: true, run: () => stopSharing(row) },
-    ] },
-  ]);
+  const fileByYouMenu = (row) => {
+    const name = row.name || tr`File`;
+    return {
+      label: name,
+      title: name,
+      items: layout([
+        ['share-file', 'copy-link'],
+        ['delete'],
+      ], {
+        'share-file': () => openFileByYou(row),
+        'copy-link': () => copyLink(row),
+        delete: { run: () => stopSharing(row), label: tr`Stop sharing`, shortcut: null },
+      }),
+    };
+  };
 
-  const clusterByYouMenu = (it) => composeMenuSections([
-    { items: [
-      { id: 'open', label: tr`Open`, run: () => onOpenOwnBoard?.(it.id) },
-      { id: 'manage', label: tr`Manage sharing…`, run: () => onManageClusterSharing?.(it.id) },
-      { id: 'link', label: tr`Copy link`, run: () => onCopyClusterLink?.(it.id) },
-    ] },
-  ]);
+  const clusterByYouMenu = (it) => clusterMenu({ name: it.name }, { edit: true }, {
+    open: () => onOpenOwnBoard?.(it.id),
+    send: sendOf(it.id),
+    'share-cluster': { run: () => onManageClusterSharing?.(it.id), label: tr`Manage sharing…` },
+    'copy-link': () => onCopyClusterLink?.(it.id),
+  });
 
   const menuOf = (it) => {
     if (tab === 'with_me') return it.type === 'cluster' ? clusterWithYouMenu(it) : fileWithYouMenu(it.row);
     return it.type === 'cluster' ? clusterByYouMenu(it) : fileByYouMenu(it.row);
   };
+  const itemsByKey = useMemo(() => {
+    const m = new Map();
+    for (const g of filtered) for (const it of g.items) m.set(`${it.type}:${it.id}`, it);
+    return m;
+  }, [filtered]);
+  const openMenuFor = (it, x, y) => setMenu({ x, y, ...menuOf(it) });
+  // A hold on a row asks for its menu; the tap that ends it is eaten.
+  useLongPress(secRef, (x, y, e) => {
+    const it = itemsByKey.get(e.target.closest?.('[data-shp-key]')?.getAttribute('data-shp-key'));
+    if (!it) return false;
+    openMenuFor(it, x, y);
+    swallowNextClick({ held: true });
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   const openItem = (it) => {
     picked(it);
     if (tab === 'with_me') {
@@ -340,8 +371,14 @@ export function SharedPage({
     const faces = !withYou ? (it.people || []).slice(0, 3) : [];
     return (
       <li key={`${it.type}:${it.id}`} className={`shp-row${it.isNew ? ' is-new' : ''}`}>
-        <button type="button" className="shp-open" onClick={() => openItem(it)}
-                onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, items: menuOf(it) }); }}>
+        <button type="button" className="shp-open" data-shp-key={`${it.type}:${it.id}`} onClick={() => openItem(it)}
+                onContextMenu={(e) => { e.preventDefault(); openMenuFor(it, e.clientX, e.clientY); }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) return;
+                  e.preventDefault();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  openMenuFor(it, r.left + 24, r.bottom - 8);
+                }}>
           <Thumb item={it} url={it.type === 'file' ? shared.thumbs[it.row.token]?.url || null : null} />
           <span className="shp-main">
             <span className="shp-name" dir="auto">{label}</span>
@@ -363,7 +400,7 @@ export function SharedPage({
           {!withYou && it.linkOn && <span className="shp-chip"><Trans context="link sharing">Link on</Trans></span>}
           {it.isNew && <span className="shp-dot" aria-label={tr({ message: 'New', context: 'badge' })} />}
         </button>
-        <RowMenuButton label={tr`More for ${ph({ name: label })}`} onOpen={(x, y) => setMenu({ x, y, items: menuOf(it) })} />
+        <RowMenuButton label={tr`More for ${ph({ name: label })}`} onOpen={(x, y) => openMenuFor(it, x, y)} />
       </li>
     );
   };
@@ -374,7 +411,7 @@ export function SharedPage({
   const placeholder = tr`Search shared`;
 
   return (
-    <section className="shp" aria-label={tr`Shared`}>
+    <section className="shp" ref={secRef} aria-label={tr`Shared`}>
       <header className="shp-head">
         <h1 className="shp-title"><Trans>Shared</Trans></h1>
         <div className="shp-tabs" role="tablist" aria-label={tr`Shared`}>
@@ -443,7 +480,8 @@ export function SharedPage({
         </div>
       </div>
       {menu && createPortal(
-        <CardContextMenu open x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} card={null} />,
+        <CardContextMenu open x={menu.x} y={menu.y} items={menu.items} label={menu.label} title={menu.title}
+                         root="menu" onClose={() => setMenu(null)} card={null} />,
         document.body,
       )}
     </section>

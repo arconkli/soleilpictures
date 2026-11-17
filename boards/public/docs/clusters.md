@@ -144,8 +144,8 @@ cluster that lives elsewhere — counts as a card like any other.
 Cards that belong together can move into a cluster of their own in one step,
 and one undo puts them back and removes the cluster:
 
-- Pick two or more cards, right-click → **New cluster from N cards**
-- Right-click a card → **Move to cluster…** → **New cluster…** — there even when
+- Pick two or more cards, right-click → **New cluster from these**
+- Right-click a card → **Move to cluster ›** → **New cluster…** — there even when
   this is your only cluster
 - Right-click a [group](/docs/canvas/groups) → **Turn into cluster…** — the
   group moves in whole, and the cluster takes its name
@@ -168,7 +168,7 @@ board you can open, share and work on independently.
 
 **Moving** a cluster: drag it in the sidebar tree (on a touch screen, hold the
 row first — a swipe scrolls the list), drag it onto another
-cluster's card on a canvas, or right-click it → **Move to cluster…**. Moves are
+cluster's card on a canvas, or right-click it → **Move to…** (on its card on a canvas, the row is **Move to cluster**). Moves are
 cycle-safe — dragging a cluster into one of its own descendants is refused
 rather than creating a loop. Cards move the same way — see
 [Cards](/docs/canvas/cards).
@@ -212,10 +212,11 @@ right-hand pane, so opening one closes a cluster split, and vice versa.
 Every cluster gets a thumbnail rendered from what is actually on it — a
 miniature of the board, not a generic icon. It updates as the board changes.
 
-To override it, right-click the cluster:
+To override it, right-click the cluster and choose **Color and cover ›**:
 
-- **Cover colour** — a flat colour instead of a render
-- **Upload custom thumbnail** — your own image, with a 16:9 crop and reposition step
+- **Neutral, Warm, Cool, Sun, Dusk, Sand and Sea** — a flat tint instead of a render
+- **Custom…** — a colour of your own
+- **Upload custom thumbnail…** — your own image, with a 16:9 crop and reposition step
 - **Reset to auto thumbnail** — back to the generated render
 
 A custom thumbnail is respected — editing the board afterwards will not

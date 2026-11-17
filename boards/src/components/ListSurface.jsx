@@ -16,7 +16,12 @@ import { planPutOnBoard, positionUnplaced } from '../lib/placement.js';
 import { getViewCenter } from '../lib/viewCenter.js';
 import { folderCap, readFoldersExpanded, writeFoldersExpanded } from '../lib/filesDock.js';
 import { copyCardLink } from '../lib/cardLink.js';
-import { composeMenuSections } from '../lib/contextMenuSections.js';
+import { openSend, sendAvailable, SEND_MAX_CARDS } from '../lib/sendBus.js';
+import { COVER_TINTS } from './primitives.jsx';
+import { clusterMenu, clusterActsFrom, coverTints } from '../lib/menus/clusterMenu.js';
+import { fileMenu as buildFileMenu, filesMenu, floorMenu } from '../lib/menus/fileMenu.js';
+import { row, layout } from '../lib/menus/rows.js';
+import { useClusterActions } from '../hooks/useClusterActions.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { createPortal } from 'react-dom';
 import { isStillUploading } from '../lib/abandonedUploads.js';
@@ -592,21 +597,6 @@ export function ListSurface({
   // The selection bar's ⋯ (its 'tight' fit): where its menu opens, or null.
   const [selMore, setSelMore] = useState(null);
   useEffect(() => { setRenamingId(null); setCtxMenu(null); setSelMore(null); }, [board.id]);
-  // Opened from the keyboard (⇧F10, the menu key): focus goes into the menu.
-  // Its arrow keys only work with focus inside, and Files' own keys stand down
-  // while it is open — so ↓ and Enter used to reach nothing at all. Focus
-  // comes back where it was when the menu closes, unless what it ran took it
-  // (Rename's field, Quick look).
-  useEffect(() => {
-    if (!ctxMenu?.keyboard) return undefined;
-    const prev = document.activeElement;
-    document.querySelector('.ctx-menu button.ctx-item:not(:disabled)')?.focus();
-    return () => {
-      const now = document.activeElement;
-      const lost = !now || now === document.body || !!now.closest?.('.ctx-menu');
-      if (lost && prev?.isConnected) prev.focus?.({ preventScroll: true });
-    };
-  }, [ctxMenu]);
   const [infoOpen, setInfoOpen] = useState(() => readInfoPref());
   const toggleInfo = useCallback(() => setInfoOpen((v) => { writeInfoPref(!v); return !v; }), []);
 
@@ -910,6 +900,7 @@ export function ListSurface({
   // everything, so taps pick several for the bar below to act on. Read per
   // input, not per device: an iPad's trackpad clicks the way a mouse does.
   const touchPass = useMemo(() => touchPassAllowed(), []);
+  const cc = useClusterActions();
   const bp = useBreakpoint();
   const { isTouch } = bp;
   const phoneShell = shellOf(bp).mobileShell;
@@ -2280,12 +2271,20 @@ export function ListSurface({
   // the file under the menu nor pick from it. Android raises a contextmenu of
   // its own on a hold, which lands here and opens the same menu.
   const openListMenuAt = (target, x, y, { viaTouch = false } = {}) => {
-    if (target.closest?.('input, textarea, [contenteditable="true"], [role="dialog"]')) return false;
+    if (target.closest?.('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return false;
     const fileId = target.closest?.('[data-item-id]')?.getAttribute('data-item-id')
       || target.closest?.('[data-link-id]')?.getAttribute('data-link-id');
     const folderId = target.closest?.('[data-folder-id]')?.getAttribute('data-folder-id');
-    if (!fileId && !folderId) return false;   // empty floor keeps the browser's menu
-    if (fileId && navItems.find((n) => n.id === fileId)?.isGroup) return false;
+    // The empty floor and a group's gap get the floor menu (right-click only:
+    // a finger's hold there does nothing, and scrolling must stay scrolling).
+    if ((!fileId && !folderId) || (fileId && navItems.find((n) => n.id === fileId)?.isGroup)) {
+      if (viaTouch) return false;
+      // The panel head, toolbar, path bar and selection bar, and any control
+      // or link, keep the browser's own menu: only the floor itself is ours.
+      if (target.closest?.('.lp-head, .fp-head, .cb-pagehead, .cb-head, .list-selbar, .fp-drop-line, button, a[href], [contenteditable]')) return false;
+      setCtxMenu({ x, y, floor: true });
+      return true;
+    }
     // Picking several, a hold adds what it's on rather than starting over.
     if (folderId) {
       if (selecting) setSelectedBoards((prev) => new Set([...prev, folderId]));
@@ -2312,94 +2311,119 @@ export function ListSurface({
   // Files copy (the rules); a cluster copies with its own Copy and Paste.
   const canCopyTo = !!onMoveFiles && !!onPickCluster && selectedCards.size > 0 && !selectedBoards.size
     && [...selectedCards].some((id) => { const c = (cards || []).find((x) => x.id === id); return c && c.kind !== 'boardlink'; });
-  const menuItems = () => {
+  // The page's menus (lib/menus): one cluster, one file, several, and the empty
+  // floor. The cluster rows the shared action set has (useClusterActions)
+  // come from it; the list's own openers, rename, move and confirmed delete
+  // are spread over. Without the action set (the local app) the list's own
+  // rows are all there is.
+  const menuModel = () => {
+    if (ctxMenu?.floor) {
+      return floorMenu({
+        'new-cluster': canEdit && mutators.addNewBoard ? () => mutators.addNewBoard(null, { via: 'files_menu' }) : null,
+        upload: canEdit ? openAddPicker : null,
+        'select-all': () => {
+          setSelectedCards(new Set(pickOrder.map((it) => it.id)));
+          setSelectedBoards(new Set());
+          setSelectedGroupId(null);
+        },
+      });
+    }
     const cIds = [...selectedCards];
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
     const canMove = canEdit && !!onPickCluster && movableSel > 0;
-    const copyTo = canCopyTo && { id: 'copy-to', label: tr`Copy to…`, run: copySelection };
+    const copyTo = canCopyTo ? copySelection : null;
     // A hold's menu starts with Select: a check on everything, for a finger to
     // pick several (what ⌘-click and ⇧-click are to a keyboard).
-    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: tr`Select`, run: () => {
+    const select = ctxMenu?.viaTouch && !selecting ? () => {
       setSelecting(true);
       try { logEvent(EV.TOUCH_SELECT, { where: 'files', via: 'menu', n }); } catch (_) {}
-    } };
-    const select = { items: [selectItem] };
-    // The menu's header already says how many; Delete needn't repeat it.
-    const del = canEdit && { id: 'del', label: tr`Delete`, danger: true, shortcut: '⌫', run: deleteSelection };
+    } : null;
+    const touch = { touch: !!ctxMenu?.viaTouch, selecting };
+    // The menu's title already says how many; Delete needn't repeat it.
+    const del = canEdit ? deleteSelection : null;
     // Info on anything: in full Files it's the panel beside the list, which
     // describes the selection; docked, it's the app's Info drawer.
     const info = (req) => (isPanel
-      ? req && { id: 'info', label: tr`Get info`, shortcut: `${cmdKey}I`, run: () => showInfo(req) }
-      : { id: 'info', label: infoOpen ? tr`Hide info` : tr`Get info`, shortcut: `${cmdKey}I`, run: toggleInfo });
+      ? (req ? () => showInfo(req) : null)
+      : { run: toggleInfo, label: infoOpen ? tr`Hide info` : undefined });
+    const sendCards = (list) => (sendAvailable() && list.length > 0 && list.length <= SEND_MAX_CARDS
+      ? () => openSend({ boardId: board.id, boardTitle: board.name, cards: list, surface: 'files_menu' })
+      : null);
     if (n === 1 && bIds.length) {
       const id = bIds[0];
-      return composeMenuSections([
+      const b = boards[id] || { id, name: '' };
+      const can = cc ? cc.can(b) : {};
+      const acts = {
+        ...clusterActsFrom(cc, b, { surface: 'files_menu', tints: coverTints(COVER_TINTS), at: { x: ctxMenu.x, y: ctxMenu.y }, infoKey: true }),
         select,
-        { items: [{ id: 'open', label: tr`Open`, run: () => onOpenBoard(id) }] },
-        { items: [
-          renamable(id) && { id: 'rename', label: tr`Rename`, shortcut: 'F2', run: () => startRename(id) },
-          canMove && { id: 'move', label: tr`Move to…`, run: moveSelection },
-          info({ clusterId: id }),
-        ] },
-        { items: [del] },
-      ]);
+        open: () => onOpenBoard(id),
+        rename: renamable(id) ? () => startRename(id) : null,
+        'move-cluster': canMove ? moveSelection : null,
+        info: info({ clusterId: id }),
+        delete: del,
+      };
+      if (!cc && sendAvailable()) acts.send = () => openSend({ boardId: id, boardTitle: b.name, surface: 'files_menu' });
+      return clusterMenu(b, { ...can, ...touch, edit: canEdit && (cc ? !!can.edit : true), f2: true }, acts);
     }
     const card = n === 1 ? (cards || []).find((c) => c.id === cIds[0]) : null;
     if (card?.kind === 'boardlink') {
-      return composeMenuSections([
-        select,
-        { items: [boards[card.target] && { id: 'open', label: tr`Open`, run: () => onOpenBoard(card.target) }] },
-        { items: [boards[card.target] && info({ clusterId: card.target })] },
-        { items: [canEdit && { id: 'unlink', label: tr`Remove link`, danger: true, run: deleteSelection }] },
-      ]);
+      const target = card.target;
+      return {
+        label: tr`Link`,
+        items: layout([
+          [touch.touch && !selecting ? row('select', select) : null, boards[target] ? row('open', () => onOpenBoard(target)) : null].filter(Boolean),
+          [boards[target] ? row('info', info({ clusterId: target })) : null].filter(Boolean),
+          [canEdit ? row('delete', deleteSelection, { label: tr`Remove link`, shortcut: null }) : null].filter(Boolean),
+        ]),
+      };
     }
     const item = card ? items.find((it) => it.id === card.id) : null;
     if (item) {
-      return composeMenuSections([
+      const player = item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas;
+      return buildFileMenu(item, { ...touch, f2: true, delKey: true }, {
         select,
-        { items: [
-          { id: 'ql', label: tr`Quick look`, shortcut: tr({ message: 'Space', context: 'keyboard key' }), run: () => setQuickId(item.id) },
-          item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas && { id: 'player', label: tr`Open in player`, run: () => openPlayer({ boardId: board.id, cardId: card.id, card }) },
-          onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? tr`Show in cluster` : tr`Show on board`, run: () => onRevealOnCanvas([item.id]) },
-          canEdit && item.unplaced && { id: 'put', label: tr`Put on board`, run: () => putOnBoard([item.id]) },
-        ] },
-        { items: [
-          renamable(item.id) && { id: 'rename', label: tr`Rename`, shortcut: 'F2', run: () => startRename(item.id) },
-          canVersionHere && canVersion(card) && { id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), card.id) },
-          DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: tr`Download`, run: () => downloadOne(item) },
-          fileSharesAllowed() && canEdit && isShareableCard(card) && { id: 'share', label: tr`Share file…`, run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
-          canEdit && docShareLabel(card) && { id: 'share-doc', label: docShareLabel(card), run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
-          // An app action: a signed-out visitor's link wouldn't resolve.
-          onRevealOnCanvas && { id: 'link', label: tr`Copy link`, run: () => copyCardLink(item.id, board.id, feedback) },
-          canMove && { id: 'move', label: tr`Move to…`, run: moveSelection },
-          copyTo,
-          info({ boardId: board.id, cardIds: [item.id] }),
-        ] },
+        'quick-look': () => setQuickId(item.id),
+        'open-player': player ? () => openPlayer({ boardId: board.id, cardId: card.id, card }) : null,
+        // Browsing another cluster's files, it opens that cluster (main's words).
+        'show-on-canvas': onRevealOnCanvas && !item.unplaced
+          ? { run: () => onRevealOnCanvas([item.id]), ...(browsingFrom ? { label: tr`Show in cluster` } : {}) }
+          : null,
+        'put-on-canvas': canEdit && item.unplaced ? () => putOnBoard([item.id]) : null,
+        send: sendCards([card]),
+        'copy-link': onRevealOnCanvas ? () => copyCardLink(item.id, board.id, feedback) : null,
+        'share-file': fileSharesAllowed() && canEdit && isShareableCard(card)
+          ? () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) : null,
+        'share-doc': canEdit && docShareLabel(card)
+          ? { label: docShareLabel(card), run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) } : null,
+        download: DOWNLOADABLE.has(item.kind) && !item.pending ? () => downloadOne(item) : null,
+        rename: renamable(item.id) ? () => startRename(item.id) : null,
+        'upload-version': canVersionHere && canVersion(card) ? () => pickVersionFile(versionEnv(), card.id) : null,
+        'move-file': canMove ? moveSelection : null,
+        'copy-file': copyTo,
+        info: info({ boardId: board.id, cardIds: [item.id] }),
         // "Linked from N places" — placed, so Delete stays last and the menu's
         // height (it keeps itself on screen) counts the row.
-        { items: [onRevealOnCanvas && { id: 'bl', backlinks: true }, del] },
-      ]);
+        backlinks: !!onRevealOnCanvas,
+        delete: del,
+      });
     }
     const offSel = cIds.filter((id) => items.find((it) => it.id === id)?.unplaced);
-    return composeMenuSections([
-      { header: tr`${n} selected`, items: [
-        selectItem,
-        canEdit && offSel.length > 0 && { id: 'put', label: tr`${plural(offSel.length, { one: 'Put # on board', other: 'Put # on board' })}`, run: () => putOnBoard(offSel) },
-        downloadableSelected.length > 0 && {
-          // "Download" when it's all of them; else say which part can go.
-          id: 'dl', label: downloadableSelected.length === n ? tr`Download` : tr`Download ${ph({ count: downloadableSelected.length })} of ${n}`, run: downloadSelected,
-        },
-        canMove && { id: 'move', label: tr`Move to…`, run: moveSelection },
-        copyTo,
-        info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
-      ] },
-      { items: [del] },
-    ]);
+    const picked = bIds.length ? [] : cIds.map((id) => (cards || []).find((c) => c.id === id)).filter(Boolean);
+    return filesMenu(n, { mixed: bIds.length > 0 }, {
+      'put-on-canvas': canEdit && offSel.length > 0 ? () => putOnBoard(offSel) : null,
+      send: sendCards(picked.length === n ? picked : []),
+      download: downloadableSelected.length > 0 ? downloadSelected : null,
+      'move-file': canMove ? moveSelection : null,
+      'copy-file': copyTo,
+      info: info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
+      delete: del,
+    });
   };
-  const menuCard = ctxMenu && onRevealOnCanvas && selectedCards.size === 1 && !selectedBoards.size
+  const menuCard = ctxMenu && !ctxMenu.floor && onRevealOnCanvas && selectedCards.size === 1 && !selectedBoards.size
     ? (cards || []).find((c) => c.id === [...selectedCards][0] && c.kind !== 'boardlink') || null
     : null;
+  const shownMenu = ctxMenu ? menuModel() : null;
 
   // The selection's actions. Production floats them at the foot of the list,
   // in this order; the page in the files sidebar's look sets them in its head
@@ -2825,9 +2849,10 @@ export function ListSurface({
             </div>
           </div>
         )}
-        {ctxMenu && createPortal(
-          <CardContextMenu open x={ctxMenu.x} y={ctxMenu.y} items={menuItems()}
-                           onClose={() => setCtxMenu(null)}
+        {ctxMenu && shownMenu && createPortal(
+          // ⇧F10 / the menu key open it with focus on its first stop; the menu hands focus back when it closes.
+          <CardContextMenu open x={ctxMenu.x} y={ctxMenu.y} items={shownMenu.items} label={shownMenu.label} title={shownMenu.title}
+                           byKey={!!ctxMenu.keyboard} root="menu" onClose={() => setCtxMenu(null)}
                            workspaceId={menuCard ? workspaceId : null} boardId={menuCard ? board.id : null} card={menuCard} />,
           document.body,
         )}
