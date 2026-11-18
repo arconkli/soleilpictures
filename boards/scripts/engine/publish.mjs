@@ -102,9 +102,9 @@ async function main() {
   if (!slugs.length) throw new Error('say which boards: node scripts/engine/publish.mjs <slug> …');
   loadEnv();
   const { makeSupabase } = await import('../lib/supa.mjs');
-  const { makeR2 } = await import('../lib/r2.mjs');
+  const { makeStorage } = await import('../lib/r2.mjs');
   const supa = makeSupabase({ url: need('SUPABASE_URL'), serviceRoleKey: need('SUPABASE_SERVICE_ROLE_KEY') });
-  const r2 = makeR2({ accountId: need('R2_ACCOUNT_ID'), bucket: need('R2_BUCKET'), accessKeyId: need('R2_ACCESS_KEY_ID'), secretAccessKey: need('R2_SECRET_ACCESS_KEY') });
+  const r2 = makeStorage();
   const userId = need('SEED_USER_ID');
   const origin = process.env.SITE_ORIGIN || 'https://clusters.soleilpictures.com';
 

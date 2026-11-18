@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  uploadErrorStatus, isRetryableUploadError, presignAndPut, keepResumeSession, PUT_URL_FRESH_MS,
+  uploadErrorStatus, isRetryableUploadError, presignAndPut, putPartRetrying, keepResumeSession, PUT_URL_FRESH_MS,
 } from './uploadRetry.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -109,4 +109,46 @@ test('a PUT that goes quiet is cut off and retried, and a clip it cannot measure
   // uploadVideo waits on readVideoMeta before it sends a byte.
   const meta = src.slice(src.indexOf('export function readVideoMeta('), src.indexOf('export function captureVideoPoster('));
   assert.match(meta, /setTimeout\(\(\) => done\(unread\), timeoutMs\)/);
+});
+
+test('a part that got no response is retried on a freshly signed URL; a 5xx keeps its URL', async () => {
+  const used = []; let resigns = 0;
+  const etag = await putPartRetrying({
+    url: 'u0',
+    put: async (u) => { used.push(u); if (used.length < 3) throw netErr(); return '"e"'; },
+    resign: async () => `u${++resigns}`,
+    wait: async () => {},
+  });
+  assert.equal(etag, '"e"');
+  assert.deepEqual(used, ['u0', 'u1', 'u2']);
+
+  const used5 = []; let resigns5 = 0;
+  await putPartRetrying({
+    url: 'a',
+    put: async (u) => { used5.push(u); if (used5.length < 2) throw new Error('Part upload failed: 503 x'); return 'ok'; },
+    resign: async () => { resigns5++; return 'b'; },
+    wait: async () => {},
+  });
+  assert.deepEqual(used5, ['a', 'a']);
+  assert.equal(resigns5, 0);
+});
+
+test('a part whose re-sign fails retries the old URL; a 4xx or abort does not retry', async () => {
+  const used = [];
+  await putPartRetrying({
+    url: 'old',
+    put: async (u) => { used.push(u); if (used.length < 2) throw netErr(); return 'ok'; },
+    resign: async () => { throw new Error('sign down'); },
+    wait: async () => {},
+  });
+  assert.deepEqual(used, ['old', 'old']);
+  let n = 0;
+  await assert.rejects(putPartRetrying({
+    url: 'x', put: async () => { n++; throw new Error('Part upload failed: 403 Forbidden'); },
+    resign: async () => 'y', wait: async () => {},
+  }), /403/);
+  assert.equal(n, 1);
+  await assert.rejects(putPartRetrying({
+    url: 'x', put: async () => 'no', aborted: () => true, wait: async () => {},
+  }), /aborted/);
 });

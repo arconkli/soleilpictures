@@ -14,6 +14,9 @@ primary_region = "sjc"
   APP_ORIGIN = "https://clusters.soleilpictures.com"
   PARTY_HOST = "soleil-boards-party.arconkli.workers.dev"
   R2_BUCKET = "soleil-boards-images"
+  # File storage is R2 unless STORAGE_BACKEND = "b2" (then B2_WORKER_KEY_ID and
+  # B2_WORKER_APP_KEY, set as Fly secrets, and optionally B2_S3_ENDPOINT,
+  # B2_REGION, B2_BUCKET). Scout is not deployed, so nothing is set yet.
   SCOUT_BURST_MS = "20000"
 
 # No [http_service]. Scout holds an OUTBOUND gRPC stream to Photon and never

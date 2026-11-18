@@ -30,6 +30,7 @@ import { publicCover, readPublicCover } from './lib/publicCover.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { runDraftReap } from './worker-drafts.js';
+import { withStorage } from './worker-storage.js';
 import { IMAGE_EMBED_LANE_LIMIT, runImageDescribe, runImageEmbedLane } from './worker-vision.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleMediaRoute } from './worker-media.js';
@@ -339,7 +340,7 @@ function cspReportOnlyFor(nonce) {
     "font-src 'self' data: https://use.typekit.net https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
-    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://${PARTY_HOST} wss://${PARTY_HOST} https://*.r2.cloudflarestorage.com https://api.stripe.com https://www.facebook.com`,
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://${PARTY_HOST} wss://${PARTY_HOST} https://*.r2.cloudflarestorage.com https://s3.us-east-005.backblazeb2.com https://api.stripe.com https://www.facebook.com`,
     "frame-src https:",
     "worker-src 'self' blob:",
     "frame-ancestors 'none'",
@@ -658,6 +659,7 @@ const worker = {
   // fetch detached from the module object, which would make `this` undefined.
   async fetch(request, env, ctx) {
     const nonce = makeNonce();
+    env = withStorage(env, ctx);
     const { hostname, pathname } = new URL(request.url);
     return withSecurityHeaders(await worker.handleFetch(request, env, ctx), nonce, hostname, pathname, edgeContextMeta(request.cf));
   },
@@ -1252,6 +1254,7 @@ const worker = {
     return res;
   },
   async scheduled(event, env, ctx) {
+    env = withStorage(env, ctx);
     // The worker has TWO cron schedules (see wrangler.toml):
     //   "0 4 * * *"   — daily 04:00 UTC; runs the history-aware R2 orphan sweep
     //   "15 * * * *"  — hourly at :15; runs Job 1 compaction (board_ops → R2 batches)
@@ -1372,8 +1375,10 @@ async function runR2Sweep(env) {
   try {
     // p_dryrun is passed to the RPC so its `decision` column reflects mode;
     // the worker still applies the gate itself before any R2 op below.
+    // Outside mode 'r2' each array delete also hits B2, so halve the batch to
+    // stay under the ~1,000 subrequests an invocation may make.
     const rows = await rpc(env, 'find_history_safe_orphan_images', {
-      p_limit: 500,
+      p_limit: env.IMAGES_R2 ? 250 : 500,
       p_dryrun: dryRun,
     });
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -1477,7 +1482,7 @@ async function runR2Sweep(env) {
 async function runR2TombstoneSweep(env, dryRun, mode) {
   const startedAt = Date.now();
   try {
-    const rows = await rpc(env, 'find_orphaned_r2_tombstones', { p_limit: 500, p_dryrun: dryRun });
+    const rows = await rpc(env, 'find_orphaned_r2_tombstones', { p_limit: env.IMAGES_R2 ? 250 : 500, p_dryrun: dryRun });
     if (!Array.isArray(rows) || rows.length === 0) return;
 
     let kept = 0, wouldDelete = 0, deleted = 0;
@@ -3971,7 +3976,9 @@ async function runImageSizeBackfill(env, { cap = 5000 } = {}) {
 //     stays inside the cron budget. The first backfill of the existing corpus
 //     drains over roughly a day of hourly runs, then holds at near-zero.
 async function runR2Mirror(env) {
-  if (!env?.IMAGES || !env?.IMAGES_BACKUP) {
+  // The main bucket is read raw: the backup mirrors R2 itself, whatever the switch says.
+  const MAIN = env?.IMAGES_R2 || env?.IMAGES;
+  if (!MAIN || !env?.IMAGES_BACKUP) {
     console.log('[r2-mirror] skipped: IMAGES or IMAGES_BACKUP binding not configured');
     return;
   }
@@ -4018,7 +4025,7 @@ async function runR2Mirror(env) {
     if (!key) return 'exists';
     try {
       ops++; if (await env.IMAGES_BACKUP.head(key)) return 'exists';
-      ops++; const src = await env.IMAGES.get(key);
+      ops++; const src = await MAIN.get(key);
       if (!src) return 'missing';
       ops++; await env.IMAGES_BACKUP.put(key, src.body, { httpMetadata: src.httpMetadata });
       bytes += src.size || 0;
@@ -4034,7 +4041,7 @@ async function runR2Mirror(env) {
   let imagesWM = '1970-01-01T00:00:00Z';
   let batchesWM = '1970-01-01T00:00:00Z';
   try {
-    ops++; const st = await env.IMAGES.get(STATE_KEY);
+    ops++; const st = await MAIN.get(STATE_KEY);
     if (st) {
       const j = await st.json();
       if (j?.images_watermark)  imagesWM  = j.images_watermark;
@@ -4093,7 +4100,7 @@ async function runR2Mirror(env) {
   // the backup's Bucket Lock forbids overwriting a key.
   try {
     ops++;
-    await env.IMAGES.put(STATE_KEY, JSON.stringify({
+    await MAIN.put(STATE_KEY, JSON.stringify({
       images_watermark:  newImagesWM,
       batches_watermark: newBatchesWM,
       last_run_at: new Date().toISOString(),

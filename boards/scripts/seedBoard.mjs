@@ -15,7 +15,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { makeSupabase } from './lib/supa.mjs';
-import { makeR2 } from './lib/r2.mjs';
+import { makeStorage } from './lib/r2.mjs';
 import { fetchCandidates, downloadImage, pingUnsplashDownload, relevanceScore, looksLikePhoto, fetchPexelsVideo, downloadVideo } from './lib/imageSources.mjs';
 import { layoutRecipe } from './lib/layoutRecipe.mjs';
 import { stampCard, encodeBoardSnapshot, buildCardIndexRows, buildGridStructure } from './lib/cardEncode.mjs';
@@ -297,7 +297,7 @@ async function main() {
   console.log(`\n▶ ${dryRun ? '[DRY RUN] ' : ''}Seeding "${recipe.name}" → /c/${slug}`);
 
   const supa = dryRun ? null : makeSupabase({ url: need('SUPABASE_URL'), serviceRoleKey: need('SUPABASE_SERVICE_ROLE_KEY') });
-  const r2 = dryRun ? null : makeR2({ accountId: need('R2_ACCOUNT_ID'), bucket: need('R2_BUCKET'), accessKeyId: need('R2_ACCESS_KEY_ID'), secretAccessKey: need('R2_SECRET_ACCESS_KEY') });
+  const r2 = dryRun ? null : makeStorage();
   const keys = { unsplash: process.env.UNSPLASH_ACCESS_KEY, pexels: process.env.PEXELS_API_KEY };
   const workspaceId = dryRun ? 'DRYRUN-WS' : need('SEED_WORKSPACE_ID');
   const userId = dryRun ? null : (process.env.SEED_USER_ID || null);

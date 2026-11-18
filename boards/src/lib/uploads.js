@@ -23,7 +23,7 @@ import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
 import { planParts } from './multipartPlan.js';
-import { presignAndPut, retryWait, keepResumeSession } from './uploadRetry.js';
+import { presignAndPut, putPartRetrying, retryWait, keepResumeSession } from './uploadRetry.js';
 import { runGated } from './backfillGate.js';
 import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
@@ -1260,22 +1260,17 @@ function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
 }
 
 // Retry a part PUT on network/5xx; never retry an abort or a 4xx (expired URL /
-// auth won't fix themselves on retry).
-async function putPartWithRetry(url, blob, { onProgress, signal } = {}, tries = 4) {
-  let lastErr;
-  for (let i = 0; i < tries; i++) {
-    if (signal?.aborted) throw new Error('aborted');
-    try { return await putPartWithProgress(url, blob, { onProgress, signal }); }
-    catch (err) {
-      if (signal?.aborted || String(err?.message) === 'aborted') throw err;
-      const m = String(err?.message || '').match(/\b(\d{3})\b/);
-      const status = m ? parseInt(m[1], 10) : 0;       // 0 = network/no status
-      lastErr = err;
-      if (!(status === 0 || status >= 500) || i === tries - 1) throw err;
-      await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
-    }
-  }
-  throw lastErr;
+// auth won't fix themselves on retry). A part that got no response is retried
+// on a freshly signed URL (`resign`), see uploadRetry.putPartRetrying.
+function putPartWithRetry(url, blob, { onProgress, signal } = {}, resign) {
+  return putPartRetrying({
+    url,
+    put: (u) => putPartWithProgress(u, blob, { onProgress, signal }),
+    resign,
+    wait: (attempt) => new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt))),
+    aborted: () => !!signal?.aborted,
+    tries: 4,
+  });
 }
 
 // Run `worker` over items with bounded concurrency; reject on first failure.
@@ -1407,6 +1402,9 @@ async function uploadFileSession({ file, workspaceId, boardId, cardId, userId, o
         const etag = await putPartWithRetry(url, file.slice(p.start, p.end), {
           signal,
           onProgress: (loaded) => { loadedByPart[p.partNumber] = loaded; emit(); },
+        }, async () => {
+          const fresh = await mpuPost('sign-parts', workspaceId, { boardId, key, uploadId, partNumbers: [p.partNumber] });
+          return fresh?.urls?.[p.partNumber] || null;
         });
         completed[p.partNumber] = etag;
         loadedByPart[p.partNumber] = (p.end - p.start);

@@ -6,7 +6,8 @@
 // Secrets, the same five the PartyKit project held, set once with
 //   npx -y wrangler@4.97.0 secret put <NAME> -c party/wrangler.jsonc
 // SUPABASE_SERVICE_ROLE_KEY, R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID,
-// R2_SECRET_ACCESS_KEY.
+// R2_SECRET_ACCESS_KEY. Optional, for Backblaze B2 (upload.ts): B2_KEY_ID and
+// B2_APP_KEY, the party's own B2 key (both, or B2 stays off).
 //
 // The Durable Object classes are SQLite-backed (new_sqlite_classes), which the
 // board room's own copy of its document (roomLog.ts) needs. A migration tag is

@@ -22,7 +22,7 @@
 // (lib/showcaseWrite.mjs). Never published: a board reaches a public page only
 // through a normal land.
 //
-// Needs: scripts/.env (SUPABASE_*, R2_*, PEXELS_API_KEY, UNSPLASH_ACCESS_KEY,
+// Needs: scripts/.env (SUPABASE_*, R2_* or B2_WORKER_* (STORAGE_BACKEND picks), PEXELS_API_KEY, UNSPLASH_ACCESS_KEY,
 // SEED_WORKSPACE_ID, SEED_USER_ID), ~/soleil-social (aicheck and the claude
 // runner; SOLEIL_SOCIAL to move it), and the `claude` CLI signed in.
 // Work files: ENGINE_HOME (default ~/.boards-engine).
@@ -35,7 +35,7 @@ import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { chromium } from '@playwright/test';
 import { makeSupabase } from '../lib/supa.mjs';
-import { makeR2 } from '../lib/r2.mjs';
+import { makeStorage } from '../lib/r2.mjs';
 import { rootCluster, ensureCluster, writeBoard, uploadShots, recordShowcase, publishPostBoard, libraryState, startRun, finishRun, ENGINE_MAKE } from '../lib/showcaseWrite.mjs';
 import { args } from './args.mjs';
 import { PAGES, MARKETING, LATER_PAGES, pageBrief, nextMarketing } from './subjects.mjs';
@@ -283,7 +283,7 @@ async function main() {
     check: (items, o) => checkPhotos(items, { ...o, look: true }),
     keys: { pexels: need('PEXELS_API_KEY'), unsplash: process.env.UNSPLASH_ACCESS_KEY || null },
     supa, dryRun: a.dryRun, words: a.words || null, only: a.only || null, style: a.style || null,
-    r2: a.dryRun ? null : makeR2({ accountId: need('R2_ACCOUNT_ID'), bucket: need('R2_BUCKET'), accessKeyId: need('R2_ACCESS_KEY_ID'), secretAccessKey: need('R2_SECRET_ACCESS_KEY') }),
+    r2: a.dryRun ? null : makeStorage(),
     workspaceId: need('SEED_WORKSPACE_ID'), userId: need('SEED_USER_ID'),
     lib: await libraryState(supa),
   };

@@ -26,3 +26,12 @@ test('flush posts one request per chunk, not every pending key', () => {
   assert.match(flush, /JSON\.stringify\(\{ keys: chunk \}\)/);
   assert.doesNotMatch(flush, /JSON\.stringify\(\{ keys \}\)/);
 });
+
+test('a forced re-sign sends its keys as `recheck` so the party can look in the other store', () => {
+  assert.match(r2, /if \(force\) \{ cache\.delete\(key\); forcedKeys\.add\(key\); \}/);
+  const flush = r2.slice(r2.indexOf('async function flush()'), r2.indexOf('export async function getDownloadUrl'));
+  assert.match(flush, /const recheck = chunk\.filter\(\(k\) => forced\.has\(k\)\)/);
+  assert.match(flush, /JSON\.stringify\(\{ keys: chunk, recheck \}\)/);
+  // A frame with nothing forced posts exactly what it always did.
+  assert.match(flush, /: JSON\.stringify\(\{ keys: chunk \}\)/);
+});

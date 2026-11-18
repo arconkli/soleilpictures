@@ -50,6 +50,15 @@
 //   R2_BUCKET             bucket name
 //   R2_ACCESS_KEY_ID      R2 API token access key
 //   R2_SECRET_ACCESS_KEY  R2 API token secret
+//
+// Optional, for Backblaze B2 (the move off R2, November 2026):
+//   B2_KEY_ID, B2_APP_KEY  the party's B2 application key (both, or B2 is off)
+//   B2_S3_ENDPOINT, B2_REGION, B2_BUCKET  override lib/storage.js's B2 settings
+//   STORAGE_MODE, STORAGE_WORKSPACES      dev only: replace the switch below
+// Which store a key lives in is the app_config row 'storage' (lib/storage.js):
+// in mode 'r2', the shipped state, everything here signs for R2 exactly as it
+// did before. An upload in flight finishes in the store it began in: a B2
+// multipart uploadId reaches the client as 'b2~<id>' (lib/partyStorage.js).
 
 import { AwsClient } from "aws4fetch";
 import { getServerByName } from "partyserver";
@@ -74,6 +83,10 @@ import {
   roomOfAnswer,
 } from "../src/lib/docShareImages.js";
 import { makeRateLimiter } from "../src/lib/webImageSave.js";
+import { readsFallBack } from "../src/lib/storage.js";
+import {
+  b2Target, clientUploadId, findObject, partyConfigReader, r2Target, recheckKeys, targetFor, uploadTarget,
+} from "../src/lib/partyStorage.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Thumbnails on the Shared page's rows: short-lived and private, like the /f/
@@ -133,6 +146,40 @@ interface R2Env {
   secretAccessKey: string;
 }
 
+// One store's signing client and object URLs (lib/partyStorage.js): R2's as
+// it always was, or B2's. Variables named r2 may hold either.
+interface Store {
+  kind: "r2" | "b2";
+  aws: AwsClient;
+  bucket: string;
+  url(key: string): string;
+}
+interface Stores { r2: Store; b2: Store | null }
+type StorageConfig = { mode: string; workspaces: string[]; fallback: boolean };
+
+// The 'storage' switch, one reader per isolate (30 s cache, 1.5 s read).
+let storageReader: ReturnType<typeof partyConfigReader> | null = null;
+function storageReaderFor(env: Record<string, unknown>) {
+  if (!storageReader) storageReader = partyConfigReader(env, { supabaseUrl: SUPABASE_URL });
+  return storageReader;
+}
+
+// The switch wants B2 but this party has no B2 key: R2 answers, said once.
+let b2MissingSaid = false;
+function b2Missing() {
+  if (b2MissingSaid) return;
+  b2MissingSaid = true;
+  console.warn(JSON.stringify({ storage: "b2_unconfigured", where: "party" }));
+}
+
+// index.ts hands each upload request's ExecutionContext here, so a stale
+// switch is re-read inside waitUntil rather than cut off when the answer goes.
+type Waiter = { waitUntil(p: Promise<unknown>): void };
+const UPLOAD_CTX = new WeakMap<Request, Waiter>();
+export function holdUploadRequest(request: Request, ctx: Waiter | undefined) {
+  if (ctx && typeof ctx.waitUntil === "function") UPLOAD_CTX.set(request, ctx);
+}
+
 // Board thumbnails and progressive previews are WebP the client renders itself:
 // tens to hundreds of KB. They are not counted against the storage quota, so
 // their declared size is capped instead (0387).
@@ -163,7 +210,10 @@ interface PresignBody {
 // the browser's own download manager can stream a big file with progress
 // instead of the app buffering it into a Blob (MEDIA-09). Clients that do not
 // send it get exactly the old response.
-interface SignReadsBody { keys?: string[]; download?: Record<string, string> }
+// `recheck` (optional): keys the client could not load with the URL it had.
+// Each one also in `keys` (at most 50) is looked for in the other store before
+// it is signed, while the switch lets reads fall back. Same answer shape.
+interface SignReadsBody { keys?: string[]; download?: Record<string, string>; recheck?: string[] }
 interface ShareBundleBody { token?: string; boardId?: string }
 interface PublicBundleBody { slug?: string; boardId?: string }
 
@@ -232,10 +282,11 @@ async function supabaseGet(path: string, token: string): Promise<any[] | null> {
 // `opts` lets a caller shorten the URL's life and swap the cache header; the
 // defaults are the long-lived immutable pair every existing caller wants.
 async function signReadUrl(
-  r2: AwsClient, env: R2Env, key: string, disposition: string | null = null,
+  r2: Store, env: R2Env, key: string, disposition: string | null = null,
   opts: { ttl?: number; cacheControl?: string; contentType?: string | null } = {},
 ): Promise<string> {
-  const base = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
+  // The key's store (R2: the account host, as always; B2: path-style).
+  const base = r2.url(key);
   // X-Amz-Expires MUST be a signed query param ON THE URL before signing.
   // aws4fetch has no `expiresIn` option — if X-Amz-Expires is absent it forces
   // its own 86400 (24h) default, so a URL we believe is good for 7 days actually
@@ -247,7 +298,7 @@ async function signReadUrl(
     + (disposition ? `&response-content-disposition=${encodeURIComponent(disposition)}` : "")
     + (opts.contentType ? `&response-content-type=${encodeURIComponent(opts.contentType)}` : "")
     + `&X-Amz-Expires=${opts.ttl ?? READ_URL_TTL_SECONDS}`;
-  const signed = await r2.sign(
+  const signed = await r2.aws.sign(
     new Request(r2Url, { method: "GET" }),
     { aws: { signQuery: true } },
   );
@@ -312,7 +363,42 @@ export class UploadParty {
     return keys && typeof keys === "object" ? { ...result, keys } : result;
   }
 
+  // ── Stores ──────────────────────────────────────────────────────────
+  // R2 always (r2Env() requires it); B2 when the party holds a B2 key.
+  private targets: Stores | null = null;
+  private waiter: Waiter | undefined;
+  private cfg: Promise<StorageConfig> | null = null;
+
+  stores(env: R2Env): Stores {
+    if (!this.targets) this.targets = { r2: r2Target(env) as Store, b2: b2Target(this.room.env) as Store | null };
+    return this.targets;
+  }
+
+  // The switch, once per request. With no B2 key here every key is R2's
+  // whatever it says, so nothing waits on it: it is read in the background
+  // only to say once when it asks for a B2 this party cannot reach.
+  storageConfig(env: R2Env): Promise<StorageConfig> {
+    if (this.cfg) return this.cfg;
+    const reader = storageReaderFor(this.room.env);
+    const wait = this.waiter ? (p: Promise<unknown>) => this.waiter!.waitUntil(p) : undefined;
+    if (this.stores(env).b2) {
+      this.cfg = reader.get(wait) as Promise<StorageConfig>;
+    } else {
+      const ready = reader.peek() as StorageConfig | null;
+      const p = reader.get(wait).catch(() => null);
+      if (!ready && wait) wait(p);
+      this.cfg = Promise.resolve(ready || { mode: "r2", workspaces: [], fallback: false });
+    }
+    return this.cfg;
+  }
+
+  // The store `key` lives in under the switch.
+  async storeFor(env: R2Env, key: string): Promise<Store> {
+    return targetFor(this.stores(env), await this.storageConfig(env), key, b2Missing) as Store;
+  }
+
   async onRequest(req: Request) {
+    this.waiter = UPLOAD_CTX.get(req);
     const origin = req.headers.get("Origin");
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -466,15 +552,21 @@ export class UploadParty {
       return new Response("File link temporarily unavailable", { status, headers: cors });
     }
     const result: any = await this.withKeys(await rpcRes.json(), token);
-    const r2 = new AwsClient({
-      accessKeyId: env.accessKeyId,
-      secretAccessKey: env.secretAccessKey,
-      service: "s3",
-      region: "auto",
-    });
+    // One file's keys: each signed where it is found (its own store, else the
+    // other while reads fall back), so a link opened mid-move still plays.
+    const cfg = await this.storageConfig(env);
+    const where = new Map<string, Promise<Store>>();
+    const storeOf = (key: string) => {
+      if (!where.has(key)) {
+        where.set(key, readsFallBack(cfg)
+          ? findObject(this.stores(env), cfg, key, b2Missing).then((f: any) => f.target as Store)
+          : this.storeFor(env, key));
+      }
+      return where.get(key)!;
+    };
     const out = await fileShareResponse(
       result,
-      (key: string, disp: string | null) => signReadUrl(r2, env, key, disp, {
+      async (key: string, disp: string | null) => signReadUrl(await storeOf(key), env, key, disp, {
         ttl: FILE_SHARE_URL_TTL_SECONDS, cacheControl: FILE_SHARE_CACHE_CONTROL,
       }),
       attachmentDisposition,
@@ -546,16 +638,11 @@ export class UploadParty {
     const live = candidates.size ? await this.liveImageKeys(String(target.workspace_id), [...candidates]) : new Set<string>();
     if (!live) return reply({ status: "unavailable" }, 503);
 
-    const r2 = new AwsClient({
-      accessKeyId: env.accessKeyId,
-      secretAccessKey: env.secretAccessKey,
-      service: "s3",
-      region: "auto",
-    });
     const urlByKey = new Map<string, string>();
     await Promise.all([...live].filter((k) => candidates.has(k)).map(async (k) => {
       try {
-        urlByKey.set(k, await signReadUrl(r2, env, k, null, {
+        // Each image in its own store.
+        urlByKey.set(k, await signReadUrl(await this.storeFor(env, k), env, k, null, {
           ttl: DOC_IMAGE_URL_TTL_SECONDS, cacheControl: DOC_IMAGE_CACHE_CONTROL, contentType: rasterTypeOf(k),
         }));
       } catch (_) { /* that one answers null */ }
@@ -626,12 +713,11 @@ export class UploadParty {
       const more = await this.serviceRpc("_file_share_poster_keys", { p_tokens: need });
       if (more && typeof more === "object") for (const t of need) if (typeof more[t] === "string") keys[t] = more[t];
     }
-    const r2 = this.mkR2Client(env);
     const urls: Record<string, string> = {};
     await Promise.all(Object.entries(keys).map(async ([t, k]) => {
       if (!FILE_TOKEN_RE.test(t) || typeof k !== "string" || !k) return;
       try {
-        urls[t] = await signReadUrl(r2, env, k, null, {
+        urls[t] = await signReadUrl(await this.storeFor(env, k), env, k, null, {
           ttl: SHARED_THUMB_TTL_SECONDS, cacheControl: SHARED_THUMB_CACHE_CONTROL,
         });
       } catch (_) { /* that row keeps its kind icon */ }
@@ -701,15 +787,23 @@ export class UploadParty {
       ? (typeof result.keys.poster === "string" && result.keys.poster ? result.keys.poster : null)
       : null;
 
-    // 3. Room for it: the exact sizes from R2, charged to this workspace.
-    const r2 = this.mkR2Client(env);
-    const head = await r2.fetch(this.r2ObjectUrl(env, srcKey), { method: "HEAD" }).catch(() => null);
+    // 3. Room for it: the exact sizes from storage, charged to this workspace.
+    // Each source is found in its own store, else (while reads fall back) the
+    // other, and copied inside the store that holds it: the copy lands under
+    // its new key in that same store, where the readers' fallback finds it.
+    const cfg = await this.storageConfig(env);
+    const src = await findObject(this.stores(env), cfg, srcKey, b2Missing);
+    const r2 = src.target as Store;
+    const head = src.head as Response | null;
     if (!head || !head.ok) return refuse("gone");
     const bytes = Number(head.headers.get("content-length")) || 0;
     const contentType = head.headers.get("content-type") || "application/octet-stream";
     let posterBytes = 0;
+    let posterStore: Store = r2;
     if (posterSrc) {
-      const ph = await r2.fetch(this.r2ObjectUrl(env, posterSrc), { method: "HEAD" }).catch(() => null);
+      const pf = await findObject(this.stores(env), cfg, posterSrc, b2Missing);
+      const ph = pf.head as Response | null;
+      posterStore = pf.target as Store;
       posterBytes = ph && ph.ok ? Number(ph.headers.get("content-length")) || 0 : 0;
     }
     const plan = copyPlan(bytes);
@@ -742,7 +836,7 @@ export class UploadParty {
     let posterKey: string | null = null;
     if (dstPoster && posterSrc && posterHeld) {
       const pplan = copyPlan(posterBytes);
-      if (pplan && await this.copyObject(r2, env, posterSrc, dstPoster, pplan, "image/jpeg")) posterKey = dstPoster;
+      if (pplan && await this.copyObject(posterStore, env, posterSrc, dstPoster, pplan, "image/jpeg")) posterKey = dstPoster;
     }
 
     // 5. The rows that make them this workspace's files.
@@ -769,17 +863,17 @@ export class UploadParty {
     return Response.json({ ok: true, card, bytes }, { headers: { ...(cors as Record<string, string>), "Cache-Control": "no-store" } });
   }
 
-  // A server-side copy inside the bucket: one CopyObject, or a multipart
-  // upload whose parts are UploadPartCopy ranges. True when the object exists
-  // whole at dstKey.
+  // A server-side copy inside one store's bucket (`r2`, R2's or B2's): one
+  // CopyObject, or a multipart upload whose parts are UploadPartCopy ranges.
+  // True when the object exists whole at dstKey.
   async copyObject(
-    r2: AwsClient, env: R2Env, srcKey: string, dstKey: string,
+    r2: Store, env: R2Env, srcKey: string, dstKey: string,
     plan: { mode: string; parts?: Array<{ partNumber: number; start: number; end: number }> },
     contentType: string,
   ): Promise<boolean> {
-    const source = `/${env.bucket}/${srcKey.split("/").map(encodeURIComponent).join("/")}`;
+    const source = `/${r2.bucket}/${srcKey.split("/").map(encodeURIComponent).join("/")}`;
     if (plan.mode === "single") {
-      const res = await r2.fetch(this.r2ObjectUrl(env, dstKey), {
+      const res = await r2.aws.fetch(r2.url(dstKey), {
         method: "PUT", headers: { "x-amz-copy-source": source },
       }).catch(() => null);
       if (!res) return false;
@@ -790,8 +884,8 @@ export class UploadParty {
     if (!uploadId) return false;
     const parts: Array<{ partNumber: number; etag: string }> = [];
     for (const p of plan.parts || []) {
-      const url = `${this.r2ObjectUrl(env, dstKey)}?partNumber=${p.partNumber}&uploadId=${encodeURIComponent(uploadId)}`;
-      const res = await r2.fetch(url, {
+      const url = `${r2.url(dstKey)}?partNumber=${p.partNumber}&uploadId=${encodeURIComponent(uploadId)}`;
+      const res = await r2.aws.fetch(url, {
         method: "PUT",
         headers: { "x-amz-copy-source": source, "x-amz-copy-source-range": `bytes=${p.start}-${p.end}` },
       }).catch(() => null);
@@ -864,17 +958,12 @@ export class UploadParty {
   async respondWithBundle(
     bundle: any, env: R2Env, origin: string | null,
   ): Promise<Response> {
-    const r2 = new AwsClient({
-      accessKeyId: env.accessKeyId,
-      secretAccessKey: env.secretAccessKey,
-      service: "s3",
-      region: "auto",
-    });
     const imageKeys: string[] = Array.isArray(bundle.image_keys) ? bundle.image_keys : [];
     const imageUrls: Record<string, string> = {};
     await Promise.all(imageKeys.map(async (key) => {
       try {
-        imageUrls[key] = await signReadUrl(r2, env, key);
+        // Each key in its own store (no lookups: a bundle can name hundreds).
+        imageUrls[key] = await signReadUrl(await this.storeFor(env, key), env, key);
       } catch (_) { /* skip unreachable keys */ }
     }));
 
@@ -1044,12 +1133,9 @@ export class UploadParty {
       }
     }
 
-    const r2 = new AwsClient({
-      accessKeyId: env.accessKeyId,
-      secretAccessKey: env.secretAccessKey,
-      service: "s3",
-      region: "auto",
-    });
+    // Signed for the store the switch puts this key in (R2 in mode 'r2').
+    // Every property below is the same for either store.
+    const r2 = await this.storeFor(env, key);
     // X-Amz-Expires must be a signed query param on the URL before signing —
     // aws4fetch has no `expiresIn` option (see signReadUrl above), so the old
     // `{ expiresIn: 300 }` was silently ignored and PUT URLs got the 86400s
@@ -1063,12 +1149,12 @@ export class UploadParty {
       }
     }
 
-    const r2Url = `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}?X-Amz-Expires=300`;
+    const r2Url = `${r2.url(key)}?X-Amz-Expires=300`;
     // allHeaders: aws4fetch leaves Content-Length out of the signature by
     // default. Only the length (and host) is signed — the browser's
     // Content-Type stays free, as it always was. A URL whose signature does not
     // cover the length is never handed out.
-    const signed = await r2.sign(
+    const signed = await r2.aws.sign(
       new Request(r2Url, { method: "PUT", headers: { "Content-Length": String(declared) } }),
       { aws: { signQuery: true, allHeaders: true } },
     );
@@ -1162,17 +1248,19 @@ export class UploadParty {
     );
     for (const key of await this.profilePictureKeys(requested, allowedKeys, accessToken)) allowedKeys.add(key);
 
-    const r2 = new AwsClient({
-      accessKeyId: env.accessKeyId,
-      secretAccessKey: env.secretAccessKey,
-      service: "s3",
-      region: "auto",
-    });
+    // Each key is signed for its store. A key the client asks to recheck, while
+    // reads fall back, is looked for (HEAD) in its store, then the other, and
+    // signed where it is; not found anywhere, it is signed as before.
+    const cfg = await this.storageConfig(env);
+    const recheck = readsFallBack(cfg) ? recheckKeys(body.recheck, requested) : new Set<string>();
     const out: Record<string, string> = {};
     const downloads: Record<string, string> = {};
     const wanted = (body.download && typeof body.download === "object") ? body.download : null;
     await Promise.all(requested.map(async (key) => {
       if (!allowedKeys.has(key)) return;
+      const r2 = recheck.has(key)
+        ? (await findObject(this.stores(env), cfg, key, b2Missing)).target as Store
+        : await this.storeFor(env, key);
       out[key] = await signReadUrl(r2, env, key);
       const disposition = wanted && typeof wanted[key] === "string" ? attachmentDisposition(wanted[key]) : null;
       if (disposition) downloads[key] = await signReadUrl(r2, env, key, disposition);
@@ -1186,23 +1274,22 @@ export class UploadParty {
 
   // ── Multipart upload (browser PUTs parts; party does the S3 POSTs) ──────
 
-  mkR2Client(env: R2Env): AwsClient {
-    return new AwsClient({
-      accessKeyId: env.accessKeyId,
-      secretAccessKey: env.secretAccessKey,
-      service: "s3",
-      region: "auto",
-    });
-  }
+  // Every call below takes the store the upload lives in (`r2`, R2's or B2's)
+  // and the id THAT store issued, never the client's tagged one.
 
-  r2ObjectUrl(env: R2Env, key: string): string {
-    return `https://${env.accountId}.r2.cloudflarestorage.com/${env.bucket}/${key}`;
+  // Where the upload the client names lives (lib/partyStorage.js): 'b2~<id>'
+  // is B2's, anything else R2's. A tagged id with no B2 key here is a 500
+  // that says so, never a call to the wrong store.
+  uploadStore(env: R2Env, uploadId: string, origin: string | null): { r2: Store; raw: string } | Response {
+    const at = uploadTarget(this.stores(env), uploadId);
+    if (!at) return new Response("This upload is stored on B2, which this server cannot reach", { status: 500, headers: corsHeaders(origin) });
+    return { r2: at.target as Store, raw: at.raw };
   }
 
   // S3 CreateMultipartUpload (server-side POST). The object's final Content-Type
   // is fixed here. Returns the uploadId or null on failure.
-  async createMultipart(r2: AwsClient, env: R2Env, key: string, contentType: string): Promise<string | null> {
-    const res = await r2.fetch(`${this.r2ObjectUrl(env, key)}?uploads`, {
+  async createMultipart(r2: Store, env: R2Env, key: string, contentType: string): Promise<string | null> {
+    const res = await r2.aws.fetch(`${r2.url(key)}?uploads`, {
       method: "POST",
       headers: { "Content-Type": contentType },
     });
@@ -1215,10 +1302,10 @@ export class UploadParty {
   // Presign a single part PUT (signQuery → only `host` is signed, so the browser
   // can send the raw byte slice with any/no Content-Type; R2 ignores unsigned
   // headers). partNumber + uploadId are signed query params.
-  async signPartUrl(r2: AwsClient, env: R2Env, key: string, uploadId: string, partNumber: number): Promise<string> {
-    const url = `${this.r2ObjectUrl(env, key)}?partNumber=${partNumber}`
+  async signPartUrl(r2: Store, env: R2Env, key: string, uploadId: string, partNumber: number): Promise<string> {
+    const url = `${r2.url(key)}?partNumber=${partNumber}`
       + `&uploadId=${encodeURIComponent(uploadId)}&X-Amz-Expires=${PART_URL_TTL_SECONDS}`;
-    const signed = await r2.sign(new Request(url, { method: "PUT" }), { aws: { signQuery: true } });
+    const signed = await r2.aws.sign(new Request(url, { method: "PUT" }), { aws: { signQuery: true } });
     return signed.url;
   }
 
@@ -1228,7 +1315,7 @@ export class UploadParty {
   // finished object — the number the quota should believe, rather than whatever
   // the client said before uploading.
   async completeMultipart(
-    r2: AwsClient, env: R2Env, key: string, uploadId: string,
+    r2: Store, env: R2Env, key: string, uploadId: string,
     parts: Array<{ partNumber: number; etag: string }>,
   ): Promise<{ ok: boolean; bytes?: number | null; error?: string }> {
     const sorted = [...parts].sort((a, b) => a.partNumber - b.partNumber);
@@ -1236,13 +1323,13 @@ export class UploadParty {
       const et = String(p.etag || "").replace(/^"+|"+$/g, "");
       return `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>"${et}"</ETag></Part>`;
     }).join("")}</CompleteMultipartUpload>`;
-    const url = `${this.r2ObjectUrl(env, key)}?uploadId=${encodeURIComponent(uploadId)}`;
-    const res = await r2.fetch(url, { method: "POST", body, headers: { "Content-Type": "application/xml" } });
+    const url = `${r2.url(key)}?uploadId=${encodeURIComponent(uploadId)}`;
+    const res = await r2.aws.fetch(url, { method: "POST", body, headers: { "Content-Type": "application/xml" } });
     const text = await res.text().catch(() => "");
     if (!res.ok || /<Error>/.test(text)) return { ok: false, error: text.slice(0, 500) };
     let bytes: number | null = null;
     try {
-      const head = await r2.fetch(this.r2ObjectUrl(env, key), { method: "HEAD" });
+      const head = await r2.aws.fetch(r2.url(key), { method: "HEAD" });
       const lenHeader = head.headers.get("content-length");
       const len = lenHeader == null ? NaN : Number(lenHeader);
       if (head.ok && Number.isFinite(len) && len >= 0) bytes = len;
@@ -1251,9 +1338,9 @@ export class UploadParty {
   }
 
   // S3 AbortMultipartUpload (server-side DELETE). Best-effort.
-  async abortMultipart(r2: AwsClient, env: R2Env, key: string, uploadId: string): Promise<void> {
+  async abortMultipart(r2: Store, env: R2Env, key: string, uploadId: string): Promise<void> {
     try {
-      await r2.fetch(`${this.r2ObjectUrl(env, key)}?uploadId=${encodeURIComponent(uploadId)}`, { method: "DELETE" });
+      await r2.aws.fetch(`${r2.url(key)}?uploadId=${encodeURIComponent(uploadId)}`, { method: "DELETE" });
     } catch (_) { /* already gone / network — caller doesn't care */ }
   }
 
@@ -1290,7 +1377,8 @@ export class UploadParty {
     const ext = (body.fileExt || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
     const contentType = body.contentType || "application/octet-stream";
     const key = `${workspaceId}/${crypto.randomUUID()}.${ext}`;
-    const r2 = this.mkR2Client(env);
+    // Opened in the key's store; the whole upload stays there (the tag below).
+    const r2 = await this.storeFor(env, key);
     const uploadId = await this.createMultipart(r2, env, key, contentType);
     if (!uploadId) {
       answeredWith(req, new Error("R2 multipart create failed"));
@@ -1307,7 +1395,7 @@ export class UploadParty {
     }
     const partSize = computePartSize(totalBytes);
     const partCount = Math.max(1, Math.ceil(totalBytes / partSize));
-    return Response.json({ key, uploadId, partSize, partCount }, { headers: corsHeaders(origin) });
+    return Response.json({ key, uploadId: clientUploadId(r2, uploadId), partSize, partCount }, { headers: corsHeaders(origin) });
   }
 
   // POST /mpu/sign-parts — re-gate writer + key shape, then presign a batch of
@@ -1331,9 +1419,11 @@ export class UploadParty {
     const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
     if (canWrite !== true) return new Response("Not allowed", { status: 403, headers: corsHeaders(origin) });
 
-    const r2 = this.mkR2Client(env);
+    const at = this.uploadStore(env, uploadId, origin);
+    if (at instanceof Response) return at;
+    const r2 = at.r2;
     const urls: Record<number, string> = {};
-    await Promise.all(partNumbers.map(async (n) => { urls[n] = await this.signPartUrl(r2, env, key, uploadId, n); }));
+    await Promise.all(partNumbers.map(async (n) => { urls[n] = await this.signPartUrl(r2, env, key, at.raw, n); }));
     return Response.json({ urls }, { headers: corsHeaders(origin) });
   }
 
@@ -1356,8 +1446,10 @@ export class UploadParty {
     const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
     if (canWrite !== true) return new Response("Not allowed", { status: 403, headers: corsHeaders(origin) });
 
-    const r2 = this.mkR2Client(env);
-    const result = await this.completeMultipart(r2, env, key, uploadId, parts);
+    const at = this.uploadStore(env, uploadId, origin);
+    if (at instanceof Response) return at;
+    const r2 = at.r2;
+    const result = await this.completeMultipart(r2, env, key, at.raw, parts);
     if (!result.ok)
       return new Response(`Complete failed: ${result.error || ""}`, { status: 502, headers: corsHeaders(origin) });
     // Part URLs cannot carry a length, so the finished object is held to what
@@ -1368,7 +1460,7 @@ export class UploadParty {
       ? null
       : await supabaseRpc("finalize_upload_intent", { p_key: key, p_bytes: result.bytes }, accessToken);
     if (finalized !== true) {
-      try { await r2.fetch(this.r2ObjectUrl(env, key), { method: "DELETE" }); } catch (_) { /* swept later */ }
+      try { await r2.aws.fetch(r2.url(key), { method: "DELETE" }); } catch (_) { /* swept later */ }
       const verified = result.bytes != null;
       return Response.json(
         { error: verified ? "size_mismatch" : "unverified", reason: verified ? "size_mismatch" : "unverified" },
@@ -1393,8 +1485,9 @@ export class UploadParty {
     const canWrite = await supabaseRpc("can_write_board", { p_board_id: boardId }, accessToken);
     if (canWrite !== true) return new Response("Not allowed", { status: 403, headers: corsHeaders(origin) });
 
-    const r2 = this.mkR2Client(env);
-    await this.abortMultipart(r2, env, key, uploadId);
+    const at = this.uploadStore(env, uploadId, origin);
+    if (at instanceof Response) return at;
+    await this.abortMultipart(at.r2, env, key, at.raw);
     return Response.json({ ok: true }, { headers: corsHeaders(origin) });
   }
 

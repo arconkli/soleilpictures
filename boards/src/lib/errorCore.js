@@ -150,6 +150,7 @@ export function routeOf(url, hosts = {}) {
   // A signed file read: the bucket, and never the key (a person's id and the
   // file's own name).
   if (u.host.endsWith('.r2.cloudflarestorage.com')) return { svc: 'r2', route: shape(parts, 1) };
+  if (u.host.endsWith('.backblazeb2.com')) return { svc: 'b2', route: shape(parts, 1) };
   // The Party's routes are /parties/<party>/<room>/<action>: the room is a
   // board's or a workspace's id, the action the Party's own word or two
   // (file-save, mpu/create, sign-reads).

@@ -52,6 +52,29 @@ export async function presignAndPut({ presign, put, wait, now = () => Date.now()
   }
 }
 
+// PUT one multipart part, retrying a dropped connection or a 5xx. A part that
+// failed with NO response (status 0) is retried on a freshly signed URL
+// (`resign() -> url`): a bad or stale signature on B2 answers without CORS
+// headers, which looks exactly like a dropped connection from the browser,
+// and re-sending the same URL would fail the same way. A 5xx keeps its URL.
+// If the fresh URL can't be had, the old one is tried again.
+export async function putPartRetrying({ url, put, resign, wait, aborted = () => false, tries = PUT_TRIES }) {
+  let current = url;
+  for (let attempt = 0; ; attempt++) {
+    if (aborted()) throw new Error('aborted');
+    try { return await put(current); }
+    catch (err) {
+      if (aborted() || String(err?.message) === 'aborted') throw err;
+      const status = uploadErrorStatus(err);
+      if (!(status === 0 || status >= 500) || attempt >= tries - 1) throw err;
+      await wait(attempt);
+      if (status === 0 && resign) {
+        try { current = (await resign()) || current; } catch (_) { /* keep the old URL */ }
+      }
+    }
+  }
+}
+
 // Backoff before attempt `attempt + 1`, waiting first for the browser to come
 // back online (capped, so a machine that never reconnects still fails).
 export function retryWait(attempt, { baseMs = 750, onlineCapMs = 30_000 } = {}) {

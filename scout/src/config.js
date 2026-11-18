@@ -11,6 +11,7 @@ function need(name) {
 }
 
 export function loadConfig() {
+  const backend = String(process.env.STORAGE_BACKEND || 'r2').trim().toLowerCase();
   return {
     // Supabase — service role. Everything the ingest core does is server-side.
     SUPABASE_URL: need('SUPABASE_URL'),
@@ -27,11 +28,22 @@ export function loadConfig() {
     CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID || null,
     CF_AI_TOKEN: process.env.CF_AI_TOKEN || null,
 
-    // R2, via the same S3 credentials the seed scripts and PartyKit use.
-    R2_ACCOUNT_ID: need('R2_ACCOUNT_ID'),
-    R2_BUCKET: process.env.R2_BUCKET || 'soleil-boards-images',
-    R2_ACCESS_KEY_ID: need('R2_ACCESS_KEY_ID'),
-    R2_SECRET_ACCESS_KEY: need('R2_SECRET_ACCESS_KEY'),
+    // File storage, via the same S3 credentials the seed scripts and the party
+    // use. STORAGE_BACKEND picks the store: 'r2' (default) or 'b2'. Only the
+    // chosen store's credentials are required.
+    STORAGE_BACKEND: backend,
+    ...(backend === 'b2' ? {
+      B2_S3_ENDPOINT: process.env.B2_S3_ENDPOINT || null,
+      B2_REGION: process.env.B2_REGION || null,
+      B2_BUCKET: process.env.B2_BUCKET || null,
+      B2_WORKER_KEY_ID: need('B2_WORKER_KEY_ID'),
+      B2_WORKER_APP_KEY: need('B2_WORKER_APP_KEY'),
+    } : {
+      R2_ACCOUNT_ID: need('R2_ACCOUNT_ID'),
+      R2_BUCKET: process.env.R2_BUCKET || 'soleil-boards-images',
+      R2_ACCESS_KEY_ID: need('R2_ACCESS_KEY_ID'),
+      R2_SECRET_ACCESS_KEY: need('R2_SECRET_ACCESS_KEY'),
+    }),
 
     // Photon / Spectrum.
     SPECTRUM_PROJECT_ID: need('SPECTRUM_PROJECT_ID'),
