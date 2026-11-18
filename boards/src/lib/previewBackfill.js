@@ -8,7 +8,7 @@
 //
 // Fired from CanvasSurface once per board open (writers only), a few seconds
 // after the last card change so it never competes with first paint. Each job
-// downloads the original (CORS-clean fetch via its signed URL — r2-cors.json
+// downloads the original (CORS-clean fetch via its signed URL — storage-cors.json
 // allows GET from the app origin) and runs the SAME variant engine the upload
 // path uses (generateAndUploadVariants: thumbhash + 1280/640 webp + the
 // set_image_variant RPC). Everything is best-effort and RLS/authorization is
@@ -44,7 +44,7 @@ const GONE_FOR_GOOD = new Set([400, 403, 404, 410]);   // statuses that mean the
 const RASTER_RE = /\.(png|jpe?g|webp)$/i;
 
 // Circuit breaker: a fetch to R2 that rejects before any response (TypeError)
-// means CORS isn't configured on the bucket for this origin (r2-cors.json is
+// means CORS isn't configured on the bucket for this origin (storage-cors.json is
 // the source of truth but must be APPLIED via dashboard/wrangler — committing
 // it deploys nothing) or the network is down. Either way every subsequent
 // sweep fetch would fail identically — stop sweeping for the session instead

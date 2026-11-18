@@ -24,7 +24,7 @@ import decodeHeic from 'heic-decode';
 import sharp from 'sharp';
 import exifReader from 'exif-reader';
 import { rgbaToThumbHash } from 'thumbhash';
-import { makeR2 } from '../../boards/scripts/lib/r2.mjs';
+import { makeStorage } from '../../boards/scripts/lib/r2.mjs';
 import { scoutInsert } from '../../boards/src/lib/scoutDb.js';
 import { averageColor } from '../../boards/src/lib/oklab.js';
 import { classifyDropFile } from '../../boards/src/lib/fileIngest.js';
@@ -48,12 +48,7 @@ const HEIC_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', '
 const MAX_HEIC_PIXELS = 100_000_000;
 
 export function makeUploader(cfg) {
-  const r2 = makeR2({
-    accountId: cfg.R2_ACCOUNT_ID,
-    bucket: cfg.R2_BUCKET,
-    accessKeyId: cfg.R2_ACCESS_KEY_ID,
-    secretAccessKey: cfg.R2_SECRET_ACCESS_KEY,
-  });
+  const r2 = makeStorage(cfg);
   return r2;
 }
 

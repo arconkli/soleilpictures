@@ -3,7 +3,7 @@
 // The card used to draw a waveform synthesized from a hash of the filename —
 // deterministic, musical-looking, and completely unrelated to the audio. It was
 // justified by a comment claiming R2 signed URLs aren't CORS-readable, which is
-// stale (r2-cors.json allows GET from the app origins), and in any case the
+// stale (storage-cors.json allows GET from the app origins), and in any case the
 // File is already in hand at upload time so CORS never entered into it. The
 // public docs meanwhile promised "a real waveform, drawn from the file".
 //

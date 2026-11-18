@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Backblaze B2 for Clusters' files: the three buckets, their settings, the
 // app's keys and main → backup replication, declared once here and applied
-// idempotently. boards/r2-cors.json is the R2 twin of the CORS rule below.
+// idempotently. boards/storage-cors.json is the R2 twin of the CORS rule below.
 //
 //   node scripts/b2Setup.mjs check      compare the account with SPEC; changes nothing
 //   node scripts/b2Setup.mjs apply      make missing buckets; set CORS, lifecycle,

@@ -1,4 +1,5 @@
-# Nightly encrypted logical backup of the Supabase database to R2.
+# Nightly encrypted logical backup of the Supabase database to R2 and, once its
+# secrets exist, to Backblaze B2 as well.
 #
 # WHY THIS EXISTS
 # ---------------
@@ -46,6 +47,13 @@
 #                  R2_ACCESS_KEY_ID
 #                  R2_SECRET_ACCESS_KEY
 #                  R2_BACKUP_BUCKET    a NEW bucket, not soleil-boards-images
+#    Optional second copy on Backblaze B2 (until both are set, the B2 steps
+#    print a notice and skip, and the job stays green):
+#                  B2_DB_BACKUP_KEY_ID      key limited to the soleil-db-backups bucket
+#                  B2_DB_BACKUP_APP_KEY
+#    The endpoint, region and bucket name are plain env below, not secrets. The
+#    dumps bucket has a 14-day governance lock: deleting a younger dump only
+#    hides it (a delete marker), which the prune below tolerates.
 #
 #    Put them in an Environment named `production` with required reviewers if
 #    you want a second lock. This repo is public: secrets are never exposed to
@@ -93,6 +101,13 @@ jobs:
       AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
       R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       BUCKET: ${{ secrets.R2_BACKUP_BUCKET }}
+      # The B2 copy. Plain settings, not secrets; the B2 keys are passed to the
+      # B2 steps only, so they never sit beside the R2 ones.
+      B2_ENDPOINT: https://s3.us-east-005.backblazeb2.com
+      B2_REGION: us-east-005
+      B2_DB_BUCKET: soleil-db-backups
+      B2_RETENTION_DAILY: '30'
+      B2_RETENTION_MONTHLY: '12'
 
     steps:
       # Checked out only so the migration-parity step can diff what is applied
@@ -109,6 +124,8 @@ jobs:
           PGURL: ${{ secrets.SUPABASE_DB_URL }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           AGE_PUBLIC_KEY: ${{ vars.AGE_PUBLIC_KEY }}
+          B2_KEY_ID: ${{ secrets.B2_DB_BACKUP_KEY_ID }}
+          B2_APP_KEY: ${{ secrets.B2_DB_BACKUP_APP_KEY }}
         run: |
           set -euo pipefail
           missing=""
@@ -122,6 +139,17 @@ jobs:
             echo "::error::Backup is not configured. Missing:$missing"
             echo "See the header of .github/workflows/backup.yml for setup."
             exit 1
+          fi
+          # B2 is optional: both keys or neither. One without the other is a typo
+          # worth failing on; neither is "not set up yet".
+          if [ -n "${B2_KEY_ID:-}" ] && [ -z "${B2_APP_KEY:-}" ]; then
+            echo "::error::B2_DB_BACKUP_KEY_ID is set but B2_DB_BACKUP_APP_KEY is not."; exit 1
+          fi
+          if [ -z "${B2_KEY_ID:-}" ] && [ -n "${B2_APP_KEY:-}" ]; then
+            echo "::error::B2_DB_BACKUP_APP_KEY is set but B2_DB_BACKUP_KEY_ID is not."; exit 1
+          fi
+          if [ -z "${B2_KEY_ID:-}" ]; then
+            echo "::notice::B2 backup secrets are not set; the B2 copy will be skipped."
           fi
           case "$PGURL" in
             *:6543*) echo "::error::SUPABASE_DB_URL is the transaction pooler (6543). pg_dump needs session mode (5432)."; exit 1 ;;
@@ -250,7 +278,7 @@ jobs:
           set -euo pipefail
           umask 077
           printf '%s' "${AGE_PRIVATE_KEY:-}" > /tmp/verify.key
-          rm -f "soleil-$STAMP.dump.age"
+          # soleil-$STAMP.dump.age stays on disk: the B2 copy below uploads it.
           aws s3 cp "s3://$BUCKET/daily/soleil-$STAMP.dump.age" ./roundtrip.dump.age \
             --endpoint-url "$R2_ENDPOINT" --only-show-errors
 
@@ -314,6 +342,82 @@ jobs:
           }
           prune daily 30
           prune monthly 12
+
+      # ── Backblaze B2 copy ────────────────────────────────────────────────────
+      # Runs after R2 has uploaded, verified and pruned, so an R2 problem is
+      # reported first and a B2 problem fails the job on its own. With the B2
+      # secrets unset these three steps print a notice and succeed.
+      - name: Upload to B2
+        env:
+          # Overrides the job's R2 credentials for this step only.
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_DB_BACKUP_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_DB_BACKUP_APP_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "::notice::B2 backup secrets are not set; skipping the B2 upload."
+            exit 0
+          fi
+          DAY="$(date -u +%d)"
+          PREFIXES="daily"
+          if [ "$DAY" = "01" ]; then PREFIXES="daily monthly"; fi
+          for p in $PREFIXES; do
+            aws s3 cp "soleil-$STAMP.dump.age"       "s3://$B2_DB_BUCKET/$p/soleil-$STAMP.dump.age"       --endpoint-url "$B2_ENDPOINT" --region "$B2_REGION" --only-show-errors
+            aws s3 cp "soleil-$STAMP.schema.sql.age" "s3://$B2_DB_BUCKET/$p/soleil-$STAMP.schema.sql.age" --endpoint-url "$B2_ENDPOINT" --region "$B2_REGION" --only-show-errors
+            echo "uploaded to B2 $p/"
+          done
+
+      - name: Verify the B2 copy is readable and identical
+        env:
+          # Overrides the job's R2 credentials for this step only.
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_DB_BACKUP_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_DB_BACKUP_APP_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "::notice::B2 backup secrets are not set; skipping the B2 verify."
+            exit 0
+          fi
+          aws s3 cp "s3://$B2_DB_BUCKET/daily/soleil-$STAMP.dump.age" ./b2roundtrip.dump.age \
+            --endpoint-url "$B2_ENDPOINT" --region "$B2_REGION" --only-show-errors
+          # The local file is the one R2 verified; the object must match it byte for byte.
+          cmp "soleil-$STAMP.dump.age" b2roundtrip.dump.age \
+            || { echo "::error::the dump read back from B2 differs from the one uploaded"; exit 1; }
+          echo "verified: B2 copy round-trips identically, $(stat -c%s b2roundtrip.dump.age) bytes"
+          rm -f b2roundtrip.dump.age
+
+      - name: Prune old B2 backups (same retention as R2)
+        env:
+          # Overrides the job's R2 credentials for this step only.
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_DB_BACKUP_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_DB_BACKUP_APP_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "::notice::B2 backup secrets are not set; skipping the B2 prune."
+            exit 0
+          fi
+          # The bucket holds a 14-day governance lock. Deleting a dump younger
+          # than that only hides it (a delete marker), and a refusal is not a
+          # reason to fail the night: warn and carry on.
+          prune() {
+            local prefix="$1" keep="$2"
+            mapfile -t objs < <(aws s3 ls "s3://$B2_DB_BUCKET/$prefix/" --endpoint-url "$B2_ENDPOINT" --region "$B2_REGION" \
+              | awk '{print $4}' | grep '\.dump\.age$' | sort)
+            local n=${#objs[@]}
+            if [ "$n" -le "$keep" ]; then echo "B2 $prefix: $n kept, nothing to prune"; return; fi
+            for o in "${objs[@]:0:$((n-keep))}"; do
+              aws s3 rm "s3://$B2_DB_BUCKET/$prefix/$o" --endpoint-url "$B2_ENDPOINT" --region "$B2_REGION" --only-show-errors \
+                || echo "::warning::could not delete B2 $prefix/$o (retention lock?)"
+              aws s3 rm "s3://$B2_DB_BUCKET/$prefix/${o%.dump.age}.schema.sql.age" --endpoint-url "$B2_ENDPOINT" --region "$B2_REGION" --only-show-errors || true
+              echo "B2 $prefix: pruned $o"
+            done
+          }
+          prune daily "$B2_RETENTION_DAILY"
+          prune monthly "$B2_RETENTION_MONTHLY"
 
       # Until there is real alerting, a failed run is the alert: GitHub emails
       # the actor on a failed scheduled workflow. This makes the reason legible

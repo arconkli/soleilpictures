@@ -167,6 +167,34 @@ select count(*) from boards
 That last check has to come out as 1. If it is 0, call
 `_ensure_workspace_root(...)` or insert a root before handing the workspace back.
 
+### 4.5 The same dump from Backblaze B2
+
+Once its secrets are set, `backup.yml` writes a second copy of every dump to the
+B2 bucket `soleil-db-backups` (same names, same `daily/` and `monthly/`
+prefixes, same retention). Use it when R2 or its account is the thing that is
+gone. The bucket holds a 14-day governance lock, so a dump younger than that
+cannot be destroyed by a stolen key, only hidden.
+
+```sh
+export AWS_ACCESS_KEY_ID=...        # the B2 DB-backup key (read), or the admin key
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_DEFAULT_REGION=us-east-005
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+B2=https://s3.us-east-005.backblazeb2.com
+
+aws s3 ls s3://soleil-db-backups/daily/ --endpoint-url $B2 --region us-east-005
+aws s3 cp s3://soleil-db-backups/daily/soleil-<stamp>.dump.age . --endpoint-url $B2 --region us-east-005
+
+age -d -i /path/to/soleil-backup.key -o soleil.dump soleil-<stamp>.dump.age
+pg_restore --list soleil.dump | head -40
+```
+
+From `age -d` on, nothing differs from §4.1: continue at §4.2. A dump that was
+"deleted" inside its lock window is only hidden; list every version of it with
+`aws s3api list-object-versions --bucket soleil-db-backups --prefix daily/ --endpoint-url $B2 --region us-east-005`
+and fetch the one you want with `aws s3api get-object --version-id <id> …`.
+
 ---
 
 ## 5. Whole-project restore
@@ -228,7 +256,8 @@ the source of truth lives.
   *rows* restore, but bucket config (public/private, CORS, size limits) and the
   actual stored files do not. Buckets in play: `message-attachments` (public),
   `board-images` (legacy).
-- **R2 CORS** — set manually per bucket, mirrored in `boards/r2-cors.json`.
+- **R2 CORS** — set manually per bucket, mirrored in `boards/storage-cors.json`.
+  The B2 buckets' CORS rule is in `boards/scripts/b2Setup.mjs` (`node scripts/b2Setup.mjs` re-applies it).
 - **Worker secrets** (`wrangler secret`): `SUPABASE_SERVICE_ROLE_KEY`,
   `OPENAI_API_KEY`, and any `*_MODE` flags. **PartyKit env** (`npx partykit
   env`). **Fly secrets** for scout (`fly secrets list`).
@@ -314,3 +343,114 @@ after any change to `backup.yml`:
 > about whether anyone can open it. The local key file had been truncated to
 > **0 bytes**, so the archive was, at that moment, permanently unreadable.
 > Nothing but decrypting a real artifact with the real key detects this.
+
+---
+
+## 8. Restore a file from the files backup
+
+Uploaded files live in the B2 bucket `soleil-boards-images` (and, until the move
+is finished, in R2). B2 Cloud Replication copies every new object within
+minutes into `soleil-boards-images-backup`. That bucket has a 90-day governance
+lock and keeps prior versions of an overwritten or deleted key for 90 days. Only
+the **admin** key (`B2_ADMIN_KEY_ID` / `B2_ADMIN_APP_KEY` in
+`boards/scripts/.env`) can read it; the Worker and party keys cannot.
+
+```sh
+export AWS_ACCESS_KEY_ID=...        # B2 admin key id
+export AWS_SECRET_ACCESS_KEY=...    # B2 admin application key
+export AWS_DEFAULT_REGION=us-east-005
+export AWS_REQUEST_CHECKSUM_CALCULATION=when_required
+export AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
+B2=https://s3.us-east-005.backblazeb2.com
+KEY='<workspaceId>/<uuid>.<ext>'    # the images.storage_path of the lost file
+
+# Every version the backup holds for that key, newest first. A delete shows as
+# a DeleteMarker; the version below it is the file.
+aws s3api list-object-versions --bucket soleil-boards-images-backup \
+  --prefix "$KEY" --endpoint-url $B2 --region us-east-005
+
+# Copy the version you want back into the live bucket under the same key.
+aws s3api copy-object --bucket soleil-boards-images --key "$KEY" \
+  --copy-source "soleil-boards-images-backup/$KEY?versionId=<VersionId>" \
+  --endpoint-url $B2 --region us-east-005
+
+# Or just download it.
+aws s3api get-object --bucket soleil-boards-images-backup --key "$KEY" \
+  --version-id <VersionId> restored.bin --endpoint-url $B2 --region us-east-005
+```
+
+A whole prefix (one workspace): `aws s3 ls s3://soleil-boards-images-backup/<workspaceId>/ --recursive --endpoint-url $B2 --region us-east-005`
+shows what is there, and the `rclone copy` in §9 with the backup bucket as the
+source puts it back. Check the `images` row exists before you conclude the file
+is "missing": a card without its row cannot be signed for reading.
+
+---
+
+## 9. Storage switch (R2 and B2)
+
+Files can sit in Cloudflare R2 or Backblaze B2. One row decides which, per key.
+Keys are identical in both stores (`<workspaceId>/<uuid>.<ext>`).
+
+```sql
+select value, updated_at from app_config where key = 'storage';   -- no row = mode 'r2'
+
+insert into app_config (key, value) values ('storage', '{"mode":"r2","workspaces":[],"fallback":false}')
+on conflict (key) do update set value = excluded.value, updated_at = now();
+```
+
+| `mode` | Where files live | Reads | Deletes |
+|---|---|---|---|
+| `r2` | R2, as before. Also the answer when the row is missing or unreadable | R2 only (with `"fallback":true`: R2, then B2) | R2 only (with `"fallback":true`: both) |
+| `canary` | B2 for keys whose first path segment is in `workspaces`, R2 for everything else | the key's store, then the other | both stores |
+| `b2` | B2 | B2, then R2 | both stores |
+
+The Worker and the party each cache the row for about 30 seconds, so a change
+takes effect within a minute. Set `workspaces` to lowercase workspace ids (at
+most 200).
+
+**Rollback** to R2, from any mode:
+
+```sql
+update app_config set value = '{"mode":"r2","workspaces":[],"fallback":true}', updated_at = now()
+ where key = 'storage';
+```
+
+`fallback:true` keeps reads falling back to B2 and sends deletes to both stores,
+so files written to B2 while it was live stay readable. Then copy B2 back to R2
+(the reverse of the first command below, with `copy --update`, never `sync`) and,
+once R2 holds everything, set `"fallback":false`.
+
+### Copying between the stores with rclone
+
+Remotes come from environment variables, so no config file ever holds a secret.
+Take the values from `boards/scripts/.env` without echoing them.
+
+```sh
+export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+export RCLONE_CONFIG_R2_ACCESS_KEY_ID=...  RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=...
+export RCLONE_CONFIG_R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+
+export RCLONE_CONFIG_B2_TYPE=s3 RCLONE_CONFIG_B2_PROVIDER=Other
+export RCLONE_CONFIG_B2_ACCESS_KEY_ID=...  RCLONE_CONFIG_B2_SECRET_ACCESS_KEY=...   # the admin key
+export RCLONE_CONFIG_B2_ENDPOINT=https://s3.us-east-005.backblazeb2.com
+export RCLONE_CONFIG_B2_REGION=us-east-005
+export RCLONE_CONFIG_B2_NO_CHECK_BUCKET=true
+
+FLAGS="--metadata --transfers 32 --checkers 32 --fast-list"
+
+# Dry run first.
+rclone sync R2:soleil-boards-images B2:soleil-boards-images $FLAGS --max-delete 2000 --dry-run
+```
+
+- **While R2 is the source of truth (mode `r2`)**: `rclone sync R2:soleil-boards-images B2:soleil-boards-images $FLAGS --max-delete 2000`.
+  `sync` makes B2 match R2, deletions included; `--max-delete 2000` stops a
+  runaway. Anything written only to B2 is removed by it, which is right only
+  while nothing writes to B2.
+- **Once any workspace has flipped (mode `canary` or `b2`)**: never `sync`.
+  Use `rclone copy R2:soleil-boards-images B2:soleil-boards-images $FLAGS --update`
+  (it never deletes, and leaves newer B2 files alone). To keep a flipped
+  workspace's files from being overwritten, add
+  `--exclude "/<workspaceId>/**"` for each workspace in `workspaces`.
+- **Reverse (rollback)**: `rclone copy B2:soleil-boards-images R2:soleil-boards-images $FLAGS --update`.
+- Verify a copy: `rclone check R2:soleil-boards-images B2:soleil-boards-images --size-only --one-way --fast-list`.

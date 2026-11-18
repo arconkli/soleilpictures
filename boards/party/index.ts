@@ -20,7 +20,7 @@ import { BoardParty } from "./board";
 import { WorkspaceParty } from "./workspace";
 import { UniverseParty } from "./universe";
 import { DocParty } from "./doc";
-import { UploadParty } from "./upload";
+import { UploadParty, holdUploadRequest } from "./upload";
 import { authBoard, authWorkspace, bannedAmong, canWriteBoard, docRoomAccess } from "./auth";
 import { bindReports, doorClosed, doorOpened, reportParty } from "./report";
 import { answeredWith, answerOf } from "../src/lib/serverErrors.js";
@@ -200,6 +200,9 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     bindReports(env);
     doorOpened();
+    // An upload's background work (re-reading the storage switch) runs in
+    // this request's waitUntil (upload.ts).
+    holdUploadRequest(request, ctx);
     let res: Response;
     try {
       res = await answer(request, env);

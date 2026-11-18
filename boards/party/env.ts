@@ -15,6 +15,17 @@ export interface Env {
   R2_BUCKET?: string;
   R2_ACCESS_KEY_ID?: string;
   R2_SECRET_ACCESS_KEY?: string;
+  // Backblaze B2 (upload.ts, lib/partyStorage.js): the party's own B2 key,
+  // both or neither; the settings default to lib/storage.js's B2.
+  B2_KEY_ID?: string;
+  B2_APP_KEY?: string;
+  B2_S3_ENDPOINT?: string;
+  B2_REGION?: string;
+  B2_BUCKET?: string;
+  // Dev only, never set in production: replaces the app_config 'storage'
+  // switch ('r2' | 'canary' | 'b2', and the canary's comma-separated workspaces).
+  STORAGE_MODE?: string;
+  STORAGE_WORKSPACES?: string;
   // Which deploy is answering (wrangler.jsonc's version_metadata): report.ts
   // names a failure's release by it.
   CF_VERSION_METADATA?: { id?: string; tag?: string };

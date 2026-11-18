@@ -264,11 +264,18 @@ export const SIGN_READS_MAX = 200;
 const signReasons = new Map();       // key → 'network' | 'denied'
 export function signFailure(key) { return signReasons.get(key) || null; }
 
+// Keys whose cached URL a caller saw fail and asked to re-sign (force). The
+// next /sign-reads sends them as `recheck`, so the party looks for the file in
+// the other store if the first one answered 404 (a file mid-move to B2).
+let forcedKeys = new Set();
+
 async function flush() {
   pendingTimer = null;
   if (pendingResolvers.size === 0) return;
   const resolvers = pendingResolvers;
   pendingResolvers = new Map();
+  const forced = forcedKeys;
+  forcedKeys = new Set();
   const keys = Array.from(resolvers.keys());
   const settle = (chunk, urls, ttlMs) => {
     for (const key of chunk) {
@@ -305,6 +312,7 @@ async function flush() {
   await Promise.all(chunks.map(async (chunk) => {
     let urls = null;
     let ttlMs = CACHE_TTL_MS;
+    const recheck = chunk.filter((k) => forced.has(k));
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -312,7 +320,9 @@ async function flush() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ keys: chunk }),
+        body: recheck.length
+          ? JSON.stringify({ keys: chunk, recheck })
+          : JSON.stringify({ keys: chunk }),
       });
       if (!res.ok) {
         console.warn('[r2] sign-reads failed', res.status);
@@ -372,7 +382,7 @@ export function getSignedUrl(key, { force = false } = {}) {
   // force: the caller saw this URL fail (e.g. a 403 on an expired signature),
   // so evict the cached string and re-sign over the network instead of handing
   // back the same dead URL.
-  if (force) cache.delete(key);
+  if (force) { cache.delete(key); forcedKeys.add(key); }
   const cached = cache.get(key);
   if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.url);
 

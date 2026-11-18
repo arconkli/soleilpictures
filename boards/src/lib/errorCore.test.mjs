@@ -42,6 +42,7 @@ test('a request is named by its service and its route, never by what is in it', 
     [`${SB}/storage/v1/object/sign/files/${ID}/Wedding%20plans.pdf?token=abc`, 'storage/object/sign/:x'],
     [`${SB}/functions/v1/create-checkout-session`, 'functions/create-checkout-session'],
     [`https://acct123.r2.cloudflarestorage.com/soleil-files/${ID}/holiday.jpg?X-Amz-Signature=f00`, 'r2/soleil-files/:x'],
+    [`https://s3.us-east-005.backblazeb2.com/soleil-boards-images/${ID}/holiday.jpg?X-Amz-Signature=f00`, 'b2/soleil-boards-images/:x'],
     [`${PARTY}/parties/upload/${ID}/mpu/create`, 'party/parties/upload/:x/mpu/create'],
     [`${PARTY}/parties/main/${ID}`, 'party/parties/main/:x'],
     [`${PARTY}/parties/upload/share/share-bundle`, 'party/parties/upload/:x/share-bundle'],
@@ -72,7 +73,7 @@ test('a route never keeps a slug, a token, an id or a file name, however plain i
   const urls = [
     '/c/my-wedding-plans', '/c/wedding', '/b/wedding/sub', '/share/Xk3jT9qLmN2p', `/api/v1/boards/${ID}/wedding`,
     `${SB}/storage/v1/object/public/files/wedding/holiday.jpg`, `${PARTY}/parties/doc/wedding/recheck`,
-    `https://acct.r2.cloudflarestorage.com/soleil-files/wedding/holiday.jpg`, '/api/og?url=https%3A%2F%2Fexample.com%2Fsecret',
+    `https://acct.r2.cloudflarestorage.com/soleil-files/wedding/holiday.jpg`, `https://s3.us-east-005.backblazeb2.com/soleil-boards-images/wedding/holiday.jpg`, '/api/og?url=https%3A%2F%2Fexample.com%2Fsecret',
     `${SB}/auth/v1/factors/wedding/verify`,
   ];
   for (const url of urls) {
