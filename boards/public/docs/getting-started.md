@@ -69,7 +69,7 @@ A few things worth knowing on day one:
 |---|---|
 | Add a note | Press `N`, or right-click where you want it |
 | Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select. Drop a whole folder and it becomes a cluster, its folders nested ones |
-| Add a link | Paste a URL onto the canvas — it unfurls into a real card |
+| Add a link | Paste a URL onto the canvas — it unfurls into a real card, and a picture's address brings in the picture |
 | Pan | Hold `Space` and drag, or press `H` |
 | Fit everything on screen | `⇧1` |
 | Undo | `⌘Z` |

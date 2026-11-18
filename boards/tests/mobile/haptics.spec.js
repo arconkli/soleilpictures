@@ -291,9 +291,10 @@ test.describe('iPhone Safari, the switch', () => {
     // WebKit cannot hold a real finger (see mobile/long-press), so the menu
     // opens the way a long-press ends up opening it: by its contextmenu event.
     await card(page, id).click({ button: 'right' });
-    const del = page.locator('.ctx-menu .ctx-item.danger').first();
+    // On a phone Delete is one of the sheet's tiles above the list
+    // (.ctx-quick, ctxMenuParts.jsx), not a row in it.
+    const del = page.locator('.ctx-quick .ctx-quick-btn.danger').first();
     await expect(del).toBeVisible();
-    // The menu scrolls inside itself; Delete is its last row.
     await del.scrollIntoViewIfNeeded();
     await expect(del).toContainText(/Delete/);
     await expect(del.locator('label.haptic-tap')).toHaveCount(1);

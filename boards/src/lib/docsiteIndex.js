@@ -316,7 +316,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can the scroll wheel zoom instead of scrolling the board around?",
-        "a": "Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type \"scroll wheel\". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way."
+        "a": "Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type \"scroll wheel\", or Zoom with the wheel on the tip that appears when you scroll as if expecting zoom. Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way."
       },
       {
         "q": "Can I move around a board with W, A, S and D?",
@@ -521,7 +521,7 @@ export const DOCS_PAGES = [
     "title": "Images and Photo Editing — Soleil Clusters",
     "metaDescription": "Add images to a Soleil Clusters canvas and adjust them non-destructively — exposure, contrast and colour. Lightbox, downloads with edits baked in.",
     "h1": "Images and photo editing",
-    "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
+    "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Double-click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
     "updated": "2026-11-17",
@@ -1312,6 +1312,10 @@ export const DOCS_PAGES = [
       {
         "id": "nesting",
         "text": "Nesting"
+      },
+      {
+        "id": "the-cluster-s-menu",
+        "text": "The cluster's menu"
       },
       {
         "id": "side-by-side",

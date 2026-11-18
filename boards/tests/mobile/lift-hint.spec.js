@@ -1,34 +1,35 @@
 import { expect, test } from '@playwright/test';
 
-// First-run discoverability for press-and-hold-to-lift.
+// First-run discoverability for tap, then drag.
 //
-// When a touch user drags from a card without holding first, the board pans
+// When a touch user drags from a card that isn't selected, the board pans
 // (the card stays put) — confusing if you expected to move the card. The first
-// time that happens we show a one-time toast explaining the hold. The "seen"
-// flag is device-local (localStorage 'soleil.liftHintSeen').
+// time that happens we show a one-time toast explaining tap, then drag. A drag
+// from an already selected card moves it and shows no hint. The "seen" flag is
+// device-local (localStorage 'soleil.liftHintSeen.tapDrag').
 //
 // Touch-only, so skip the mouse (desktop-chrome) project.
 
 const DRAGGABLE = /card-kind-(note|image|shape|link|text|doc)/;
-const HINT = 'Press and hold a card to pick it up';
+const HINT = 'To move a card, tap it, then drag it.';
 
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome',
-    'press-and-hold lift hint is a touch interaction');
+    'the tap-then-drag hint is a touch interaction');
   await page.goto('/?local=1&reset=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await expect(page.locator('.card').first()).toBeVisible();
 });
 
-// One-finger drag (no hold) starting on the first onscreen draggable card.
+// One-finger drag starting on the first onscreen draggable card that is not selected.
 // Returns false if no suitable card landed onscreen.
 async function panFromCard(page) {
   return page.evaluate(async ({ DRAGGABLE_SRC }) => {
     const DRAGGABLE = new RegExp(DRAGGABLE_SRC);
     const vw = window.innerWidth, vh = window.innerHeight;
     const el = [...document.querySelectorAll('.cards-layer .card')].find((e) => {
-      if (!DRAGGABLE.test(e.className)) return false;
+      if (!DRAGGABLE.test(e.className) || e.classList.contains('is-selected')) return false;
       const r = e.getBoundingClientRect();
       return r.width > 24 && r.height > 24
         && r.left > 8 && r.top > 60 && r.right < vw - 8 && r.bottom < vh - 8;
@@ -50,17 +51,17 @@ async function panFromCard(page) {
   }, { DRAGGABLE_SRC: DRAGGABLE.source });
 }
 
-test('first pan-from-a-card shows the hold hint and sets the seen flag', async ({ page }) => {
-  await page.evaluate(() => { try { localStorage.removeItem('soleil.liftHintSeen'); } catch (_) {} });
+test('first pan-from-a-card shows the tap-then-drag hint and sets the seen flag', async ({ page }) => {
+  await page.evaluate(() => { try { localStorage.removeItem('soleil.liftHintSeen.tapDrag'); } catch (_) {} });
   const ok = await panFromCard(page);
   test.skip(!ok, 'no draggable card landed onscreen for this seed/viewport');
   await expect(page.locator('.toast-msg', { hasText: HINT })).toBeVisible();
-  const flag = await page.evaluate(() => localStorage.getItem('soleil.liftHintSeen'));
+  const flag = await page.evaluate(() => localStorage.getItem('soleil.liftHintSeen.tapDrag'));
   expect(flag).toBe('1');
 });
 
 test('the hint does NOT fire again once the flag is set', async ({ page }) => {
-  await page.evaluate(() => { try { localStorage.setItem('soleil.liftHintSeen', '1'); } catch (_) {} });
+  await page.evaluate(() => { try { localStorage.setItem('soleil.liftHintSeen.tapDrag', '1'); } catch (_) {} });
   const ok = await panFromCard(page);
   test.skip(!ok, 'no draggable card landed onscreen for this seed/viewport');
   // Give any (incorrect) toast a moment to mount, then assert none with the hint.

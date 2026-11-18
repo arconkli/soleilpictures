@@ -6,7 +6,7 @@ navLabel: Images
 section: canvas
 order: 2
 updated: 2026-11-17
-answer: Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
+answer: Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Double-click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 faq:
   - q: Do adjustments change my original file?
     a: No. Adjustments are stored as settings on the card and applied at display time. The uploaded file is never modified, and resetting returns you to the original exactly.
@@ -36,7 +36,9 @@ own, with its files waiting in Files until you put them on the board. See
 - **Drag from the desktop** — many at once is fine.
 - **Drag from another tab** — an image dragged off a web page is kept as a
   copy in your workspace (see [below](#images-from-the-web)).
-- **Paste** from the clipboard.
+- **Paste** from the clipboard. Several pictures pasted at once all come in,
+  side by side, and a picture's web address (one ending in `.jpg`, `.png` and
+  the like, or from a picture host) becomes the picture itself.
 - **The image tool** in the rail, for a file picker.
 - **[Soleil Scout](/docs/scout)** — text them from your phone.
 
@@ -128,7 +130,10 @@ Three ways in, depending on how much room you need:
 
 - **Edit popover** — a compact panel beside the image with the essentials.
 - **Full screen editor** — everything, with the image large.
-- **Lightbox** — click an image to fill the screen; click again for 1:1 and drag to pan.
+- **Lightbox** — double-click an image, or select it and press `Enter`, to
+  fill the screen; click it there for 1:1 and drag to pan. On a phone or
+  tablet, double-tap it. To rename the picture, double-click its title instead,
+  or choose **Edit › Rename…** from its right-click menu.
   Under it, **More like this** shows the pictures in your workspace that look
   most like it, matched by what is in them, and a click opens one there. It
   appears only when something is close, and not in a workspace whose

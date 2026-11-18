@@ -371,7 +371,10 @@ function NoteTiptapEditing({
     if (manualRef.current || !dom) return null;
     const { h: openH, blank } = openRef.current;
     const cap = openH > NOTE_AUTOSIZE_MAX ? Math.max(NOTE_SHOW_ALL_MAX, openH) : NOTE_AUTOSIZE_MAX;
-    const floor = blank ? openH : 0;
+    // A note centred in its box keeps the box it was given, too: shrinking it
+    // to its text made Center in the box a no-op on the first edit.
+    const centred = cardYMap?.get?.('vAlign') === 'center';
+    const floor = blank || centred ? openH : 0;
     const need = Math.max(cardHeightForContent(dom), displayHeightWithPreviews(dom, html));
     return Math.round(Math.min(cap, Math.max(floor, need)));
   };
@@ -510,7 +513,7 @@ function NoteTiptapEditing({
           const { $from, empty } = state.selection;
           if (empty && $from.depth === 1 && $from.parent.type.name === 'paragraph') {
             const text = $from.parent.textContent;
-            if (/^- ?$/.test(text)) {
+            if (/^- $/.test(text)) {
               const start = $from.start();
               view.dispatch(state.tr.delete(start, start + $from.parent.content.size));
               return true;
@@ -595,6 +598,15 @@ function NoteTiptapEditing({
       noteStyleWrite: (board, write) => {
         const route = undoRouteRef.current;
         if (route) route.styleWrite(board, write); else write();
+        // A whole-note size or font runs no editor transaction, so nothing
+        // re-fits the note: measure once the new style has rendered (a
+        // hand-resized note stays as it is, autoHeight).
+        needsMeasureRef.current = true;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (editor.isDestroyed || !needsMeasureRef.current) return;
+          needsMeasureRef.current = false;
+          try { flush(true); } catch (_) { /* noop */ }
+        }));
       },
       // Several writes as one board undo step: Yjs nests transactions and the
       // outer origin wins, so the fragment, its html cache and card fields all
@@ -717,6 +729,7 @@ function NoteTiptapEditing({
   // Exit edit on blur — unless focus is moving into the formatting toolbar /
   // a popover, or the @-mention picker is open (clicking a row blurs the editor).
   const mentionOpenRef = useRef(false);
+  const pressEndedMentionRef = useRef(false);
   mentionOpenRef.current = !!mention;
   // The card a new comment is written in belongs to this editing session: it
   // is portaled to <body> and takes focus. Treating that as "left the note"
@@ -775,13 +788,16 @@ function NoteTiptapEditing({
     if (!editor) return undefined;
     const onDown = (e) => {
       if (editor.isDestroyed || editor.isFocused) return;
-      if (mentionOpenRef.current || commentUiOpenRef.current || anyModalOpen()) return;
+      if (commentUiOpenRef.current || anyModalOpen()) return;
       const t = e.target;
       // The stack around the editor (its empty band, the preview cards) is the note too.
       const inNote = editor.view.dom.closest?.('.note-edit-stack') || editor.view.dom;
       if (inNote.contains(t) || inEditSessionUi(t)) return;
       const a = document.activeElement;
       if (a && a !== document.body && inEditSessionUi(a)) { try { a.blur(); } catch (_) {} }
+      // The picker's own outside-press close runs next; it must not hand the
+      // caret back to a note that is closing.
+      if (mentionOpenRef.current) pressEndedMentionRef.current = true;
       exitEdit();
     };
     document.addEventListener('pointerdown', onDown, true);
@@ -929,7 +945,14 @@ function NoteTiptapEditing({
           anchor={mention.clientRect}
           initialQuery={mention.query}
           onCommit={commitMention}
-          onCancel={() => setMention(null)}
+          onCancel={() => {
+            setMention(null);
+            // Escape: the picker had the focus, so hand it back or Backspace
+            // reaches the canvas and deletes the note. A press outside ended
+            // the edit already.
+            if (pressEndedMentionRef.current) { pressEndedMentionRef.current = false; return; }
+            if (editor && !editor.isDestroyed) editor.commands.focus();
+          }}
         />
       )}
       {awareness && (

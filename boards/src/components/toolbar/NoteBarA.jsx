@@ -14,6 +14,8 @@ import {
   AlignCenter, AlignCenterVertical, AlignLeft, AlignRight, Bold, ChatCircleText, Italic, List, ListChecks, ListOrdered,
   Minus, MoreHorizontal, Plus, Strikethrough, TextAUnderline, TextTSlash, Type, Underline,
 } from '../../lib/icons.js';
+import { stepDown, stepUp } from '../../lib/fontSizeSteps.js';
+import { getActiveNoteEditor } from '../../lib/noteEditorRegistry.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -44,6 +46,12 @@ import { Trans } from '@lingui/react/macro';
 // EDIT_SESSION_UI), so the note stays in edit while one is open.
 
 const keep = (e) => e.preventDefault();
+// Escape or Enter in the size box leaves the focus on <body>, where Backspace
+// would delete the note: hand it back to the text.
+const settle = () => {
+  const editor = getActiveNoteEditor();
+  if (editor && !editor.isDestroyed && !editor.isFocused) editor.commands.focus();
+};
 const MENU = 'tob-menu';
 const ALIGNS = [
   { value: 'left', get label() { return t`Align left`; }, icon: AlignLeft },
@@ -155,10 +163,10 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
         </MenuButton>
         <span className="nb-step">
           <Btn icon={Minus} label={t`Decrease font size`} onMouseDown={keep} onPointerDown={keep}
-               onClick={() => act.size((size ?? 15) - 1)} />
-          <SizeInput look value={size} placeholder="" presets={SIZES} className="nb-size-in" dropUp onCommit={act.size} />
+               onClick={() => act.size(stepDown(size ?? 15))} />
+          <SizeInput look value={size} placeholder="" presets={SIZES} className="nb-size-in" dropUp onCommit={act.size} onSettle={settle} />
           <Btn icon={Plus} label={t`Increase font size`} onMouseDown={keep} onPointerDown={keep}
-               onClick={() => act.size((size ?? 15) + 1)} />
+               onClick={() => act.size(stepUp(size ?? 15))} />
         </span>
       </Group>
     ));
@@ -302,10 +310,10 @@ function SizeRow({ size, onSize }) {
       <span className="tl-mrow-l"><Trans>Size</Trans></span>
       <span className="tl-seg">
         <Btn icon={Minus} label={t`Decrease font size`} role="menuitem" tabIndex={-1} onMouseDown={keep}
-             onClick={() => onSize((size ?? 15) - 1)} />
+             onClick={() => onSize(stepDown(size ?? 15))} />
         <span className="nb-size-val" aria-live="polite">{size ?? '–'}</span>
         <Btn icon={Plus} label={t`Increase font size`} role="menuitem" tabIndex={-1} onMouseDown={keep}
-             onClick={() => onSize((size ?? 15) + 1)} />
+             onClick={() => onSize(stepUp(size ?? 15))} />
       </span>
     </div>
   );

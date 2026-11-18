@@ -105,7 +105,8 @@ test.describe('UndoManager hardening wired', () => {
     const src = read('src/components/CanvasSurface.jsx');
     // breakUndo is invoked once at the top of doDeleteSelected, NOT inside the
     // per-type leaf mutators — so a mixed delete collapses into one undo step.
-    expect(src).toMatch(/doDeleteSelected = useCallback\(async \(\) => \{[\s\S]{0,600}?mutators\.breakUndo\?\.\(\)/);
+    // (After the confirm for a cluster in the selection, so the window is wider than it was.)
+    expect(src).toMatch(/doDeleteSelected = useCallback\(async \(\) => \{[\s\S]{0,1200}?mutators\.breakUndo\?\.\(\)/);
   });
 
   test('selection is preserved across undo/redo', () => {
@@ -219,7 +220,7 @@ test.describe('Phase-0 undo hardening (source guard)', () => {
 
   test('deleteCards owns its step boundaries + returns the stack item', () => {
     const app = read('src/App.jsx');
-    expect(app).toMatch(/deleteCards = async \(ids, \{ boundary = true \} = \{\}\)/);
+    expect(app).toMatch(/deleteCards = async \(ids, \{ boundary = true(, via = 'delete')? \} = \{\}\)/);
     // Awaited board soft-deletes can no longer let unrelated edits merge into
     // (and get mis-tagged by) the delete transact.
     expect(app).toMatch(/return \{ stackItem \}/);

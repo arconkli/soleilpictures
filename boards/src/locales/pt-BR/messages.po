@@ -6337,6 +6337,7 @@ msgstr "Cluster em {ws}"
 msgid "Cluster info"
 msgstr "Informações do cluster"
 
+#: src/App.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/NewClusterButton.jsx
@@ -6373,9 +6374,21 @@ msgstr "Clusters"
 msgid "Clusters and files go separately"
 msgstr "Clusters e arquivos vão separados"
 
+#: src/components/CanvasSurface.jsx
+msgid "Clusters and files go separately. Drag the clusters, then the files."
+msgstr "Clusters e arquivos vão separadamente. Arraste os clusters e depois os arquivos."
+
 #: src/lib/billingCopyWords.js
 msgid "Clusters are free — they cost none of your cards"
 msgstr "Clusters são grátis — não consomem nenhum dos seus cartões"
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be cut. Use Move to… in the cluster's menu instead."
+msgstr "Clusters não podem ser recortados. Use Mover para… no menu do cluster."
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be pasted. Use Move to… in the cluster's menu instead."
+msgstr "Clusters não podem ser colados. Use Mover para… no menu do cluster."
 
 #: src/lib/importCopy.js
 msgid "Clusters don’t count as cards."
@@ -10374,6 +10387,10 @@ msgstr "Obter o Creator"
 msgid "Gets it in Messages, or an email invite if they're new"
 msgstr "Recebe em Mensagens, ou um convite por e-mail se for novo"
 
+#: src/components/cards.jsx
+msgid "Getting preview…"
+msgstr "Carregando prévia…"
+
 #: src/components/ShareModal.jsx
 msgid "Give {email} the whole workspace?"
 msgstr "Dar o espaço de trabalho inteiro a {email}?"
@@ -13989,6 +14006,10 @@ msgstr "Não há mais assentos para editores: seu plano tem espaço para {limit}
 msgid "No places left for people who can edit."
 msgstr "Não há mais assentos para editores."
 
+#: src/components/cards.jsx
+msgid "No preview"
+msgstr "Sem prévia"
+
 #: src/components/BacklinksList.jsx
 msgid "No references yet."
 msgstr "Nenhuma referência ainda."
@@ -15191,6 +15212,10 @@ msgstr "Abrir o OneDrive"
 msgid "Open or close the full Files page"
 msgstr "Abrir ou fechar a página completa de Arquivos"
 
+#: src/components/ShortcutsOverlay.jsx
+msgid "Open or edit the selected card"
+msgstr "Abrir ou editar o cartão selecionado"
+
 #: src/components/cards.jsx
 msgid "Open original"
 msgstr "Abrir original"
@@ -16271,10 +16296,6 @@ msgstr "Pressione A. As setas se ancoram nos cartões e os acompanham quando voc
 #: src/components/comments/CanvasCommentsList.jsx
 msgid "Press and hold a card or the canvas to add one."
 msgstr "Toque e segure um cartão ou a tela para adicionar um."
-
-#: src/components/CanvasSurface.jsx
-msgid "Press and hold a card to pick it up and move it."
-msgstr "Pressione e segure um cartão para pegá-lo e movê-lo."
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Press and hold the canvas or any card for more actions."
@@ -17763,8 +17784,8 @@ msgid "scroll, wheel, zoom, pan, mouse, trackpad"
 msgstr "rolagem, rolar, roda, zoom, deslocar, mouse, trackpad, touchpad"
 
 #: src/components/CanvasSurface.jsx
-msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms — or switch the wheel to zoom in Settings → Appearance."
-msgstr "Rolar desloca a tela. {cmdKey} + rolar aplica zoom — ou mude a roda para zoom em Configurações → Aparência."
+msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms."
+msgstr "Rolar move a tela. {cmdKey} + rolar dá zoom."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling pans the canvas. {WHEEL_CMD}-scroll zooms."
@@ -20832,6 +20853,10 @@ msgstr "A parte não usada deste ano é abatida da sua próxima fatura ({credit}
 msgid "The version you restored didn’t have the page you were on."
 msgstr "A versão que você restaurou não tinha a página em que você estava."
 
+#: src/components/CanvasSurface.jsx
+msgid "The wheel zooms now. Change it back in Settings → Appearance."
+msgstr "A roda agora dá zoom. Mude isso em Configurações → Aparência."
+
 #: src/components/HelpHub.jsx
 msgid "The whole handbook is at <0>/docs</0>, also readable as plain Markdown at <1>/docs/*.md</1>."
 msgstr "O manual completo está em <0>/docs</0>, também legível como Markdown puro em <1>/docs/*.md</1>."
@@ -21634,6 +21659,10 @@ msgstr "Para {mailPeople}"
 msgid "To join that team, sign in again with a code sent to the address the invite went to."
 msgstr "Para entrar nessa equipe, entre de novo com um código enviado ao endereço que recebeu o convite."
 
+#: src/components/CanvasSurface.jsx
+msgid "To move a card, tap it, then drag it."
+msgstr "Para mover um cartão, toque nele e depois arraste."
+
 #: src/auth/WelcomePage.jsx
 msgid "To report an issue or submit a suggestion please email us at: <0>clusters@soleilpictures.com</0>"
 msgstr "Para relatar um problema ou enviar uma sugestão, escreva para: <0>clusters@soleilpictures.com</0>"
@@ -21932,6 +21961,7 @@ msgstr "Sublinhado"
 
 #: src/App.jsx
 #: src/components/AppFeedback.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/FeedbackOverlay.jsx
 #: src/components/fileShare/FileShareDialog.jsx
@@ -24357,6 +24387,18 @@ msgstr "Aplicar zoom da linha do tempo à entrada e à saída"
 msgid "Zoom to in and out"
 msgstr "Ampliar para entrada e saída"
 
+#: src/components/CanvasSurface.jsx
+msgid "Zoom with the wheel"
+msgstr "Zoom com a roda"
+
 #: src/components/doc/DocFrameA.jsx
 msgid "Zoom, {pct}%"
 msgstr "Zoom, {pct}%"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed in all the way"
+msgstr "Zoom no máximo"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed out all the way"
+msgstr "Zoom no mínimo"

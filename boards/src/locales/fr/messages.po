@@ -6337,6 +6337,7 @@ msgstr "Cluster dans {ws}"
 msgid "Cluster info"
 msgstr "Infos du cluster"
 
+#: src/App.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/NewClusterButton.jsx
@@ -6373,9 +6374,21 @@ msgstr "Clusters"
 msgid "Clusters and files go separately"
 msgstr "Les clusters et les fichiers se déplacent séparément"
 
+#: src/components/CanvasSurface.jsx
+msgid "Clusters and files go separately. Drag the clusters, then the files."
+msgstr "Les clusters et les fichiers se déplacent séparément. Faites glisser les clusters, puis les fichiers."
+
 #: src/lib/billingCopyWords.js
 msgid "Clusters are free — they cost none of your cards"
 msgstr "Les clusters sont gratuits — ils ne coûtent aucune de vos cartes"
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be cut. Use Move to… in the cluster's menu instead."
+msgstr "Les clusters ne peuvent pas être coupés. Utilisez Déplacer vers… dans le menu du cluster."
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be pasted. Use Move to… in the cluster's menu instead."
+msgstr "Les clusters ne peuvent pas être collés. Utilisez Déplacer vers… dans le menu du cluster."
 
 #: src/lib/importCopy.js
 msgid "Clusters don’t count as cards."
@@ -10374,6 +10387,10 @@ msgstr "Passer à Creator"
 msgid "Gets it in Messages, or an email invite if they're new"
 msgstr "Reçu dans Messages, ou invitation par e-mail pour un nouveau venu"
 
+#: src/components/cards.jsx
+msgid "Getting preview…"
+msgstr "Chargement de l’aperçu…"
+
 #: src/components/ShareModal.jsx
 msgid "Give {email} the whole workspace?"
 msgstr "Donner tout l’espace de travail à {email} ?"
@@ -13989,6 +14006,10 @@ msgstr "Plus de place pour des personnes qui peuvent modifier : votre offre pr�
 msgid "No places left for people who can edit."
 msgstr "Plus de place pour des personnes qui peuvent modifier."
 
+#: src/components/cards.jsx
+msgid "No preview"
+msgstr "Aucun aperçu"
+
 #: src/components/BacklinksList.jsx
 msgid "No references yet."
 msgstr "Aucune référence pour l’instant."
@@ -15191,6 +15212,10 @@ msgstr "Ouvrir OneDrive"
 msgid "Open or close the full Files page"
 msgstr "Ouvrir ou fermer la page Fichiers complète"
 
+#: src/components/ShortcutsOverlay.jsx
+msgid "Open or edit the selected card"
+msgstr "Ouvrir ou modifier la carte sélectionnée"
+
 #: src/components/cards.jsx
 msgid "Open original"
 msgstr "Ouvrir l’original"
@@ -16271,10 +16296,6 @@ msgstr "Appuyez sur A. Les flèches s’accrochent aux cartes et les suivent qua
 #: src/components/comments/CanvasCommentsList.jsx
 msgid "Press and hold a card or the canvas to add one."
 msgstr "Appuyez longuement sur une carte ou sur la toile pour en ajouter un."
-
-#: src/components/CanvasSurface.jsx
-msgid "Press and hold a card to pick it up and move it."
-msgstr "Appuyez longuement sur une carte pour la prendre et la déplacer."
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Press and hold the canvas or any card for more actions."
@@ -17763,8 +17784,8 @@ msgid "scroll, wheel, zoom, pan, mouse, trackpad"
 msgstr "défilement, molette, zoom, panoramique, souris, pavé tactile"
 
 #: src/components/CanvasSurface.jsx
-msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms — or switch the wheel to zoom in Settings → Appearance."
-msgstr "Le défilement déplace la toile. {cmdKey} + défilement zoome — ou réglez la molette sur le zoom dans Paramètres → Apparence."
+msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms."
+msgstr "Le défilement déplace le canevas. {cmdKey} + molette zoome."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling pans the canvas. {WHEEL_CMD}-scroll zooms."
@@ -20832,6 +20853,10 @@ msgstr "La part inutilisée de cette année est déduite de votre prochaine fact
 msgid "The version you restored didn’t have the page you were on."
 msgstr "La version que vous avez restaurée n’avait pas la page où vous étiez."
 
+#: src/components/CanvasSurface.jsx
+msgid "The wheel zooms now. Change it back in Settings → Appearance."
+msgstr "La molette zoome désormais. Vous pouvez le modifier dans Paramètres → Apparence."
+
 #: src/components/HelpHub.jsx
 msgid "The whole handbook is at <0>/docs</0>, also readable as plain Markdown at <1>/docs/*.md</1>."
 msgstr "Tout le manuel est sur <0>/docs</0>, aussi lisible en Markdown brut sur <1>/docs/*.md</1>."
@@ -21634,6 +21659,10 @@ msgstr "À {mailPeople}"
 msgid "To join that team, sign in again with a code sent to the address the invite went to."
 msgstr "Pour rejoindre cette équipe, reconnectez-vous avec un code envoyé à l’adresse à laquelle l’invitation a été envoyée."
 
+#: src/components/CanvasSurface.jsx
+msgid "To move a card, tap it, then drag it."
+msgstr "Pour déplacer une carte, touchez-la, puis faites-la glisser."
+
 #: src/auth/WelcomePage.jsx
 msgid "To report an issue or submit a suggestion please email us at: <0>clusters@soleilpictures.com</0>"
 msgstr "Pour signaler un problème ou envoyer une suggestion, écrivez-nous à : <0>clusters@soleilpictures.com</0>"
@@ -21932,6 +21961,7 @@ msgstr "Souligné"
 
 #: src/App.jsx
 #: src/components/AppFeedback.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/FeedbackOverlay.jsx
 #: src/components/fileShare/FileShareDialog.jsx
@@ -24357,6 +24387,18 @@ msgstr "Zoomer la timeline sur l’entrée et la sortie"
 msgid "Zoom to in and out"
 msgstr "Zoomer sur l’entrée et la sortie"
 
+#: src/components/CanvasSurface.jsx
+msgid "Zoom with the wheel"
+msgstr "Zoomer avec la molette"
+
 #: src/components/doc/DocFrameA.jsx
 msgid "Zoom, {pct}%"
 msgstr "Zoom, {pct} %"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed in all the way"
+msgstr "Zoom avant au maximum"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed out all the way"
+msgstr "Zoom arrière au maximum"

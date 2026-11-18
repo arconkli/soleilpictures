@@ -70,7 +70,9 @@ test('CanvasSurface hands both viewers a shareTarget only behind every gate', ()
   assert.match(s, /setLightbox\(\{ src: item\.src, title: item\.name, shareBoardId: c\.id, shareCard: item\.card \|\| null \}\)/);
   assert.match(s, /<ImageLightbox [^>]*shareTarget=\{shareTarget\}/);
   assert.match(s, /<PdfViewer [^>]*shareTarget=\{shareTarget\}/);
-  assert.equal(s.match(/setPdfViewer\(\{ src: c\.pdfSrc, name: c\.name \|\| c\.title \|\| 'PDF', cardId: c\.id \}\)/g)?.length, 3);
+  // Four opens: the ⋯ menu, double-click, Enter on the selected card, the expand button.
+  assert.equal(s.match(/setPdfViewer\(\{ src: c\.pdfSrc, name: c\.name \|\| c\.title \|\| 'PDF', cardId: c\.id \}\)/g)?.length, 4);
+  assert.equal(s.match(/setPdfViewer\(\{ src: [^}]*\}\)/g)?.length, 4, 'and every open carries the card id');
 });
 
 test('the viewers draw the button only when handed a shareTarget', () => {

@@ -145,8 +145,10 @@ export function CanvasCommentCard({
     ro?.observe(el);
     window.addEventListener('resize', place);
     // a wheel over the card scrolls the card, not the canvas under it
-    const keep = (e) => e.stopPropagation();
-    el?.addEventListener('wheel', keep, { passive: true });
+    // Ctrl-wheel / a trackpad pinch would zoom the whole browser page here
+    // (the canvas never sees it), so it is cancelled; plain wheel scrolls as before.
+    const keep = (e) => { e.stopPropagation(); if (e.ctrlKey) e.preventDefault(); };
+    el?.addEventListener('wheel', keep, { passive: false });
     return () => { off?.(); ro?.disconnect(); window.removeEventListener('resize', place); el?.removeEventListener('wheel', keep); };
   }, [showing, openKey, place, view]);
 

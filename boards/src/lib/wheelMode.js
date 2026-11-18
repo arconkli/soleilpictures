@@ -80,3 +80,27 @@ export function resolveWheelIntent({
   if (Math.abs(deltaX || 0) > Math.abs(deltaY || 0)) return 'pan';
   return 'zoom';
 }
+
+// One gesture, one intent. resolveWheelIntent reads each event on its own, and
+// a gesture is many events: a trackpad's momentum tail keeps arriving after ⌘
+// is let go (so a zoom ended in a pan), and a diagonal swipe in zoom mode
+// crosses the horizontal-dominant line back and forth (so it alternated
+// between zooming and panning). The latch keeps the intent the gesture started
+// with for as long as its events keep coming: an event within
+// WHEEL_GESTURE_GAP_MS of the one before belongs to the same gesture, and a
+// longer gap starts a new one. ctrlKey is the exception and always zooms — it
+// is a trackpad pinch, and a pinch must never pan.
+//
+// `prev` is what this returned last time (or null); `now` a monotonic ms
+// timestamp. Returns { intent, t }, which is also the next call's `prev`.
+export const WHEEL_GESTURE_GAP_MS = 150;
+
+export function latchWheelIntent(prev, intent, now, { ctrlKey = false } = {}) {
+  const t = Number.isFinite(now) ? now : 0;
+  if (ctrlKey) return { intent: 'zoom', t };
+  if (prev && (prev.intent === 'zoom' || prev.intent === 'pan')
+      && Number.isFinite(prev.t) && t >= prev.t && (t - prev.t) <= WHEEL_GESTURE_GAP_MS) {
+    return { intent: prev.intent, t };
+  }
+  return { intent: intent === 'zoom' ? 'zoom' : 'pan', t };
+}

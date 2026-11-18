@@ -1,8 +1,10 @@
 // wheelHint — the one-time "scrolling pans" nudge.
 //
-// A preference nobody finds is wasted work, and Settings → Display is not
+// A preference nobody finds is wasted work, and Settings → Appearance is not
 // somewhere people visit. This is what makes the wheel-mode setting worth
 // having: catch the moment someone is fighting the canvas and tell them, once.
+// The tip carries the switch itself ("Zoom with the wheel", then an Undo), so
+// taking it up is one press, not a trip to Settings (CanvasSurface's wheel handler).
 //
 // NOT a powerReveal. That engine is count-based on board CONTENT (4 images →
 // Grids, 3 notes → Docs) with a hard budget of one reveal per session, and

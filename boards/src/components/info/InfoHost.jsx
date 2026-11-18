@@ -194,7 +194,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
   const deleteCards = muts ? async (ids) => {
     const ok = await feedback.confirm({ title: t`Delete`, danger: true, confirmLabel: t`Delete`, message: t`Delete this card?` });
     if (!ok) return;
-    const deleted = await muts.deleteCards?.(ids);
+    const deleted = await muts.deleteCards?.(ids, { via: 'info' });
     undoToast(feedback, { message: t`Card deleted`, undoManager: muts.undoManager, stackItem: deleted?.stackItem || null, onUndo: () => muts.undo?.() });
   } : null;
   // Versions are editable where the cluster is open and you can edit it.

@@ -260,10 +260,11 @@ test.describe('Canvas interaction', () => {
     await go(page);
     const zoomLabel = page.locator('.cnv-zoom-val').first();
     const initial = (await zoomLabel.textContent()).trim();
-    // By name: the toolbar look draws + as an icon.
-    await page.locator('.cnv-zoom').getByRole('button', { name: 'Zoom in', exact: true }).click();
-    const after = (await zoomLabel.textContent()).trim();
-    expect(after).not.toBe(initial);
+    // By name: the toolbar look draws + as an icon. The local harness's
+    // settings gear sits over the bar's corner (zoom-look.spec.js), so the
+    // button is clicked by event.
+    await page.locator('.cnv-zoom').getByRole('button', { name: 'Zoom in', exact: true }).dispatchEvent('click');
+    await expect.poll(async () => (await zoomLabel.textContent()).trim()).not.toBe(initial);
   });
 });
 

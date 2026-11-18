@@ -1314,7 +1314,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Paste a URL onto the canvas — it unfurls into a real card"
+       "v": "Paste a URL onto the canvas — it unfurls into a real card, and a picture's address brings in the picture"
       }
      ]
     ],
@@ -2905,7 +2905,21 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Copy · cut · paste"
+       "v": "Copy · cut · paste — not a cluster card; use Move to… in its menu"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open or edit the one selected card, as a double-click does — a note starts typing at the end, a picture opens full size, a cluster, doc or file opens. On audio it plays"
       }
      ]
     ],
@@ -3261,7 +3275,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Zoom in · out"
+       "v": "Zoom in · out — the on-screen − and + dim at the limits"
       }
      ]
     ],
@@ -3537,7 +3551,43 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " → \"scroll wheel\" flips it without opening settings."
+     "v": " → \"scroll wheel\" flips it without opening settings. Scroll back and forth as if expecting zoom and a tip says \"Scrolling pans the canvas. "
+    },
+    {
+     "t": "code",
+     "v": "⌘"
+    },
+    {
+     "t": "text",
+     "v": "-scroll zooms.\" once, with a "
+    },
+    {
+     "t": "strong",
+     "v": "Zoom with the wheel",
+     "children": [
+      {
+       "t": "text",
+       "v": "Zoom with the wheel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button that switches it there and then, and "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -5098,7 +5148,35 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Edit a note or a title"
+       "v": "Edit a note or a title — on a picture, double-click its title; the picture itself opens full size"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Click a selected note"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Start typing where you clicked, when it is the only card selected"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "With one note selected, start typing at the end"
       }
      ]
     ],
@@ -5921,7 +5999,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " onto the canvas to create a link card that unfurls its preview."
+      "v": " onto the canvas to create a link card that unfurls its preview — or, for a picture's address, the picture itself."
      }
     ],
     [
@@ -7567,7 +7645,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " pans. Pinching a trackpad zooms in either setting. See "
+     "v": " pans. Pinching a trackpad zooms in either setting. If the board notices you scrolling back and forth as if expecting zoom, a tip says so once, with a "
+    },
+    {
+     "t": "strong",
+     "v": "Zoom with the wheel",
+     "children": [
+      {
+       "t": "text",
+       "v": "Zoom with the wheel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button that switches it at once and an "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". See "
     },
     {
      "t": "link",
@@ -8743,7 +8849,35 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "A URL, unfurled into a real preview with title and thumbnail"
+       "v": "A URL, unfurled into a real preview with title and thumbnail. It says "
+      },
+      {
+       "t": "em",
+       "v": "Getting preview…",
+       "children": [
+        {
+         "t": "text",
+         "v": "Getting preview…"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " while that loads, and "
+      },
+      {
+       "t": "em",
+       "v": "No preview",
+       "children": [
+        {
+         "t": "text",
+         "v": "No preview"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " when the site gives none"
       }
      ]
     ],
@@ -9158,7 +9292,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " A URL becomes a link card, an image in your clipboard becomes an image card, text becomes a note."
+      "v": " A picture's web address (one ending in "
+     },
+     {
+      "t": "code",
+      "v": ".jpg"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": ".png"
+     },
+     {
+      "t": "text",
+      "v": " and the like, or from a picture host) becomes an image card; any other address becomes a link card. An image in your clipboard becomes an image card, and several pasted at once all come in, side by side. Text becomes a note, even text copied from Word or a web page that also carries a picture of itself."
      }
     ],
     [
@@ -9384,6 +9534,41 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — double-click a card, or select it and press "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": ". A note starts typing, a picture opens full size, and a cluster, doc or file opens. On an audio card "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " plays instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "Duplicate",
      "children": [
       {
@@ -9472,7 +9657,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on."
+     "v": ", including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on. A cluster card can't be cut or pasted; use "
+    },
+    {
+     "t": "strong",
+     "v": "Move to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the cluster's menu instead."
     }
    ]
   },
@@ -9662,7 +9861,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it. One selected card also shows a dot above it to turn it and a round grip on its corner to resize it; see "
+     "v": " at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. A card you've already tapped moves with a plain drag; on a card you haven't tapped, a drag moves the board, and touching and holding it picks it up to move it. One selected card also shows a dot above it to turn it and a round grip on its corner to resize it; see "
     },
     {
      "t": "link",
@@ -10049,7 +10248,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Most cards have a title. Double-click it to edit. Titles are searchable in "
+     "v": "Most cards have a title. Double-click the title itself to edit it, or choose "
+    },
+    {
+     "t": "strong",
+     "v": "Rename…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Rename…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " from the card's right-click menu — under "
+    },
+    {
+     "t": "strong",
+     "v": "Edit ›",
+     "children": [
+      {
+       "t": "text",
+       "v": "Edit ›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on a picture, video, audio, PDF or file, and on the menu itself on a link, a schedule or a cluster card. Titles are searchable in "
     },
     {
      "t": "code",
@@ -10400,7 +10627,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " from the clipboard."
+      "v": " from the clipboard. Several pictures pasted at once all come in, side by side, and a picture's web address (one ending in "
+     },
+     {
+      "t": "code",
+      "v": ".jpg"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": ".png"
+     },
+     {
+      "t": "text",
+      "v": " and the like, or from a picture host) becomes the picture itself."
      }
     ],
     [
@@ -10885,7 +11128,29 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — click an image to fill the screen; click again for 1:1 and drag to pan. Under it, "
+      "v": " — double-click an image, or select it and press "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": ", to fill the screen; click it there for 1:1 and drag to pan. On a phone or tablet, double-tap it. To rename the picture, double-click its title instead, or choose "
+     },
+     {
+      "t": "strong",
+      "v": "Edit › Rename…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit › Rename…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " from its right-click menu. Under it, "
      },
      {
       "t": "strong",
@@ -11279,7 +11544,24 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Double-click a note to start editing; the caret lands where you clicked. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up. Click or tap away — or press "
+     "v": "Double-click a note to start editing; the caret lands where you clicked. A click does the same on a note that is already the one selected card, as long as you don't drag it. With one note selected, "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " starts typing with the caret at the end. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click or tap away — or press "
     },
     {
      "t": "code",
@@ -11287,7 +11569,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — to finish; your edits are shared live with collaborators as you type, so there is no separate \"cancel\". "
+     "v": " — to finish. Your edits are shared live with collaborators as you type, so there is no separate \"cancel\". A new note you never typed in goes away when you click off it, with no undo toast, since there was nothing in it. "
     },
     {
      "t": "code",
@@ -11397,6 +11679,59 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " brings you back."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The size's "
+    },
+    {
+     "t": "strong",
+     "v": "−",
+     "children": [
+      {
+       "t": "text",
+       "v": "−"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " jump to the next size in its list rather than one point at a time. Typing a size in the box still sets exactly that size, and "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " in the box still go one point at a time."
     }
    ]
   },
@@ -21884,6 +22219,179 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " are different: a reference to a cluster that lives elsewhere, placed on this canvas. The board itself does not move. Use it when something belongs in two places."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The cluster's menu",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The cluster's menu"
+    }
+   ],
+   "id": "the-cluster-s-menu"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click the cluster's name in the top bar for its menu, the same one its row has in the "
+    },
+    {
+     "t": "link",
+     "v": "sidebar",
+     "href": "/docs/clusters/sidebar",
+     "children": [
+      {
+       "t": "text",
+       "v": "sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": "
+    },
+    {
+     "t": "strong",
+     "v": "Send to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Send to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Share…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Rename…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Rename…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Move to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Star",
+     "children": [
+      {
+       "t": "text",
+       "v": "Star"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the rest. "
+    },
+    {
+     "t": "strong",
+     "v": "Rename…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Rename…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " turns the name into a field right there; "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " saves and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " puts it back."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster can't be cut and pasted like a card. To put it somewhere else, use "
+    },
+    {
+     "t": "strong",
+     "v": "Move to…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in its menu."
     }
    ]
   },
@@ -33113,7 +33621,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " instead."
+     "v": " instead, or an image card when it is a picture's address."
     }
    ]
   },
@@ -50978,7 +51486,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Pan"
+       "v": "Pan — on a card you've already tapped, move that card"
       }
      ]
     ],
@@ -51048,7 +51556,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "On empty canvas, the add menu at that point; on a note, type where you tapped"
+       "v": "On empty canvas, the add menu at that point; on a note, type where you tapped; on a photo, see it full size"
       }
      ]
     ],
@@ -51118,7 +51626,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Pick it up to move it (on a cluster you can only view, its menu)"
+       "v": "Pick it up to move it, tapped or not (on a cluster you can only view, its menu)"
       }
      ]
     ],
@@ -51160,6 +51668,15 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A card you've already tapped moves with a plain drag. On a card you haven't tapped, a drag moves the board, so you can pan across a board full of pictures without picking one up; holding still on it picks it up."
+    }
    ]
   },
   {
@@ -51476,7 +51993,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A hold on the title of a link, palette or picture card lifts it or opens its menu, like the rest of the card."
+     "v": ", and a double-tap on the photo does the same. A hold on the title of a link, palette or picture card lifts it or opens its menu, like the rest of the card."
     }
    ]
   },

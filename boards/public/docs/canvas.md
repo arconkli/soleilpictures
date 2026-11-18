@@ -35,7 +35,9 @@ under the top bar instead, then go.
 If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro
 work — **Settings → Appearance → Scroll wheel** swaps the two, so a plain scroll
 zooms at the pointer and `⌘`, `Alt` or `Shift` pans. Pinching a trackpad zooms
-in either setting. See [keyboard shortcuts](/docs/keyboard-shortcuts).
+in either setting. If the board notices you scrolling back and forth as if
+expecting zoom, a tip says so once, with a **Zoom with the wheel** button that
+switches it at once and an **Undo**. See [keyboard shortcuts](/docs/keyboard-shortcuts).
 
 If you would rather steer with the keyboard, **Settings → Appearance → Move with
 W A S D** lets you hold `W`, `A`, `S` or `D` to move around and `Q` or `E` to

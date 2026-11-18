@@ -30,7 +30,7 @@ and duplication work identically on all of them.
 |---|---|
 | **Image** | A picture, with [non-destructive adjustments](/docs/canvas/images) |
 | **Note** | [Rich text](/docs/canvas/notes) — checklists, mentions, formatting |
-| **Link** | A URL, unfurled into a real preview with title and thumbnail |
+| **Link** | A URL, unfurled into a real preview with title and thumbnail. It says *Getting preview…* while that loads, and *No preview* when the site gives none |
 | **Doc** | A whole [multi-page document](/docs/documents) |
 | **PDF** | Page one as a thumbnail, opening into a [full viewer](/docs/files/pdf) |
 | **File** | [Any other file](/docs/files) — type icon, size, download |
@@ -49,7 +49,7 @@ and duplication work identically on all of them.
 Four ways, in rough order of speed:
 
 1. **Drag a file in** from your desktop. The type is detected and the right card kind is created — see [Files and media](/docs/files).
-2. **Paste.** A URL becomes a link card, an image in your clipboard becomes an image card, text becomes a note.
+2. **Paste.** A picture's web address (one ending in `.jpg`, `.png` and the like, or from a picture host) becomes an image card; any other address becomes a link card. An image in your clipboard becomes an image card, and several pasted at once all come in, side by side. Text becomes a note, even text copied from Word or a web page that also carries a picture of itself.
 3. **Double-click empty canvas** for an add menu at your cursor.
 4. **The tool rail** or its **+** menu.
 
@@ -68,13 +68,18 @@ ignore [snapping](/docs/canvas/snapping-and-alignment).
 **Layer order** — `[` and `]` send backward and forward. Also in the right-click
 menu, under **Arrange ›**.
 
+**Open** — double-click a card, or select it and press `Enter`. A note starts
+typing, a picture opens full size, and a cluster, doc or file opens. On an audio
+card `Enter` plays instead.
+
 **Duplicate** — `⌘D`.
 
 **Delete** — `⌫`. A toast offers undo; `⌘Z` also works.
 
 **Cut and paste** — `⌘X` / `⌘V`, including across clusters. Cut-paste keeps
 standard clipboard behavior: the cut is undoable on the board it happened on,
-the paste on the board it landed on.
+the paste on the board it landed on. A cluster card can't be cut or pasted;
+use **Move to…** in the cluster's menu instead.
 
 **Move to another cluster** — drag cards onto a cluster card, or onto a
 cluster's name in the [sidebar](/docs/clusters/sidebar#moving-and-copying-files)
@@ -93,7 +98,9 @@ in a message or a doc.
 
 **On a touch screen** the selection carries a gold **⋯** at its top-right
 corner. It opens the menu a right-click would, for one card or for every
-selected card at once. Touch and hold a card to pick it up and move it. One
+selected card at once. A card you've already tapped moves with a plain drag; on
+a card you haven't tapped, a drag moves the board, and touching and holding it
+picks it up to move it. One
 selected card also shows a dot above it to turn it and a round grip on its
 corner to resize it; see
 [Turning and resizing a card](/docs/account/mobile#turning-and-resizing-a-card).
@@ -131,7 +138,9 @@ can undo it. `⌫` still deletes.
 
 ## Titles
 
-Most cards have a title. Double-click it to edit. Titles are searchable in
+Most cards have a title. Double-click the title itself to edit it, or choose
+**Rename…** from the card's right-click menu — under **Edit ›** on a picture, video,
+audio, PDF or file, and on the menu itself on a link, a schedule or a cluster card. Titles are searchable in
 `⌘K` and they are what shows in [Files](/docs/clusters/list-view), so a card
 called "Untitled" is a card you will not find later.
 

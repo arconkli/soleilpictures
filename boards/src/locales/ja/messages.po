@@ -6331,6 +6331,7 @@ msgstr "{ws}のクラスター"
 msgid "Cluster info"
 msgstr "クラスター情報"
 
+#: src/App.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/NewClusterButton.jsx
@@ -6367,9 +6368,21 @@ msgstr "Clusters"
 msgid "Clusters and files go separately"
 msgstr "クラスターとファイルは別々に移動します"
 
+#: src/components/CanvasSurface.jsx
+msgid "Clusters and files go separately. Drag the clusters, then the files."
+msgstr "クラスターとファイルは別々に動かします。先にクラスターを、次にファイルをドラッグしてください。"
+
 #: src/lib/billingCopyWords.js
 msgid "Clusters are free — they cost none of your cards"
 msgstr "クラスターは無料で、カードを消費しません"
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be cut. Use Move to… in the cluster's menu instead."
+msgstr "クラスターは切り取れません。クラスターのメニューの「移動先…」を使ってください。"
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be pasted. Use Move to… in the cluster's menu instead."
+msgstr "クラスターは貼り付けできません。クラスターのメニューの「移動先…」を使ってください。"
 
 #: src/lib/importCopy.js
 msgid "Clusters don’t count as cards."
@@ -10368,6 +10381,10 @@ msgstr "Creatorを始める"
 msgid "Gets it in Messages, or an email invite if they're new"
 msgstr "メッセージで届きます（初めての方にはメールで招待）"
 
+#: src/components/cards.jsx
+msgid "Getting preview…"
+msgstr "プレビューを取得中…"
+
 #: src/components/ShareModal.jsx
 msgid "Give {email} the whole workspace?"
 msgstr "{email}にワークスペース全体へのアクセスを付与しますか？"
@@ -13983,6 +14000,10 @@ msgstr "編集できる人の空きシートはありません。お使いのプ
 msgid "No places left for people who can edit."
 msgstr "編集できる人の空きシートはありません。"
 
+#: src/components/cards.jsx
+msgid "No preview"
+msgstr "プレビューなし"
+
 #: src/components/BacklinksList.jsx
 msgid "No references yet."
 msgstr "参照はまだありません。"
@@ -15185,6 +15206,10 @@ msgstr "OneDriveを開く"
 msgid "Open or close the full Files page"
 msgstr "ファイルページ全体を開く · 閉じる"
 
+#: src/components/ShortcutsOverlay.jsx
+msgid "Open or edit the selected card"
+msgstr "選択したカードを開く、または編集"
+
 #: src/components/cards.jsx
 msgid "Open original"
 msgstr "元を開く"
@@ -16265,10 +16290,6 @@ msgstr "Aキーを押します。矢印はカードに固定され、動かす�
 #: src/components/comments/CanvasCommentsList.jsx
 msgid "Press and hold a card or the canvas to add one."
 msgstr "カードかキャンバスを長押しすると追加できます。"
-
-#: src/components/CanvasSurface.jsx
-msgid "Press and hold a card to pick it up and move it."
-msgstr "カードを長押しすると、持ち上げて移動できます。"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Press and hold the canvas or any card for more actions."
@@ -17757,8 +17778,8 @@ msgid "scroll, wheel, zoom, pan, mouse, trackpad"
 msgstr "スクロール、ホイール、ズーム、パン、マウス、トラックパッド、拡大縮小、移動"
 
 #: src/components/CanvasSurface.jsx
-msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms — or switch the wheel to zoom in Settings → Appearance."
-msgstr "スクロールするとキャンバスがパンします。{cmdKey}を押しながらスクロールするとズームします。設定 → 外観でホイールをズームに切り替えることもできます。"
+msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms."
+msgstr "スクロールでキャンバスを移動します。{cmdKey}キーを押しながらスクロールするとズームします。"
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling pans the canvas. {WHEEL_CMD}-scroll zooms."
@@ -20826,6 +20847,10 @@ msgstr "今年の未使用分は、次回の請求から差し引かれます({c
 msgid "The version you restored didn’t have the page you were on."
 msgstr "復元したバージョンには、開いていたページがありませんでした。"
 
+#: src/components/CanvasSurface.jsx
+msgid "The wheel zooms now. Change it back in Settings → Appearance."
+msgstr "ホイールでズームするようになりました。設定 → 外観で元に戻せます。"
+
 #: src/components/HelpHub.jsx
 msgid "The whole handbook is at <0>/docs</0>, also readable as plain Markdown at <1>/docs/*.md</1>."
 msgstr "ハンドブック全体は<0>/docs</0>にあります。プレーンなMarkdownとして<1>/docs/*.md</1>でも読めます。"
@@ -21628,6 +21653,10 @@ msgstr "宛先: {mailPeople}"
 msgid "To join that team, sign in again with a code sent to the address the invite went to."
 msgstr "そのチームに参加するには、招待が届いたアドレスに送られたコードで、もう一度ログインしてください。"
 
+#: src/components/CanvasSurface.jsx
+msgid "To move a card, tap it, then drag it."
+msgstr "カードを動かすには、タップしてからドラッグします。"
+
 #: src/auth/WelcomePage.jsx
 msgid "To report an issue or submit a suggestion please email us at: <0>clusters@soleilpictures.com</0>"
 msgstr "問題の報告やご提案は、こちらまでメールをお送りください：<0>clusters@soleilpictures.com</0>"
@@ -21926,6 +21955,7 @@ msgstr "下線"
 
 #: src/App.jsx
 #: src/components/AppFeedback.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/FeedbackOverlay.jsx
 #: src/components/fileShare/FileShareDialog.jsx
@@ -24351,6 +24381,18 @@ msgstr "インとアウトにタイムラインをズーム"
 msgid "Zoom to in and out"
 msgstr "イン点とアウト点にズーム"
 
+#: src/components/CanvasSurface.jsx
+msgid "Zoom with the wheel"
+msgstr "ホイールでズーム"
+
 #: src/components/doc/DocFrameA.jsx
 msgid "Zoom, {pct}%"
 msgstr "ズーム、{pct}%"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed in all the way"
+msgstr "これ以上拡大できません"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed out all the way"
+msgstr "これ以上縮小できません"

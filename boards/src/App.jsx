@@ -152,7 +152,9 @@ import {
   anyModalOpen, registerModalOpen, registerBackLayer,
   newNavId, setCurrentNav, setNavHandler, stampNavEntry, pushNavEntry, backLayerDepth,
 } from './lib/modalGuard.js';
-import { Avatar } from './components/primitives.jsx';
+import { Avatar, COVER_TINTS } from './components/primitives.jsx';
+import { CardContextMenu } from './components/CardContextMenu.jsx';
+import { clusterMenu, clusterActsFrom, coverTints } from './lib/menus/clusterMenu.js';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { tlTip } from './lib/looks.js';
@@ -1498,6 +1500,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       .catch(() => {});
     return m;
   }, [mySettings, refreshSettings]);
+  // The canvas's wheel tip changes the mode through here (the one path that
+  // applies it AND saves it to the account); the canvas logs wheel_mode_set.
+  const setWheelModeRef = useRef(setWheelMode);
+  setWheelModeRef.current = setWheelMode;
+  useEffect(() => {
+    const onSet = (e) => {
+      const mode = e?.detail?.mode;
+      if (mode === 'pan' || mode === 'zoom') setWheelModeRef.current(mode);
+    };
+    window.addEventListener('soleil:set-wheel-mode', onSet);
+    return () => window.removeEventListener('soleil:set-wheel-mode', onSet);
+  }, []);
 
   // Follow the OS theme live for users who have never made an explicit
   // choice. Once they pick one (mySettings.ui.theme set), this is a no-op.
@@ -3057,7 +3071,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Resolves to { stackItem } — the undo step containing the delete — so
     // toast affordances can guard "still top-of-stack?" (lib/undoToast.js),
     // or null when nothing was actually deleted.
-    const deleteCards = async (ids, { boundary = true } = {}) => {
+    const deleteCards = async (ids, { boundary = true, via = 'delete' } = {}) => {
       if (!ids?.length) return null;
       const m = cardsMap(); if (!m) return null;
       const idSet = new Set(ids);
@@ -3079,12 +3093,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // board standing still. Counted per kind, at the one path both the
       // keyboard and the context menu funnel through.
       try {
+        // Only ids that exist count: a stale id, or one a cascade already took,
+        // isn't a card a person deleted. `via` says which door it was.
         const kinds = {};
+        let n = 0;
         for (const id of ids) {
-          const k = m.get(id)?.get('kind') || 'unknown';
+          const ym = m.get(id);
+          if (!ym) continue;
+          const k = ym.get('kind') || 'unknown';
           kinds[k] = (kinds[k] || 0) + 1;
+          n++;
         }
-        logEvent(EV.CARD_DELETED, { n: ids.length, kinds, board_id: boardId });
+        if (n) logEvent(EV.CARD_DELETED, { n, kinds, board_id: boardId, via });
       } catch (_) {}
       // Give the cap room back locally too, or "delete some cards to make
       // space" doesn't work until the next tier fetch — exactly the room the
@@ -3169,7 +3189,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       return { stackItem };
     };
-    const deleteCard = (cardId) => deleteCards([cardId]);
+    const deleteCard = (cardId, opts) => deleteCards([cardId], opts);
 
     // Off-stack delete for rolling back an optimistic card after a FAILED
     // upload. Not a user action, so it must not become a Cmd+Z step —
@@ -3246,6 +3266,34 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => {
         let z = nextZ();
         const stamp = Date.now();
+        // A copy of a grouped card joins a NEW group of its own (one per source
+        // group), the way a paste does; left in the original's group, dragging
+        // the copy dragged the originals too. A missing source group → ungrouped.
+        const gm = groupsMap();
+        const groupMap = {};
+        for (const ym of sources) {
+          const gid = ym.get('groupId');
+          if (!gid || gid in groupMap) continue;
+          const g = gm?.get(gid);
+          if (!g) { groupMap[gid] = null; continue; }
+          const newGid = `g-${stamp}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+          const ny = new Y.Map();
+          ny.set('id', newGid);
+          // Older docs and the API stored some groups as plain objects.
+          const val = (k) => (typeof g?.get === 'function' ? g.get(k) : g?.[k]);
+          ny.set('name', val('name') ?? 'Group');
+          ny.set('outline', val('outline') ?? false);
+          ny.set('color', val('color') ?? null);
+          ny.set('width', val('width') ?? 1);
+          const shape = val('shape');
+          if (shape != null) ny.set('shape', shape);
+          const opts = val('options') ?? null;
+          if (opts) ny.set('options', opts);
+          ny.set('createdAt', Date.now());
+          ny.set('createdBy', user?.id || null);
+          gm.set(newGid, ny);
+          groupMap[gid] = newGid;
+        }
         sources.forEach((ym, i) => {
           const obj = {};
           ym.forEach((v, k) => { obj[k] = v; });
@@ -3255,6 +3303,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // A copy of a starter card is the person's own card — indexed and
           // counted, as it was charged — not another seed nobody can find.
           delete obj.seed;
+          if (obj.groupId) obj.groupId = groupMap[obj.groupId] ?? null;
           obj.x = (obj.x || 0) + 24;
           obj.y = (obj.y || 0) + 24;
           obj.z = z++;
@@ -3487,7 +3536,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         fill: opts.fill || d.fill || 'transparent',
         strokeWidth: opts.strokeWidth || d.strokeWidth || 2,
         dash: opts.dash || d.dash || 'solid',
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       });
     };
 
@@ -3503,7 +3552,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         swatches: Array.isArray(d.swatches) && d.swatches.length
           ? d.swatches
           : [{ name: tr({ message: 'Color', context: 'default name' }), hex: '#3b82f6' }, { name: tr({ message: 'Color', context: 'default name' }), hex: '#10b981' }],
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       });
       setAutoFocusId(id);
     };
@@ -3531,7 +3580,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         id: `sched-${Date.now()}`, kind: 'schedule',
         schedView: SCHED_SIZES[view] ? view : 'month',
         anchor: todayISO(), anchorHour: 9,
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       }, { afterInsert: (cardYM) => { if (cardYM) initCardGridStore(ydoc, cardYM); } });
     };
 
@@ -3545,7 +3594,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addCard({
         id, kind: 'doc', title: tr({ message: 'Untitled doc', context: 'default name' }),
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       }, {
         // Initialize the per-card doc store (pages, content, bookmarks,
         // comments) in the SAME transaction as the insert — so the first ⌘Z
@@ -3578,7 +3627,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const placed = addCard({
         id, kind: 'doc', title,
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       }, {
         afterInsert: (cardYM) => {
           if (!cardYM) return;
@@ -3615,7 +3664,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const placed = addCard({
         id, kind: 'doc', title: STARTER_DOCS[kind].title, seed: true, starter: kind,
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       }, {
         afterInsert: (cardYM) => { if (cardYM) writeStarterDoc(ydoc, cardYM, kind); },
       });
@@ -3670,7 +3719,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ...(d.textColor ? { textColor: d.textColor } : null),
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         ...(d.fontSize ? noteFontSizePatch(d.fontSize) : null),
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       });
       // Refused (the card limit's wall is up): no note will come to take the
       // keyboard the tap raised for it (lib/touchKeyboard.js) or the typing
@@ -3704,8 +3753,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       addCard({
         id: id || `img-${Date.now()}`, kind: 'image', src: publicUrl,
-        x: Math.max(8, Math.round((x ?? 200) - w / 2)),
-        y: Math.max(8, Math.round((y ?? 200) - h / 2)),
+        x: Math.round((x ?? 200) - w / 2),
+        y: Math.round((y ?? 200) - h / 2),
         w, h,
         ...(fileName ? { fileName } : {}),
       });
@@ -3746,8 +3795,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // Pending card first so the user sees feedback, then upload + render.
         addCard({
           id: cardId, kind: 'pdf', name: f.name || 'PDF', pending: true,
-          x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
-          y: Math.max(8, Math.round((clickPos?.y ?? 200) - h / 2)), w, h,
+          x: Math.round((clickPos?.x ?? 200) - w / 2),
+          y: Math.round((clickPos?.y ?? 200) - h / 2), w, h,
         });
         // One solo batch in the activity store, so the card, the tab title
         // and other open tabs (presence uploadingTo) know it is on its way.
@@ -4165,7 +4214,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // opts.untracked: a cluster made FROM cards is undone by the move's
         // toast (which also trashes the cluster); a Cmd+Z that took only its
         // card would leave the cluster behind with the cards inside it.
-        addCard({ id: b.id, kind: 'board', x: Math.max(8, x), y: Math.max(8, y), w, h, ...(opts.seed ? { seed: true } : {}) },
+        addCard({ id: b.id, kind: 'board', x, y, w, h, ...(opts.seed ? { seed: true } : {}) },
           { untracked: !!opts.untracked });
         // Which door this came through. card_placed already says a cluster was
         // made; nothing said whether it was the sidebar, cmd-K or the canvas.
@@ -4337,7 +4386,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         id, kind: 'grid',
         templateId: opts.linkTemplateId || null,
         seqId: null,
-        x: Math.max(8, x), y: Math.max(8, y), w, h,
+        x, y, w, h,
       };
       // opts.layout is a TEMPLATE tree (from the Templates panel — a built-in
       // preset or one loaded from the database); its leaf ids are placeholders
@@ -5829,8 +5878,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       target: targetBoard.id,
       // Center on the right-click/rail point when one was captured; the
       // legacy drop zone stays for pos-less flows (sidebar, ⌘K, list view).
-      x: clickPos ? Math.max(8, Math.round(clickPos.x - w / 2)) : 1080,
-      y: clickPos ? Math.max(8, Math.round(clickPos.y - h / 2)) : 80 + Math.floor(Math.random() * 200),
+      x: clickPos ? Math.round(clickPos.x - w / 2) : 1080,
+      y: clickPos ? Math.round(clickPos.y - h / 2) : 80 + Math.floor(Math.random() * 200),
       w, h,
     });
   };
@@ -10380,6 +10429,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
   }, []);
 
+  // The top bar's current-cluster name opens that cluster's menu: the same
+  // cluster menu and action set as the sidebar's row, minus Open (you are in it)
+  // and the title line (the name is right there). { id, x, y, byKey, opener }.
+  const [crumbMenu, setCrumbMenu] = useState(null);
+  const closeCrumbMenu = () => setCrumbMenu(null);
+  // Rename in place: the current crumb turns into a text field. { id }.
+  const [crumbEdit, setCrumbEdit] = useState(null);
+  // A rename field left open must not reappear after moving to another cluster.
+  useEffect(() => { setCrumbEdit(null); }, [currentId]);
+
   // Collaboration, as opposed to invitations. Everything about ASKING someone
   // to join was measured; whether two people were ever on a board together was
   // not, so the growth loop could never be checked against reality. One event
@@ -11598,6 +11657,88 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const toolbarPane = (focusedPane === 'split' && !splitDoc) ? 'split' : 'main';
   const activeCrumbs = toolbarPane === 'split' ? splitCrumbs : crumbs;
   const onActiveCrumb = toolbarPane === 'split' ? goToSplit : goTo;
+  // The trail's last crumb is a real control: it opens the cluster's menu under
+  // the name. The others keep navigating up.
+  const crumbProps = (c, i) => {
+    if (i !== activeCrumbs.length - 1) return { className: 'crumb clk', onClick: () => onActiveCrumb(i) };
+    const open = (el, byKey) => {
+      // A second click closes it (the menu leaves a press on its name alone).
+      if (crumbMenu?.id === c.id) { setCrumbMenu(null); return; }
+      const r = el.getBoundingClientRect();
+      setCrumbMenu({ id: c.id, x: Math.round(r.left), y: Math.round(r.bottom + 4), byKey, opener: el });
+    };
+    return {
+      className: 'crumb here',
+      role: 'button',
+      tabIndex: 0,
+      'aria-haspopup': 'menu',
+      'aria-expanded': crumbMenu?.id === c.id,
+      // A click doesn't take the focus: left on the name, Space would open
+      // this menu instead of panning the canvas. Tab still reaches it.
+      onMouseDown: (e) => e.preventDefault(),
+      onClick: (e) => open(e.currentTarget, false),
+      onKeyDown: (e) => {
+        if (isComposingKey(e)) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e.currentTarget, true); }
+      },
+    };
+  };
+  const endCrumbEdit = (refocus) => {
+    setCrumbEdit(null);
+    if (refocus) setTimeout(() => document.querySelector('.crumbs .crumb.here:not(.crumb-edit)')?.focus(), 0);
+  };
+  const crumbEl = (c, i) => {
+    if (crumbEdit?.id === c.id && i === activeCrumbs.length - 1) {
+      let done = false;
+      const finish = (save, el, refocus) => {
+        if (done) return;
+        done = true;
+        const v = el.value.trim();
+        if (save && v && v !== (c.name || '').trim()) renameBoardById(c.id, v, { via: 'topbar' });
+        endCrumbEdit(refocus);
+      };
+      return (
+        <input className="crumb here crumb-edit" type="text" dir="auto" maxLength={120}
+               defaultValue={c.name} aria-label={tr`Cluster name`}
+               // Once per field: an inline ref runs again on every App render
+               // (presence alone re-renders it), and re-selecting the name
+               // mid-typing would make the next key replace it.
+               ref={el => {
+                 if (!el || el.dataset.armed) return;
+                 el.dataset.armed = '1';
+                 setTimeout(() => { if (el.isConnected) { el.focus(); el.select(); } }, 0);
+               }}
+               onClick={e => e.stopPropagation()}
+               onKeyDown={e => {
+                 if (isComposingKey(e)) return;
+                 if (e.key === 'Enter') { e.preventDefault(); finish(true, e.currentTarget, true); }
+                 else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false, e.currentTarget, true); }
+               }}
+               onBlur={e => finish(true, e.currentTarget, false)} />
+      );
+    }
+    return <span {...crumbProps(c, i)} title={c.name} dir="auto">{c.name}</span>;
+  };
+  const crumbMenuModel = (() => {
+    const b = crumbMenu && boards[crumbMenu.id];
+    if (!b) return null;
+    const id = b.id;
+    const can = clusterActions.can(b);
+    const acts = clusterActsFrom(clusterActions, b, { surface: 'topbar_menu', tints: coverTints(COVER_TINTS), at: { x: crumbMenu.x, y: crumbMenu.y }, opensInFiles: false });
+    delete acts.open;
+    // Rename turns the crumb itself into the field (see crumbEl).
+    acts.rename = () => setCrumbEdit({ id });
+    const m = clusterMenu(b, { edit: can.edit, isLastTop: can.isLastTop, isRoot: can.isRoot }, acts);
+    return { ...m, title: mobileShell ? m.title : null };
+  })();
+  const crumbMenuHost = crumbMenuModel ? createPortal(
+    <CardContextMenu open x={crumbMenu.x} y={crumbMenu.y} items={crumbMenuModel.items}
+                     label={crumbMenuModel.label} title={crumbMenuModel.title} root="cluster"
+                     byKey={crumbMenu.byKey} returnFocus={crumbMenu.byKey ? crumbMenu.opener : false} anchor={crumbMenu.opener}
+                     onClose={closeCrumbMenu} workspaceId={workspace?.id} boardId={crumbMenu.id} card={null} />,
+    document.body,
+  ) : null;
+
   // First crumb on a cluster shared with you, when we know who shared it: a
   // quiet, non-clickable "who" before the trail.
   const sharedFirst = activeCrumbs[0] ? boards[activeCrumbs[0].id] : null;
@@ -12606,6 +12747,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         {/* Only renders for a Scout shell account — see the component header;
             the check is a string test on the session email, not a round trip. */}
         <ScoutClaimBanner user={user} />
+        {crumbMenuHost}
         {floatingChrome ? (
           <FloatingChrome
             left={(
@@ -12635,8 +12777,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   {activeCrumbs.map((c, i) => (
                     <React.Fragment key={`${c.id}-${i}`}>
                       {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
-                      <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
-                            title={c.name} dir="auto" onClick={() => onActiveCrumb(i)}>{c.name}</span>
+                      {crumbEl(c, i)}
                     </React.Fragment>
                   ))}
                 </div>
@@ -12769,8 +12910,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               {activeCrumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
                   {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
-                  <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
-                        title={c.name} dir="auto" onClick={() => onActiveCrumb(i)}>{c.name}</span>
+                  {crumbEl(c, i)}
                 </React.Fragment>
               ))}
             </div>

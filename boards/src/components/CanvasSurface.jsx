@@ -49,6 +49,21 @@ import { anyModalOpen, registerModalOpen } from '../lib/modalGuard.js';
 // share prompt and the onboarding tour carry it too and must not freeze the
 // canvas shortcuts while they sit in a corner.
 const BLOCKING_OVERLAY_SELECTOR = '.settings-bg, .upgrade-backdrop, .pdfv, .lightbox, .iem, .cmdk-bg, .ctx-menu, .ctx-sheet-root, [aria-modal="true"]';
+// How the focus got where it is. :focus-visible tells a Tab from a click, but
+// only until a key goes down: Chromium turns it on for the focused element at
+// the first key press, so the Space handler can't ask it then. It is read at
+// focusin instead. A browser without it keeps the control's own Space; focus
+// from before the canvas first loaded is unknown and counts as a click's.
+const focusOrigin = { el: null, byKey: false };
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', (e) => {
+    focusOrigin.el = e.target;
+    try { focusOrigin.byKey = !!e.target?.matches?.(':focus-visible'); } catch (_) { focusOrigin.byKey = true; }
+  }, true);
+}
+function keyboardFocused(el) {
+  return !!el && el === focusOrigin.el && focusOrigin.byKey;
+}
 function boardKeysBlocked() {
   if (anyModalOpen()) return true;
   try { return !!document.querySelector(BLOCKING_OVERLAY_SELECTOR); } catch (_) { return false; }
@@ -193,7 +208,7 @@ import { logCanvasTool } from '../lib/canvasToolEvents.js';
 import { storageFullMessage, creatorStorageLabel } from '../lib/billingCopyWords.js';
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
-import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
+import { getWheelMode, resolveWheelIntent, latchWheelIntent, applyWheelModeNow } from '../lib/wheelMode.js';
 import {
   getWasdPan, wasdCodeOf, wasdDirection, wasdZoomDirection, wasdStep, wasdEase,
   WASD_SPEED, WASD_FAST, WASD_EASE, WASD_REST, WASD_ZOOM_RATE, WASD_ZOOM_REST,
@@ -230,6 +245,8 @@ import { addRecentColor } from '../lib/recentColors.js';
 import { loadBoardView, saveBoardView, clearBoardView,
          markViewRestoreInFlight, viewRestoreCrashed, clearViewRestoreInFlight } from '../lib/boardViewState.js';
 import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
+import { deltaInCardFrame, anchoredResizeOffset } from '../lib/rotatedResize.js';
+import { IMAGE_EXT_RE } from '../lib/imageFilename.js';
 import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf } from '../lib/exportBoard.js';
@@ -432,6 +449,9 @@ const SEL_MENU_OUT = { dx: 4, dy: -40 };
 // the ⋯ steps away; where the screen's edge stops it and it would still cover
 // the handle's centre (SEL_HANDLE_COVER_PX), rotate gives way.
 const SEL_HANDLE_ROTATE_MIN_PX = 56;
+// A mouse's rotate dot is small and has no ⋯ to make way for: it gives way
+// only on a card that is barely a dot on screen.
+const MOUSE_ROTATE_MIN_PX = 24;
 const SEL_HANDLE_CLEAR_PX = 44;
 const SEL_HANDLE_COVER_PX = 30;
 // The rotate dot's centre, in screen px above the card's top edge.
@@ -449,6 +469,9 @@ const SEL_HANDLE_GRIP = (
   </svg>
 );
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
+// "At the limit", for the zoom − / + buttons: within a hair of it, so float
+// drift from a run of ×1.25 steps still counts as there.
+const ZOOM_LIMIT_EPS = 1.0001;
 // A touch screen's fingers drive the two-finger camera (the touch tracker in
 // CanvasSurface), not use-gesture's pinch, which stays for a Mac trackpad
 // pinch in Safari (gesture events).
@@ -456,15 +479,19 @@ const HAS_TOUCHSCREEN = typeof window !== 'undefined' &&
   ('ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0);
 // Mobile press-and-hold to pick up a card. On touch a one-finger drag PANS
 // the board (looking around); a card only becomes movable after holding it
-// still this long. Mirrors the existing useLongPress timing (480ms / 10px).
+// still this long — or at once, past the tolerance, when it was already
+// selected before the press (tap, then drag). Mirrors the existing
+// useLongPress timing (480ms / 10px).
 const TOUCH_LIFT_MS = 480;
 const TOUCH_LIFT_TOLERANCE = 10;
 // First-run discoverability for press-and-hold-to-lift: the first time a touch
 // user's drag-from-a-card resolves to a pan (so the card DIDN'T move), we show
-// a one-time toast explaining the hold. Device-local (localStorage) is the
-// right scope for a touch hint and sidesteps any onboarding-settings write — a
-// default of "seen" on any read failure means we err toward NOT nagging.
-const LIFT_HINT_KEY = 'soleil.liftHintSeen';
+// a one-time toast explaining tap, then drag. Device-local (localStorage) is
+// the right scope for a touch hint and sidesteps any onboarding-settings write —
+// a default of "seen" on any read failure means we err toward NOT nagging.
+// The key changed with the gesture (2026-11-17): a device that saw the old
+// press-and-hold words is told the new way once.
+const LIFT_HINT_KEY = 'soleil.liftHintSeen.tapDrag';
 function liftHintSeen() {
   try { return localStorage.getItem(LIFT_HINT_KEY) === '1'; } catch (_) { return true; }
 }
@@ -1025,6 +1052,9 @@ export function CanvasSurface({
   // The zoom widget's % and slider, written live by applyCanvasTransform.
   const zoomValRef = useRef(null);
   const zoomSliderRef = useRef(null);
+  // The % button's single click (100%) waits out a possible double-click (fit).
+  const zoomValClickTimerRef = useRef(0);
+  useEffect(() => () => { if (zoomValClickTimerRef.current) clearTimeout(zoomValClickTimerRef.current); }, []);
   // The two-finger camera's state (the touch tracker below the wheel handler):
   // the touches down on the board in landing order, the touches it has claimed,
   // the pair's last anchor and the wrapper's rect, whether a gesture is live,
@@ -1704,7 +1734,7 @@ export function CanvasSurface({
     mutators.setGridCellContent?.(gridId, writeKey, patch);
     // boundary:false — the source-card consume must merge with the cell write
     // above so one Cmd+Z reverses the whole "card dropped into cell" gesture.
-    if (consume) mutators.deleteCards?.([card.id], { boundary: false });
+    if (consume) mutators.deleteCards?.([card.id], { boundary: false, via: 'into_grid' });
     return true;
   }, [mutators, boards]);
   // Tracks the last endpoint-handle click so a second click within
@@ -2281,7 +2311,7 @@ export function CanvasSurface({
   // Open an image card fullscreen. Shared by the corner Expand button, the
   // card menu's View full size, focus view's single tap and a view-only
   // board's, so all of them reach the same lightbox. (A double tap on an
-  // image does nothing for an editor.)
+  // image opens it, as a double-click does.)
   const openImageLightbox = useCallback((c) => {
     if (!c?.src) return;
     setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id, downloadName: c.fileName || null });
@@ -2296,6 +2326,11 @@ export function CanvasSurface({
   const [compareCardId, setCompareCardId] = useState(null);
   const [pdfViewer, setPdfViewer] = useState(null); // { src: 'r2:<pdfKey>', name }
   const [fileView, setFileView] = useState(null);   // { cardId } — a plain file in Quick look
+  // Enter on one selected note starts typing in it: NoteCard starts whenever
+  // its editRequest turns to a new non-zero number.
+  const [noteEditReq, setNoteEditReq] = useState({ id: null, n: 0 });
+  // Enter on one selected card opens it (assigned beside onCardDoubleClick).
+  const cardEnterRef = useRef(null);
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
@@ -2910,7 +2945,7 @@ export function CanvasSurface({
   // finger came down, if it lifted there (a drag isn't a tap).
   // A note under a finger or pen waits for the lift too: the keyboard comes up
   // only for a focus inside the release (the keeper, below).
-  const placesOnRelease = (e) => (selectedTool === 'image' && e.pointerType === 'touch')
+  const placesOnRelease = (e) => (selectedTool === 'image' && (e.pointerType === 'touch' || e.pointerType === 'pen'))
     || (selectedTool === 'text' && (e.pointerType === 'touch' || e.pointerType === 'pen'));
   const placeToolOnRelease = (e) => {
     const at = { x: e.clientX, y: e.clientY };
@@ -3783,6 +3818,16 @@ export function CanvasSurface({
   // *content* changed (id set unchanged). arrowAttachments still has
   // `cards` in its deps below, so arrow geometry recomputes on card moves.
   const cardByIdRef = useRef({});
+  // A link card's fetched preview, written quietly. A preview with nothing to
+  // show is recorded (noPreview) so the card says so instead of waiting; a
+  // good one clears it in the same write as the patch.
+  const writeLinkPreview = (id, p, patch) => {
+    const empty = !p || !(p.title || p.description || p.image);
+    const had = !!cardByIdRef.current[id]?.noPreview;
+    if (empty) { if (!had) mutators.updateCardSilent?.(id, { noPreview: true }); return; }
+    const next = had ? { ...patch, noPreview: false } : patch;
+    if (Object.keys(next).length) mutators.updateCardSilent?.(id, next);
+  };
   const cardById = cardByIdRef.current;
   // Sync the singleton each render so consumers always read the latest.
   // This runs in render (not an effect) because downstream useMemos read
@@ -4008,8 +4053,7 @@ export function CanvasSurface({
           await reloadGridLayouts();
           feedback.toast({
             message: tr`Saved and shared in the store.`,
-            actionLabel: tr`View`,
-            onAction: () => window.open('/templates', '_blank', 'noopener'),
+            action: { label: tr`View`, onClick: () => window.open('/templates', '_blank', 'noopener') },
           });
           return;
         } catch (e) {
@@ -4421,7 +4465,7 @@ export function CanvasSurface({
       if (mr && mr.has(id)) { const lv = mr.get(id); return { x: lv.x, y: lv.y, w: lv.w, h: lv.h }; }
       let x = c.x, y = c.y, w = c.w, h = c.h;
       if (dIds && dIds.includes(id)) { x += dDx; y += dDy; }
-      if (rz && rz.id === id) { w = Math.max(MIN_W, w + (rz.dw || 0)); h = Math.max(MIN_H, h + (rz.dh || 0)); }
+      if (rz && rz.id === id) { w = Math.max(MIN_W, w + (rz.dw || 0)); h = Math.max(MIN_H, h + (rz.dh || 0)); x += rz.ox || 0; y += rz.oy || 0; }
       return { x, y, w, h };
     };
     const resolveGroupBBox = (gid) => {
@@ -4697,7 +4741,7 @@ export function CanvasSurface({
   // which already cancels or parks the upload behind it.
   useEffect(() => {
     if (!board?.id) return undefined;
-    return setCardCanceller(board.id, (cardId) => doDeleteIdsRef.current?.([cardId]));
+    return setCardCanceller(board.id, (cardId) => doDeleteIdsRef.current?.([cardId], { via: 'upload_cancel' }));
   }, [board?.id]);
   const keepAgainRef = useRef(null);
   const boardNameRef = useRef(board?.name || null);
@@ -4776,7 +4820,7 @@ export function CanvasSurface({
     if (!k) return;
     if (boardIdRef.current === k.dropBoardId && cardIsLive(id)) {
       dropKept(id, k);
-      doDeleteIdsRef.current?.([id]);
+      doDeleteIdsRef.current?.([id], { via: 'upload_cancel' });
       return;
     }
     keptUploadsRef.current.delete(id);
@@ -4858,7 +4902,7 @@ export function CanvasSurface({
   // (nobody is sending it) is the ordinary delete.
   const onTransferRemove = useCallback((id) => {
     if (keptUploadsRef.current.has(id)) removeKeptRef.current?.(id);
-    else doDeleteIdsRef.current?.([id]);
+    else doDeleteIdsRef.current?.([id], { via: 'upload_cancel' });
   }, []);
   // Replace: the stuck card goes (silently) and the chosen file takes its place.
   const onTransferReplace = useCallback((id, file) => {
@@ -5124,7 +5168,12 @@ export function CanvasSurface({
     const id = `img-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
     // Keep the whole card on-screen even when dropped near the right/bottom edge.
-    const placed = placeDropRect(cx, cy, w, h, rect);
+    let placed = placeDropRect(cx, cy, w, h, rect);
+    // A drop of several photos is laid out in justified rows: each card takes
+    // its slot's size, or the natural size (up to 1200) overlaps its
+    // neighbours. A lone photo keeps its natural size, centred on its slot.
+    if (rect && rect.multi && rect.w > 0 && rect.h > 0) { w = placed.w; h = placed.h; }
+    else if (rect && rect.w > 0 && rect.h > 0) placed = { ...placed, x: Math.round(rect.x + rect.w / 2 - w / 2), y: Math.round(rect.y + rect.h / 2 - h / 2) };
     const dropPreview = () => {
       setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
       if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
@@ -5951,7 +6000,7 @@ export function CanvasSurface({
       for (let i = 0; i < accepted.length; i++) {
         const rect = rects[i];
         try {
-          await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect, transfers[i]);
+          await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, accepted.length > 1 ? { ...rect, multi: true } : rect, transfers[i]);
         } catch (err) {
           removeTransfer(transfers[i].tid);
           console.error(err);
@@ -6336,19 +6385,45 @@ export function CanvasSurface({
   }, [clientToCanvas]);
 
   useEffect(() => {
+    // Space taken for the pan: its keyup is claimed too, so no browser presses
+    // the button that holds the focus when Space comes up.
+    let tookSpace = false;
     const onDown = (e) => {
       if (e.code !== 'Space') return;
       if (isEditorTarget(e) || inCommentSurface(e.target) || e.target?.closest?.('.ctx-menu')) return;   // Space presses a comment's own button, and runs a menu's focused row
+      // A dialog or menu is up (Settings, ⌘K…): Space belongs to its controls.
+      if (boardKeysBlocked()) return;
+      // Space on a control outside the canvas that the keyboard reached (a
+      // Settings tab, a toggle, a sidebar button) presses it. The canvas's own
+      // toolbar buttons sit inside the wrap and keep Space = pan, and so does a
+      // control a mouse click left focused.
+      const tgt = e.target;
+      const ctl = tgt?.closest?.('button, a[href], [role="button"], [role="tab"], [role="switch"], [role="checkbox"], [role="menuitem"]');
+      if (ctl && !wrapRef.current?.contains(ctl) && keyboardFocused(tgt)) return;
       e.preventDefault();
+      tookSpace = true;
       setSpaceDown(true);
     };
     const onUp = (e) => {
       if (e.code !== 'Space') return;
+      if (tookSpace) { e.preventDefault(); tookSpace = false; }
       setSpaceDown(false);
     };
+    // Leaving the window with Space held sends no keyup here, so the pan (and
+    // its grab cursor, which isPanMode drives) stuck until Space was pressed
+    // again. Let it go whenever the window loses focus or the tab hides.
+    const release = () => { tookSpace = false; setSpaceDown(false); };
+    const onVis = () => { if (document.visibilityState === 'hidden') release(); };
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
-    return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
+    window.addEventListener('blur', release);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+      window.removeEventListener('blur', release);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   // ── W A S D: hold a key to move around the board, Q or E to zoom ─────────
@@ -6485,6 +6560,22 @@ export function CanvasSurface({
     const el = wrapRef.current;
     if (!el) return;
     let commitTimer = 0;
+    let wheelLatch = null;   // latchWheelIntent's state: this gesture's intent and its last event
+    // The wheel tip's switch, and its Undo. Applied here at once (the canvas
+    // reads the module), saved to the account by App's soleil:set-wheel-mode
+    // listener (which does not log), and logged here like Settings logs it.
+    const switchWheelModeFromHint = (mode, source) => {
+      const m = applyWheelModeNow(mode);
+      try { window.dispatchEvent(new CustomEvent('soleil:set-wheel-mode', { detail: { mode: m } })); } catch (_) {}
+      try { logEvent(EV.WHEEL_MODE_SET, { mode: m, source }); } catch (_) {}
+      if (source !== 'hint') return;
+      feedbackRef.current?.toast({
+        type: 'info',
+        message: tr`The wheel zooms now. Change it back in Settings → Appearance.`,
+        action: { label: tr`Undo`, onClick: () => switchWheelModeFromHint('pan', 'hint_undo') },
+        ttl: 7000,
+      });
+    };
     // What this burst did and what made it — a mouse's notches or a trackpad's
     // stream — counted once, as it settles, on the session's summary.
     let burstKey = null;
@@ -6540,7 +6631,12 @@ export function CanvasSurface({
     };
     const startGlide = () => { if (!glideRaf) glideRaf = requestAnimationFrame(glideFrame); };
     const onWheel = (e) => {
-      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .ctx-sheet-root, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) return;
+      if (e.target.closest && e.target.closest('.inbox, .ctx-menu, .ctx-sheet-root, .modal-bg, .modal, .twk-panel, .tob, .cnv-tpl-panel')) {
+        // Not ours to move, but a ctrl-wheel (a trackpad pinch) over it would
+        // otherwise zoom the whole browser page. The listener is non-passive.
+        if (e.ctrlKey) e.preventDefault();
+        return;
+      }
       // The full-screen PDF viewer and image lightbox render inside this wrap:
       // without this every wheel over a PDF's pages panned the board behind it
       // instead of scrolling them. A ctrl/⌘-wheel is still kept from the
@@ -6555,11 +6651,15 @@ export function CanvasSurface({
       // visitor carrying wheelMode:'zoom' in localStorage from the app would
       // otherwise find the article unreachable.
       const wheelMode = isPublic ? 'pan' : getWheelMode();
-      const intent = resolveWheelIntent({
+      // One gesture keeps one intent (lib/wheelMode.js latchWheelIntent): the
+      // momentum tail after ⌘ is let go keeps zooming, and a diagonal swipe in
+      // zoom mode stops flipping between zoom and pan. ctrl (a pinch) always zooms.
+      wheelLatch = latchWheelIntent(wheelLatch, resolveWheelIntent({
         mode: wheelMode,
         ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, shiftKey: e.shiftKey,
         deltaX: e.deltaX, deltaY: e.deltaY,
-      });
+      }), performance.now(), { ctrlKey: e.ctrlKey });
+      const intent = wheelLatch.intent;
       // Someone fighting the canvas — scrolling down expecting zoom, watching it
       // pan, scrolling back, repeating — gets told once that the gesture is
       // configurable. Only in pan mode, only for plain wheels, only ever once.
@@ -6573,10 +6673,12 @@ export function CanvasSurface({
         wheelFrustrationRef.current = out.state;
         if (out.fire) {
           markWheelHintSeen();
+          // The tip carries the switch itself, so nobody has to go find it.
           feedbackRef.current?.toast({
             type: 'info',
-            message: tr`Scrolling pans the canvas. ${cmdKey}-scroll zooms — or switch the wheel to zoom in Settings → Appearance.`,
-            ttl: 7000,
+            message: tr`Scrolling pans the canvas. ${cmdKey}-scroll zooms.`,
+            action: { label: tr`Zoom with the wheel`, onClick: () => switchWheelModeFromHint('zoom', 'hint') },
+            ttl: 12000,
           });
           try { logEvent(EV.WHEEL_HINT_SHOWN, { board_id: boardIdRef.current }); } catch (_) {}
         }
@@ -7305,9 +7407,12 @@ export function CanvasSurface({
     return null;
   }, [cardById, boards, coarse]);
 
-  const doDeleteIds = useCallback(async (ids, { boundary = true } = {}) => {
+  // `via` names the gesture for card_deleted (App.jsx deleteCards), so a cut
+  // or a cancelled upload isn't counted as someone throwing work away.
+  // skipConfirm: the caller already asked (doDeleteSelected).
+  const doDeleteIds = useCallback(async (ids, { boundary = true, via = 'delete', skipConfirm = false } = {}) => {
     if (!ids?.length) return;
-    const msg = buildDeleteMessage(ids);
+    const msg = skipConfirm ? null : buildDeleteMessage(ids);
     if (msg) {
       const ok = await feedback.confirm({
         title: tr`Delete selection`,
@@ -7327,7 +7432,7 @@ export function CanvasSurface({
         opSummary: { action: 'bulk-delete', card_count: ids.length },
       });
     }
-    const deleted = await mutators.deleteCards?.(ids, { boundary });
+    const deleted = await mutators.deleteCards?.(ids, { boundary, via });
     setSelected(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.delete(id));
@@ -7348,6 +7453,18 @@ export function CanvasSurface({
 
   // Delete-selected handles cards, strokes, AND arrows.
   const doDeleteSelected = useCallback(async () => {
+    // Ask before anything goes: a Cancel on "Delete cluster?" used to leave
+    // the selected strokes and arrows already deleted.
+    const msg = selected.size > 0 ? buildDeleteMessage([...selected]) : null;
+    if (msg) {
+      const ok = await feedback.confirm({
+        title: tr`Delete selection`,
+        message: msg,
+        confirmLabel: tr`Delete`,
+        danger: true,
+      });
+      if (!ok) return;
+    }
     // One undo-step boundary for the whole delete: strokes + arrows + cards
     // are separate mutator calls but should collapse into a single Cmd+Z.
     // breakUndo() ends the prior action's merge window so the delete is its
@@ -7365,7 +7482,7 @@ export function CanvasSurface({
       setSelectedArrows(new Set());
     }
     if (selected.size > 0) {
-      await doDeleteIds([...selected], { boundary: false });
+      await doDeleteIds([...selected], { boundary: false, via: 'delete', skipConfirm: true });
     } else if (strokeArrowCount > 0) {
       // Stroke/arrow-only deletes used to vanish with NO toast (doDeleteIds
       // owns the card toast and never ran) — same affordance now.
@@ -7379,7 +7496,7 @@ export function CanvasSurface({
         onUndo: () => mutators.undo?.(),
       });
     }
-  }, [doDeleteIds, selected, selectedStrokes, selectedArrows, mutators, feedback]);
+  }, [doDeleteIds, buildDeleteMessage, selected, selectedStrokes, selectedArrows, mutators, feedback]);
 
   // Single-arrow delete (context menu / arrow popover) — same one-step +
   // Undo-toast affordance as every other delete path (these used to vanish
@@ -7411,14 +7528,20 @@ export function CanvasSurface({
     // A card still uploading is not cut: the paste re-ids it, and its upload,
     // landing by the old id, would never reach the copy (see moveCardsIntoBoard).
     const all = [...selected].map(id => cardById[id]).filter(Boolean);
-    const items = keepUploadsInPlace(all) ? all.filter((c) => !isStillUploading(c)) : all;
-    if (items.length === 0) return;
+    const kept = keepUploadsInPlace(all) ? all.filter((c) => !isStillUploading(c)) : all;
+    // A cluster is not cut either: paste can't bring a cluster back, so a cut
+    // would only delete it. Move to… is the way to take one elsewhere.
+    const items = kept.filter((c) => c.kind !== 'board' && c.kind !== 'boardlink');
+    if (items.length === 0) {
+      if (kept.length) feedback.toast({ type: 'info', message: tr`Clusters can't be cut. Use Move to… in the cluster's menu instead.` });
+      return;
+    }
     setClipboard(items, board.id, { cut: true });
     noteCopiedGroups(items, ydoc);   // before the delete takes the groups' cards
     mutators.breakUndo?.();
-    await doDeleteIds(items.map((c) => c.id));
+    await doDeleteIds(items.map((c) => c.id), { via: 'cut' });
     logCanvasTool('cut', { n: items.length, boardId: board.id });
-  }, [selected, cardById, board.id, doDeleteIds, mutators, ydoc]);
+  }, [selected, cardById, board.id, doDeleteIds, mutators, ydoc, feedback]);
 
   const doPaste = useCallback(async (atCanvas) => {
     const items = getClipboard();
@@ -7442,9 +7565,13 @@ export function CanvasSurface({
     const stamp = Date.now().toString(36);
     const idMap = {};       // oldCardId → newCardId
     const groupMap = {};    // oldGroupId → newGroupId
-    const newCards = items.map(c => {
+    // Pasted cards land on top: z is left off so addCards stamps a fresh one,
+    // and they go in by their old z so they keep their order among themselves.
+    const byLayer = [...items].sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
+    const newCards = byLayer.map(c => {
       const copy = { ...c };
       if (copy.kind === 'board') return null;
+      delete copy.z;
       const newId = `${copy.kind || 'card'}-${stamp}-${Math.floor(Math.random() * 1e6)}`;
       idMap[copy.id] = newId;
       copy.id = newId;
@@ -7454,7 +7581,12 @@ export function CanvasSurface({
       // groups were referenced. Stub for now; resolved below.
       return copy;
     }).filter(Boolean);
-    if (!newCards.length) return;
+    if (!newCards.length) {
+      if (items.every((c) => c.kind === 'board')) {
+        feedback.toast({ type: 'info', message: tr`Clusters can't be pasted. Use Move to… in the cluster's menu instead.` });
+      }
+      return;
+    }
 
     // ── Recreate groups so a copy-paste of a grouped selection
     //    "stays together" as its own group, not the original. Group
@@ -7610,7 +7742,7 @@ export function CanvasSurface({
       console.warn('paste comments failed', cmtErr);
       { const why = String(shownError(cmtErr)); feedback.toast({ type: 'error', code: 'comment_copy_failed', message: tr`Couldn't copy the comments with the cards: ${why}` }); }
     }
-  }, [mutators, ydoc, board.id, workspaceId, currentUser?.id]);
+  }, [mutators, ydoc, board.id, workspaceId, currentUser?.id, feedback]);
 
   const doDuplicate = useCallback(() => {
     const ids = [...selected];
@@ -7628,10 +7760,12 @@ export function CanvasSurface({
   //   1. Image in OS clipboard       → image card (unambiguous "paste this")
   //   2. OS text matches our sentinel → internal-card paste (`doPaste`)
   //   3. OS text is stale sentinel    → swallow (don't make junk note)
-  //   4. OS text is a bare URL        → link/embed card
+  //   4. OS text is a bare URL        → picture card if it loads as one, else link/embed card
   //   5. OS text is anything else     → note card with the text
   //   6. OS clipboard empty + we have internal items (sentinel write failed)
   //                                    → fallback to `doPaste`
+  // placeRemoteImageAt is declared beside the drop handler, further down.
+  const placeRemoteImageRef = useRef(null);
   useEffect(() => {
     const createLinkCardFromUrl = (url, pos) => {
       const embed = detectEmbed(url);
@@ -7667,9 +7801,55 @@ export function CanvasSurface({
           const patch = previewPatch(p, cardByIdRef.current[newId] || card, card, { grow: { w: 280, h: 290 } });
           // Silent: the async preview backfill must not add an undo step
           // between the card-create and whatever the user does next.
-          if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
+          writeLinkPreview(newId, p, patch);
         });
       }
+    };
+
+    // A pasted picture address becomes the picture, the way a picture dragged
+    // in from another tab does: the browser is asked to load it, and only a
+    // load makes an image card. Anything else, or no answer in time, is the
+    // link card it always was, so a paste never leaves a broken picture. A
+    // path ending in a picture extension gets longer to load (a big file).
+    const pasteUrl = (url, pos) => {
+      if (detectEmbed(url)) { createLinkCardFromUrl(url, pos); return; }
+      // Only a picture's address waits for the picture: an ending such as
+      // .jpg, a format in the query (?format=jpg, &fm=webp) or a host that only
+      // serves pictures. Any other address is a link card at once, as before,
+      // instead of nothing for up to 2.5s while a page is tried as a picture.
+      let likelyPicture = false;
+      try {
+        const u = new URL(url);
+        likelyPicture = IMAGE_EXT_RE.test(u.pathname)
+          || /[?&](format|fm|ext)=(jpe?g|png|gif|webp|avif)\b/i.test(u.search)
+          || /^(images\.unsplash\.com|i\.pinimg\.com|i\.imgur\.com|pbs\.twimg\.com|encrypted-tbn\d\.gstatic\.com|lh\d\.googleusercontent\.com)$/i.test(u.hostname);
+      } catch (_) {}
+      if (!likelyPicture) { createLinkCardFromUrl(url, pos); return; }
+      const pasteBoardId = boardIdRef.current;
+      const probe = new Image();
+      let settled = false;
+      let timer = null;
+      const finish = (isPicture) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        probe.onload = null;
+        probe.onerror = null;
+        // Left the cluster meanwhile: these mutators would write to the wrong one.
+        if (boardIdRef.current !== pasteBoardId) return;
+        if (isPicture && placeRemoteImageRef.current) {
+          placeRemoteImageRef.current(url, (w, h) => {
+            const r = placeDropRect(pos.x, pos.y, w, h);
+            return { x: r.x, y: r.y };
+          }, 'paste');
+        } else {
+          createLinkCardFromUrl(url, pos);
+        }
+      };
+      timer = setTimeout(() => finish(false), 8000);
+      probe.onload = () => finish(true);
+      probe.onerror = () => finish(false);
+      probe.src = url;
     };
 
     const createNoteCardFromText = (text, pos) => {
@@ -7713,7 +7893,13 @@ export function CanvasSurface({
       //    when the caret is genuinely inside THIS cell's own text editor (so native
       //    text paste into a text cell still works).
       const fc = focusedCellRef.current;
-      if (fc && canEdit) {
+      // Not for the box, though a box is picked: a paste into a field outside
+      // the canvas (the sidebar search, the top bar) is that field's, and
+      // copied cards (our clipboard marker) paste as cards, never as its text.
+      const editableOf = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || ''));
+      const outsideField = [document.activeElement, e.target].some((el) => editableOf(el) && !wrapRef.current?.contains(el));
+      const cellCopiedCards = !(e.clipboardData?.files?.length) && looksLikeSentinel(e.clipboardData?.getData('text/plain') || '');
+      if (fc && canEdit && !outsideField && !cellCopiedCards) {
         const ae = document.activeElement;
         let typingInThisCell = false;
         if (ae && ae.isContentEditable) {
@@ -7743,7 +7929,37 @@ export function CanvasSurface({
       // was refused outright on a free plan, while the identical file DROPPED
       // on the canvas became a free audio card. One dispatch, one answer.
       const items = e.clipboardData?.items;
-      if (items) {
+      // Text copied from Word, Excel, Keynote and the like brings a picture of
+      // itself along (an image file beside text/plain and text/html or RTF):
+      // the text is what was copied, so it becomes a note. A screenshot has no
+      // text, and a picture copied from a web page has no plain text, so both
+      // still paste as the picture.
+      const plainText = e.clipboardData?.getData('text/plain') || '';
+      const clipTypes = Array.from(e.clipboardData?.types || []);
+      const fileItems = Array.from(items || []).filter((it) => it.kind === 'file');
+      // Real words, not the stray space or object mark an app writes beside
+      // a lone picture.
+      const textWins = /[\p{L}\p{N}]/u.test(plainText)
+        && !/^\s*https?:\/\/\S+\s*$/i.test(plainText)
+        && (clipTypes.includes('text/html') || clipTypes.includes('text/rtf'))
+        && fileItems.length > 0
+        && fileItems.every((it) => /^image\//i.test(it.type || ''));
+      // Several files copied together all come in, laid out as a drop lays
+      // them out (one file keeps the path below).
+      const pastedFiles = textWins ? [] : Array.from(e.clipboardData?.files || []);
+      if (pastedFiles.length > 1) {
+        e.preventDefault();
+        const { pos, clamped } = resolvePastePos();
+        notePasteCreate(clamped);
+        try {
+          await ingestFiles(pastedFiles, pos.x, pos.y, 'paste');
+        } catch (err) {
+          console.error(err);
+          feedback.toast({ type: 'error', code: 'file_upload_failed', message: uploadFailedWords(err) });
+        }
+        return;
+      }
+      if (items && !textWins) {
         for (const item of items) {
           if (item.kind !== 'file') continue;
           const file = item.getAsFile();
@@ -7822,11 +8038,11 @@ export function CanvasSurface({
       const { pos, clamped } = resolvePastePos();
       const urlMatch = text.match(/^\s*(https?:\/\/\S+)\s*$/i);
 
-      // 4) Bare URL → link / embed card.
+      // 4) Bare URL → picture, or link / embed card.
       if (urlMatch) {
         e.preventDefault();
         notePasteCreate(clamped);
-        createLinkCardFromUrl(urlMatch[1], pos);
+        pasteUrl(urlMatch[1], pos);
         return;
       }
 
@@ -7848,7 +8064,7 @@ export function CanvasSurface({
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [feedback, dispatchIngestOne, canAttemptFiles, doPaste, mutators,
+  }, [feedback, dispatchIngestOne, ingestFiles, canAttemptFiles, doPaste, mutators,
       ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled, placeDropRect, canEdit]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
@@ -8020,6 +8236,16 @@ export function CanvasSurface({
       // opens one, Delete clears a filled one (an empty one falls through and
       // removes the grid, as before).
       if (!cmd && !e.altKey && e.key !== 'Escape' && boxKeyRef.current?.(e)) return;
+
+      // Enter opens the one selected card, as a double-click does. Not while a
+      // menu is open, and not on a focused button, link or menu row (their
+      // Enter is their own).
+      if (e.key === 'Enter' && !cmd && !e.altKey && !e.shiftKey && !e.defaultPrevented && !ctx.open && !bgCtx.open
+          && !e.target?.closest?.('button, a[href], select, [role="menu"], [role="menuitem"], [role="listbox"], [role="option"], [role="dialog"]')) {
+        const sel = selectedRef.current;
+        const one = sel.size === 1 ? (cardsRef.current || []).find((c) => c.id === [...sel][0]) : null;
+        if (one && cardEnterRef.current?.(one)) { e.preventDefault(); return; }
+      }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         // Already consumed by something nearer the key.
@@ -8735,20 +8961,16 @@ export function CanvasSurface({
         };
         window.addEventListener('pointerup', onUp);
         window.addEventListener('pointercancel', onCancel);
-        // Public viewer: a drag that starts on a cover should still pan —
-        // the ≤4px click check above keeps clean clicks opening the board.
-        if (isPublic) startPan(e);
-        return;
-      }
-      if (isPublic) {
-        // Public viewer is navigation-only: drag anywhere — including over
-        // images and notes — pans the canvas. (Authenticated view-only
-        // members keep the subscribe-to-edit toast on drag attempts.)
+        // A drag that starts on a cover still pans, for every viewer — the
+        // ≤4px click check above keeps clean clicks opening it.
         startPan(e);
         return;
       }
-      e.preventDefault();
-      showEditBlockedToast();
+      // Every viewer is navigation-only here: a drag anywhere — including over
+      // images and notes — pans the canvas. Signed-in view-only members used
+      // to get a no-op (the edit-blocked toast is silent) and couldn't look
+      // around by dragging on a card at all.
+      startPan(e);
       return;
     }
     // Eyedropper mode — clicking an image card samples a pixel and
@@ -8830,6 +9052,24 @@ export function CanvasSurface({
     // Select… (the hold menu): a tap adds the card or takes it out (the tap
     // branch of onUp), and a lift carries the whole selection, this card with it.
     const toggling = touchHold && touchSelectingRef.current;
+    // Tap, then drag: a finger that comes down on a card that was ALREADY
+    // selected before this press moves it (with the rest of the selection)
+    // once past the touch tolerance, with no hold. An unselected card still
+    // pans until held. Not in Select… (a tap there toggles) and not on the
+    // note being written (its text owns the finger). A scrollable selected
+    // note still scrolls first (the touchScrollEl branch in flushMove).
+    const wasSelected = selected.has(c.id);
+    const tapDrag = touchHold && !toggling && wasSelected && c.id !== editingNoteId;
+    // A clean click (no drag, no Shift, no Cmd/Ctrl) on one member of a
+    // multi-selection narrows the selection to that card on release, so
+    // Delete then removes only it. A drag of a member still moves them all.
+    const narrowOnClick = !toggling && !e.shiftKey && !e.metaKey && !e.ctrlKey
+      && wasSelected && selected.size > 1;
+    const narrowSelection = () => {
+      setSelected(new Set([c.id]));
+      setSelectedStrokes(new Set());
+      setSelectedArrows(new Set());
+    };
 
     let nextSelected;
     if (e.shiftKey) {
@@ -9159,7 +9399,9 @@ export function CanvasSurface({
           // card and occludes small boards, so the point hit-test above often
           // misses the board you're clearly dragging ONTO. Pick the candidate
           // board the dragged card visually overlaps the most.
-          if (!nextDropTarget) {
+          // Touch only: a mouse pointer is exactly where the person means, so
+          // a drag that merely grazes a cluster card's edge must not drop in.
+          if (!nextDropTarget && touchHold) {
             const dragEl = document.querySelector(`[data-card-id="${(window.CSS && CSS.escape) ? CSS.escape(primaryId) : primaryId}"]`);
             const dr = dragEl?.getBoundingClientRect();
             if (dr && dr.width && dr.height) {
@@ -9212,7 +9454,8 @@ export function CanvasSurface({
       if (!ev) return;
       // Touch, not yet lifted: this gesture is a PAN (looking around), not a
       // card move. Mirror startPan.onMove. Movement past the tolerance cancels
-      // the pending lift (it's a pan, not a hold). Never arms the card-drag.
+      // the pending lift (it's a pan, not a hold). Never arms the card-drag,
+      // except a tap-then-drag on an already selected card, which lifts here.
       if (touchHold && !lifted) {
         if (aborted || ev.pointerId !== initialPointerId) return;
         const moved = Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
@@ -9229,10 +9472,22 @@ export function CanvasSurface({
           lastScrollClientY = ev.clientY;
           return;
         }
+        // Tap, then drag (tapDrag above): a card that was already selected is
+        // picked up as soon as the finger leaves the tolerance, and this same
+        // frame falls through to the card-drag arm below. The drag origin is
+        // the press point, so the card stays under the finger.
+        if (tapDrag && !panned && moved > TOUCH_LIFT_TOLERANCE) {
+          cancelLift();
+          onLift();
+          dragOriginWorld = startWorld;
+        }
+      }
+      if (touchHold && !lifted) {
+        const moved = Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
         if (!panned && moved > TOUCH_LIFT_TOLERANCE) {
           panned = true; cancelLift();
           // The user dragged from a card and it panned instead of moving — the
-          // moment they learn the hold. Show the hint once (set the flag first,
+          // moment they learn tap, then drag. Show the hint once (set the flag first,
           // synchronously, so a fast repeat can't double-toast).
           if (canEdit) {
             // Logged on EVERY cancel, not just the first, and carrying how long
@@ -9247,11 +9502,12 @@ export function CanvasSurface({
                 held_ms: liftStartedAt ? Math.round(performance.now() - liftStartedAt) : null,
                 travel_px: Math.round(moved),
                 hint_seen: liftHintSeen(),
+                selected: wasSelected,
               });
             } catch (_) {}
             if (!liftHintSeen()) {
               markLiftHintSeen();
-              feedback.toast({ type: 'info', message: tr`Press and hold a card to pick it up and move it.`, ttl: 5000 });
+              feedback.toast({ type: 'info', message: tr`To move a card, tap it, then drag it.`, ttl: 5000 });
               try { logEvent(EV.MOBILE_LIFT_HINT_SHOWN, { board_id: board?.id }); } catch (_) {}
             }
           }
@@ -9276,7 +9532,8 @@ export function CanvasSurface({
           Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y) <= 4) return;
       // A touch lift re-baselines the drag origin to the arm point so the card
       // doesn't jump by the finger's pre-lift drift. Mouse keeps startClient.
-      if (!dragArmed && touchHold) dragOriginWorld = clientToCanvas(ev.clientX, ev.clientY, dragWrapRect);
+      // A tap-then-drag already set it to the press point.
+      if (!dragArmed && touchHold && !dragOriginWorld) dragOriginWorld = clientToCanvas(ev.clientX, ev.clientY, dragWrapRect);
       dragArmed = true;
       perf.bump('drag.flush');
       const _t0 = perf.isEnabled() ? performance.now() : 0;
@@ -9376,6 +9633,8 @@ export function CanvasSurface({
           } else if (openOnClick) {
             if (c.kind === 'board') onOpenBoard(c.id);
             else if (c.kind === 'boardlink') onOpenBoard(c.target);
+          } else if (narrowOnClick) {
+            narrowSelection();
           } else {
             applyCardSelection();
           }
@@ -9508,6 +9767,15 @@ export function CanvasSurface({
           setDrag(null);
           return;
         }
+        // Clusters and other cards together go nowhere (as the drop rules and
+        // Move to cluster… refuse them): one nests, the others move in, and
+        // moving a cluster card in as a card left a hidden row there and took
+        // the cluster card off this board. Every card goes back where it was.
+        if (draggedBoardIds.length) {
+          feedback.toast({ type: 'info', message: tr`Clusters and files go separately. Drag the clusters, then the files.` });
+          setDrag(null);
+          return;
+        }
         if (movedCards.length) {
           moveCardsIntoBoard(dragIds, targetBoardId, movedCards);
           haptic('drop');
@@ -9565,11 +9833,17 @@ export function CanvasSurface({
           mutators.updateCards?.(updates);
           logCanvasTool('move', { n: updates.length, boardId: board?.id });
         }
-      } else if (openOnClick && !touchHold) {
+      } else if (!touchHold) {
+        // A clean click on one card of several selected keeps just that one.
+        // Touch narrows in its tap branch above; a lift released in place is
+        // a hold, not a click, and leaves the selection alone.
+        if (narrowOnClick) narrowSelection();
         // Touch board-open happens on tap (onUp tap branch) / double-tap, not
         // here — a deliberate lift released in place must not open the board.
-        if (c.kind === 'board') onOpenBoard(c.id);
-        if (c.kind === 'boardlink') onOpenBoard(c.target);
+        if (openOnClick) {
+          if (c.kind === 'board') onOpenBoard(c.id);
+          if (c.kind === 'boardlink') onOpenBoard(c.target);
+        }
       }
       setDrag(null);
     };
@@ -9659,7 +9933,19 @@ export function CanvasSurface({
     setSelectedStrokes(new Set());
     setSelectedArrows(new Set());
     const startClient = { x: e.clientX, y: e.clientY };
-    setResize({ id: c.id, dw: 0, dh: 0 });
+    setResize({ id: c.id, dw: 0, dh: 0, ox: 0, oy: 0 });
+    // A turned card (lib/rotatedResize.js): the pointer's delta is read in the
+    // card's own frame and x/y follow so its opposite corner stays put. Its
+    // edges aren't axis-aligned, so edge/size snapping is off while turned.
+    // Rotation 0 takes exactly the old path.
+    const rot = c.rotation || 0;
+    const localDelta = (ev) => deltaInCardFrame(ev.clientX - startClient.x, ev.clientY - startClient.y, rot);
+    const anchorOffset = (dw, dh) => {
+      // The size the card is drawn at (renderCard clamps, unrounded).
+      const realDw = Math.max(MIN_W, c.w + dw) - c.w;
+      const realDh = Math.max(MIN_H, c.h + dh) - c.h;
+      return anchoredResizeOffset(realDw, realDh, rot);
+    };
 
     // Snap targets, captured once at drag start (see lib/snapGuides.js). Two
     // flavours per axis: a numeric match (dragged w/h equals another card's w/h
@@ -9719,8 +10005,8 @@ export function CanvasSurface({
     let noteMeasurer = noteBody ? createNoteMeasurer(noteBody) : null;
     if (noteMeasurer?.isEmpty) { noteMeasurer.destroy(); noteMeasurer = null; }
     let noteHeightMode = false;
-    const updateNoteLatch = (ev) => {
-      if (noteMeasurer && !noteHeightMode && Math.abs(ev.clientY - startClient.y) > 16) {
+    const updateNoteLatch = (local) => {
+      if (noteMeasurer && !noteHeightMode && Math.abs(local.dy) > 16) {
         noteHeightMode = true;
       }
     };
@@ -9731,6 +10017,7 @@ export function CanvasSurface({
       if (!noteHeightMode) return { dh: fitH - c.h, hints };
       // Height mode: snap to "fits exactly" when the pointer is close.
       if (Math.abs((c.h + dh) - fitH) <= 12 / zoom) {
+        if (rot) return { dh: fitH - c.h, hints };   // no level guide on a turned card
         const merged = hints || { xs: [], ys: [], spacings: [] };
         merged.ys = [...(merged.ys || []), { y: c.y + fitH, x0: c.x, x1: c.x + newW, label: 'fit' }];
         return { dh: fitH - c.h, hints: merged };
@@ -9741,16 +10028,18 @@ export function CanvasSurface({
     let prevResizeRaw = null; // last frame's raw (world) delta, for the fast clear
     const noteResizeSnap = createSnapTicker();
     const onMove = (ev) => {
-      const rawDwRaw = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
-      const rawDhRaw = (ev.clientY - startClient.y) / zoomRef.current;
+      const local = localDelta(ev);
+      const rawDwRaw = local.dx / zoomRef.current;   // live zoom, not render-time
+      const rawDhRaw = local.dy / zoomRef.current;
       const bypass = ev.metaKey || ev.ctrlKey;
       const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
-      updateNoteLatch(ev);
+      updateNoteLatch(local);
       // Aspect-locked resize skips edge/numeric snapping (would break the
       // lock); Alt continues to also disable snap for the free-resize case.
-      const snap = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
+      const snap = computeResizeSnap(rawDw, rawDh, rot || (lockAspect && !bypass) ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
       const { dh, hints } = applyNoteReflow(snap.dw, snap.dh, snap.hints);
-      setResize({ id: c.id, dw: snap.dw, dh });
+      const off = anchorOffset(snap.dw, dh);
+      setResize({ id: c.id, dw: snap.dw, dh, ox: off.dx, oy: off.dy });
       // Fast resize jump: drop a lingering size/edge guide immediately rather
       // than leaving a fading trail (mirrors the move path).
       if (!hints && prevResizeRaw && Math.hypot(rawDw - prevResizeRaw.dw, rawDh - prevResizeRaw.dh) * zoom > SNAP_TUNING.FAST_MOVE_PX) {
@@ -9761,17 +10050,25 @@ export function CanvasSurface({
       setSnapHints(hints);
     };
     const onUp = (ev) => {
-      const rawDwRaw = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
-      const rawDhRaw = (ev.clientY - startClient.y) / zoomRef.current;
+      const local = localDelta(ev);
+      const rawDwRaw = local.dx / zoomRef.current;   // live zoom, not render-time
+      const rawDhRaw = local.dy / zoomRef.current;
       const bypass = ev.metaKey || ev.ctrlKey;
       const { dw: rawDw, dh: rawDh } = applyAspectLock(rawDwRaw, rawDhRaw, bypass);
-      updateNoteLatch(ev);
-      const snap = computeResizeSnap(rawDw, rawDh, lockAspect && !bypass ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
+      updateNoteLatch(local);
+      const snap = computeResizeSnap(rawDw, rawDh, rot || (lockAspect && !bypass) ? true : ev.altKey, !!noteMeasurer && !noteHeightMode);
       const { dh } = applyNoteReflow(snap.dw, snap.dh, snap.hints);
       const newW = Math.max(MIN_W, Math.round(c.w + snap.dw));
       const newH = Math.max(MIN_H, Math.round(c.h + dh));
       if (newW !== c.w || newH !== c.h) {
         const patch = { w: newW, h: newH };
+        // A turned card moves too, so its opposite corner stays put (one
+        // update, one undo step). Unturned: x/y are left alone, as before.
+        if (rot) {
+          const off = anchoredResizeOffset(newW - c.w, newH - c.h, rot);
+          patch.x = Math.round(c.x + off.dx);
+          patch.y = Math.round(c.y + off.dy);
+        }
         if (c.kind === 'note') {
           // A note counts as manually sized only when the user deliberately
           // pinned a height that differs from its content height. Width-only
@@ -11755,8 +12052,8 @@ export function CanvasSurface({
       const card = {
         id: newId,
         kind: 'link', source: url, link: url, title,
-        x: Math.max(8, Math.round(at.x - w / 2)),
-        y: Math.max(8, Math.round(at.y - h / 2)),
+        x: Math.round(at.x - w / 2),
+        y: Math.round(at.y - h / 2),
         w, h,
       };
       if (embed) card.embed = embed;
@@ -11774,7 +12071,7 @@ export function CanvasSurface({
           const patch = previewPatch(p, cardByIdRef.current[newId] || card, card, { grow: { w: 280, h: 290 } });
           // Silent: the async preview backfill must not add an undo step
           // between the card-create and whatever the user does next.
-          if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
+          writeLinkPreview(newId, p, patch);
         });
       }
     }},
@@ -12232,11 +12529,73 @@ export function CanvasSurface({
       document.dispatchEvent(new CustomEvent('soleil-open-doc-card', { detail: { cardId: c.id } }));
       return;
     }
-    // image / note / link / etc — defer to inner editors so dbl-click
-    // re-enters edit mode reliably. (Images: ImageCard's own .ic-imgwrap
-    // dbl-click handles title edit; fullscreen view is the corner Expand button
-    // + single-tap in focus view. Open a link via the link-card icon or
-    // right-click → Open.)
+    // A picture opens full size. A mouse never gets here (ImageCard answers its
+    // own dblclick and stops it); a finger does, from the double tap
+    // onCardPointerUp makes, and only on the picture itself, not its buttons.
+    if (c.kind === 'image') {
+      if (!c.src || !e.target.closest?.('.ic-imgwrap')) return;
+      e.stopPropagation?.();
+      if (e.pointerType === 'touch') swallowGhostClick({ x: e.clientX, y: e.clientY });
+      openImageLightbox(c);
+      return;
+    }
+    // note / link / etc — defer to inner editors so dbl-click re-enters edit
+    // mode reliably. (Open a link via the link-card icon or right-click →
+    // Open.)
+  };
+
+  // Enter on one selected card: what a double-click does, from the keyboard.
+  // A note starts typing (editors only); a picture opens full screen; the
+  // kinds a double-click opens open. Returns true when it handled the key.
+  // A grid's double-click needs a pointer (which box), so it is left alone.
+  cardEnterRef.current = (c) => {
+    if (!c) return false;
+    if (c.kind === 'note') {
+      if (!canEdit || isPublic) return false;
+      setNoteEditReq((prev) => ({ id: c.id, n: prev.n + 1 }));
+      return true;
+    }
+    if (c.kind === 'image') {
+      if (!c.src) return false;
+      openImageLightbox(c);
+      return true;
+    }
+    if (c.kind === 'shortcut') {
+      if (!c.shareToken || isPublic) return false;
+      openSharedFile({ token: c.shareToken, via: 'shortcut' });
+      return true;
+    }
+    if (c.kind === 'board') {
+      if (!onOpenBoard) return false;
+      onOpenBoard(c.id);
+      return true;
+    }
+    if (c.kind === 'boardlink') {
+      if (!onOpenBoard || !c.target || !boards?.[c.target]) return false;
+      onOpenBoard(c.target);
+      return true;
+    }
+    if (c.kind === 'art') {
+      if (!canEdit) return false;
+      setSketchpadEditId(c.id);
+      setSketchpadOpen(true);
+      return true;
+    }
+    if (c.kind === 'pdf') {
+      if (!c.pdfSrc) return false;
+      setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id });
+      return true;
+    }
+    if (c.kind === 'file') {
+      if (!c.fileSrc || c.pending) return false;
+      setFileView({ cardId: c.id });
+      return true;
+    }
+    if (c.kind === 'doc') {
+      document.dispatchEvent(new CustomEvent('soleil-open-doc-card', { detail: { cardId: c.id } }));
+      return true;
+    }
+    return false;
   };
 
   // Touch: synthesize the double-tap that native dblclick fumbles on mobile so
@@ -12686,6 +13045,13 @@ export function CanvasSurface({
   const selHandleId = (isTouch && canEdit && selectedTool === 'select'
     && selected.size === 1 && effectiveSelectedIds.size === 1)
     ? ([...selected].find((sid) => cardById[sid]) || null) : null;
+  // With a mouse or pen, the one selected rotatable card's rotate handle is
+  // drawn there too (the desktop dot, not the finger puck): in the card it
+  // sits above the top edge, where the card's clip cut it away. The resize
+  // corner stays in the card.
+  const mouseRotateId = (!isTouch && canEdit && selectedTool === 'select'
+    && selected.size === 1 && effectiveSelectedIds.size === 1)
+    ? ([...selected].find((sid) => cardById[sid] && ROTATABLE.has(cardById[sid].kind)) || null) : null;
 
   // The selection's ⋯ in screen px from its anchor (selMenuAnchor): over the
   // corner or clear of a small selection, and kept on screen while the
@@ -12730,6 +13096,14 @@ export function CanvasSurface({
     return { ...best, rotateClear: gap(best) >= SEL_HANDLE_COVER_PX };
   };
 
+  // A drag that mixes clusters with other cards can't go into a cluster (the drop refuses it).
+  const dragMixed = (() => {
+    const ids = drag?.ids; if (!ids?.length) return false;
+    let cl = 0, other = 0;
+    for (const id of ids) { const k = cardById[id]; if (!k) continue; if (k.kind === 'board' || (k.kind === 'boardlink' && k.target)) cl++; else other++; }
+    return cl > 0 && other > 0;
+  })();
+
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
@@ -12742,8 +13116,8 @@ export function CanvasSurface({
     // on the SelectionBoundsOverlay, every affected card gets a live
     // (x,y,w,h) from the active drag instead of its committed values.
     const multiLive = multiResize?.live?.get?.(c.id) || null;
-    const x = multiLive ? multiLive.x : (peerDrag ? peerDrag.x : (c.x + (dragDelta?.dx || 0)));
-    const y = multiLive ? multiLive.y : (peerDrag ? peerDrag.y : (c.y + (dragDelta?.dy || 0)));
+    const x = multiLive ? multiLive.x : (peerDrag ? peerDrag.x : (c.x + (dragDelta?.dx || 0) + (resizeDelta?.ox || 0)));
+    const y = multiLive ? multiLive.y : (peerDrag ? peerDrag.y : (c.y + (dragDelta?.dy || 0) + (resizeDelta?.oy || 0)));
     const w = multiLive ? Math.max(MIN_W, multiLive.w) : Math.max(MIN_W, c.w + (resizeDelta?.dw || 0));
     const h = multiLive ? Math.max(MIN_H, multiLive.h) : Math.max(MIN_H, c.h + (resizeDelta?.dh || 0));
     const isArrowSource = arrowRefEquals(arrowFrom, c.id);
@@ -12760,6 +13134,7 @@ export function CanvasSurface({
     // the selection layer (.sel-handle): in here the card's clip cut the rotate
     // handle away and both shrank with the zoom.
     const selHandleOut = selHandleId === c.id;
+    const rotateOut = selHandleOut || mouseRotateId === c.id;
 
     // Stacking is driven entirely by DOM order — `sortedCards` is already
     // sorted by `c.z` (see useMemo above). Setting a CSS z-index here was
@@ -12775,14 +13150,14 @@ export function CanvasSurface({
     const kindCls = `card-kind-${c.kind || 'unknown'}`;
     const isVersionDrop = versionDropTarget?.cardId === c.id;
     const isLinkTarget = linkHoverIds.has(c.id);
-    const isBoardDropTarget = boardDropTarget && (
+    const isBoardDropTarget = boardDropTarget && !dragMixed && (
       (c.kind === 'board' && c.id === boardDropTarget) ||
       (c.kind === 'boardlink' && c.target === boardDropTarget)
     );
     // While the user is dragging cards over a board target, fade the
     // dragged cards so they don't obscure the destination. The
     // is-dragging class is added by `inDrag` above.
-    const isFadingForBoardDrop = inDrag && !!boardDropTarget;
+    const isFadingForBoardDrop = inDrag && !!boardDropTarget && !dragMixed;
     // For board-pointing cards, hover-warm the target snapshot so a
     // click opens against an already-fetched cache.
     const hoverPrefetchTarget = c.kind === 'board' ? c.id
@@ -12892,9 +13267,19 @@ export function CanvasSurface({
                                                 ydoc={ydoc} cardYMap={ydoc?.getMap('cards')?.get(c.id) || null}
                                                 currentUser={currentUser} isPublic={isPublic}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
+                                                editRequest={noteEditReq.id === c.id ? noteEditReq.n : 0}
+                                                onDiscardEmpty={canEdit ? () => {
+                                                  if (!cardByIdRef.current[c.id]) return;
+                                                  // Nothing was there, so the delete stays off the undo stack (Yjs then
+                                                  // skips the note's creation step too, which no longer changes anything).
+                                                  if (mutators.deleteCardsSilent) {
+                                                    if (mutators.deleteCardsSilent([c.id])) logEvent(EV.CARD_DELETED, { n: 1, kinds: { note: 1 }, board_id: board.id, via: 'empty_note' });
+                                                  } else mutators.deleteCards?.([c.id], { via: 'empty_note' });
+                                                  setSelected((prev) => { if (!prev.has(c.id)) return prev; const n = new Set(prev); n.delete(c.id); return n; });
+                                                } : undefined}
                                                 tapToType={selectedTool === 'select' && !touchSelecting && selected.size === 1 && selected.has(c.id)}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
-    else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} link={c.link} url={c.url} target={c.target}
+    else if (c.kind === 'link')      inner = <LinkCard noPreview={!!c.noPreview} title={c.title} source={c.source} link={c.link} url={c.url} target={c.target}
                                                        image={c.image} imageKey={c.imageKey} imageKeyOf={c.imageKeyOf}
                                                        w={Math.round(c.w)} h={Math.round(c.h)}
                                                        cardId={c.id} boardId={board.id} backfillEnabled={canEdit}
@@ -13053,7 +13438,7 @@ export function CanvasSurface({
                  : undefined}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
-        {canEdit && selectedTool === 'select' && isSelected && canRotate && !selHandleOut && (
+        {canEdit && selectedTool === 'select' && isSelected && canRotate && !rotateOut && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title={tr`Drag to rotate (shift = 15° steps)`} />
         )}
         {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
@@ -13528,6 +13913,92 @@ export function CanvasSurface({
     setDragOver(false);
     setVersionDropTarget(null);
   };
+  // A picture from the web as an image card: painted from the remote src at
+  // once, moved onto a copy in the workspace's own storage when one lands.
+  // Shared by a URL dragged in from another tab and a pasted picture address.
+  // placeAt(w, h) -> { x, y } is where the card goes at a given size; source
+  // names the gesture on web_image_save. Returns the id, or null when the board
+  // refused the card.
+  const placeRemoteImageAt = (url, placeAt, source = 'drop') => {
+    // Optimistic 320x240 placeholder; patch to natural dims once the
+    // browser has loaded the image (cap at 1200 along longer axis).
+    const id = `image-${Date.now()}`;
+    const fallbackW = 320, fallbackH = 240;
+    // The id, or null when the board refused the card (the cap) — and a
+    // refused card is never copied: the bytes would be stored and billed
+    // for a card that does not exist.
+    const placedAt = placeAt(fallbackW, fallbackH);
+    // The rect the card was created with: cardByIdRef fills on render, which can
+    // come after a cached image's load.
+    const placedRect = { x: placedAt.x, y: placedAt.y, w: fallbackW, h: fallbackH };
+    const placed = mutators.addCard?.({
+      id,
+      kind: 'image', src: url,
+      ...placedAt,
+      w: fallbackW, h: fallbackH,
+    });
+    try {
+      const probe = new Image();
+      probe.onload = () => {
+        let w = probe.naturalWidth, h = probe.naturalHeight;
+        if (!w || !h) return;
+        const MAX_DIM = 1200;
+        const MIN_DIM = 80;
+        if (w > MAX_DIM || h > MAX_DIM) {
+          const k = MAX_DIM / Math.max(w, h);
+          w = Math.round(w * k);
+          h = Math.round(h * k);
+        }
+        if (w < MIN_DIM || h < MIN_DIM) {
+          const k = MIN_DIM / Math.min(w, h);
+          w = Math.round(w * k);
+          h = Math.round(h * k);
+        }
+        // Where the card is NOW: it may have been moved while this loaded, and
+        // the load isn't an edit of its own (no undo step).
+        const cur = cardByIdRef.current[id] || placedRect;
+        mutators.updateCardSilent?.(id, {
+          w, h,
+          x: Math.round(cur.x + (cur.w || w) / 2 - w / 2),
+          y: Math.round(cur.y + (cur.h || h) / 2 - h / 2),
+        });
+      };
+      probe.src = url;
+    } catch (_) {}
+    // The hotlink is only the first paint. A hotlink breaks the day the
+    // page it came from moves, expires a signed link or goes behind a
+    // login, so ask for a copy (worker-media.js) and move the card onto
+    // it when it lands. Silent either way: a failure leaves the card the
+    // hotlink it always was. A board left mid-save keeps the hotlink —
+    // these mutators would write to the wrong board.
+    const dropBoardId = board?.id;
+    if (placed && dropBoardId && !useLocalImages) {
+      saveWebImageCopy({
+        url, boardId: dropBoardId, cardId: id,
+        getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
+      }).then((res) => {
+        try {
+          logEvent(EV.WEB_IMAGE_SAVE, {
+            board_id: dropBoardId, source, ok: !!res?.ok,
+            code: res?.ok ? 'saved' : (res?.code || 'unknown'),
+            bytes: res?.ok ? (res.bytes ?? null) : null,
+          });
+        } catch (_) {}
+        if (!res?.ok || boardIdRef.current !== dropBoardId) return;
+        // Judged as the card is NOW: one re-pointed meanwhile ("Replace
+        // image…", an undo and redo) keeps what it was re-pointed to.
+        const live = (cardsRef.current || []).find((c) => c.id === id);
+        if (!live || live.src !== url) return;
+        // Rehosting isn't an edit: unstamped, like every upload patch.
+        (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
+          src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
+        });
+      });
+    }
+    return placed;
+  };
+  placeRemoteImageRef.current = placeRemoteImageAt;
+
   const handleDrop = async (e) => {
     setDragOver(false);
     setVersionDropTarget(null);
@@ -13576,8 +14047,8 @@ export function CanvasSurface({
             id: `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
             kind: 'link', target: ref,
             title: ref.title || ref.name || ref.kind,
-            x: Math.max(8, Math.round(cx - w / 2)),
-            y: Math.max(8, Math.round(cy - h / 2)),
+            x: Math.round(cx - w / 2),
+            y: Math.round(cy - h / 2),
             w, h,
           });
           return;
@@ -13597,8 +14068,8 @@ export function CanvasSurface({
         id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
         kind: 'boardlink', target: payload.boardId,
         note: payload.pageName ? tr`Doc · ${ph({ pageName: payload.pageName })}` : null,
-        x: Math.max(8, Math.round(cx - w / 2)),
-        y: Math.max(8, Math.round(cy - h / 2)),
+        x: Math.round(cx - w / 2),
+        y: Math.round(cy - h / 2),
         w, h,
       });
       return;
@@ -13648,89 +14119,22 @@ export function CanvasSurface({
       // Two outcomes, decided below: an image card, or the link tile with an OG
       // preview. The image card paints from the remote src at once, and moves
       // onto a copy in the workspace's own storage when one lands.
-      const placeRemoteImage = () => {
-          // Optimistic 320x240 placeholder; patch to natural dims once the
-          // browser has loaded the image (cap at 1200 along longer axis).
-          const id = `image-${Date.now()}`;
-          const fallbackW = 320, fallbackH = 240;
-          // The id, or null when the board refused the card (the cap) — and a
-          // refused card is never copied: the bytes would be stored and billed
-          // for a card that does not exist.
-          const placed = mutators.addCard?.({
-            id,
-            kind: 'image', src: url,
-            x: Math.max(8, Math.round(cx - fallbackW / 2)),
-            y: Math.max(8, Math.round(cy - fallbackH / 2)),
-            w: fallbackW, h: fallbackH,
-          });
-          try {
-            const probe = new Image();
-            probe.onload = () => {
-              let w = probe.naturalWidth, h = probe.naturalHeight;
-              if (!w || !h) return;
-              const MAX_DIM = 1200;
-              const MIN_DIM = 80;
-              if (w > MAX_DIM || h > MAX_DIM) {
-                const k = MAX_DIM / Math.max(w, h);
-                w = Math.round(w * k);
-                h = Math.round(h * k);
-              }
-              if (w < MIN_DIM || h < MIN_DIM) {
-                const k = MIN_DIM / Math.min(w, h);
-                w = Math.round(w * k);
-                h = Math.round(h * k);
-              }
-              mutators.updateCard?.(id, {
-                w, h,
-                x: Math.max(8, Math.round(cx - w / 2)),
-                y: Math.max(8, Math.round(cy - h / 2)),
-              });
-            };
-            probe.src = url;
-          } catch (_) {}
-          // The hotlink is only the first paint. A hotlink breaks the day the
-          // page it came from moves, expires a signed link or goes behind a
-          // login, so ask for a copy (worker-media.js) and move the card onto
-          // it when it lands. Silent either way: a failure leaves the card the
-          // hotlink it always was. A board left mid-save keeps the hotlink —
-          // these mutators would write to the wrong board.
-          const dropBoardId = board?.id;
-          if (placed && dropBoardId && !useLocalImages) {
-            saveWebImageCopy({
-              url, boardId: dropBoardId, cardId: id,
-              getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
-            }).then((res) => {
-              try {
-                logEvent(EV.WEB_IMAGE_SAVE, {
-                  board_id: dropBoardId, source: 'drop', ok: !!res?.ok,
-                  code: res?.ok ? 'saved' : (res?.code || 'unknown'),
-                  bytes: res?.ok ? (res.bytes ?? null) : null,
-                });
-              } catch (_) {}
-              if (!res?.ok || boardIdRef.current !== dropBoardId) return;
-              // Judged as the card is NOW: one re-pointed meanwhile ("Replace
-              // image…", an undo and redo) keeps what it was re-pointed to.
-              const live = (cardsRef.current || []).find((c) => c.id === id);
-              if (!live || live.src !== url) return;
-              // Rehosting isn't an edit: unstamped, like every upload patch.
-              (mutators.updateCardMeta || mutators.updateCardSilent)?.(id, {
-                src: res.src, sourceUrl: url, ...(res.fileName ? { fileName: res.fileName } : {}),
-              });
-            });
-          }
-      };
+      const placeRemoteImage = () => placeRemoteImageAt(url, (w, h) => ({
+        x: Math.round(cx - w / 2),
+        y: Math.round(cy - h / 2),
+      }), 'drop');
       const placeLinkCard = () => {
         const embed = detectEmbed(url);
         const w = embed ? embed.defaultW : 280;
         const h = embed ? embed.defaultH : 130;
-        const newId = `link-${Date.now()}`;
+        const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         let initialTitle = url;
         try { initialTitle = new URL(url.startsWith('http') ? url : `https://${url}`).hostname.replace(/^www\./, ''); } catch (_) {}
         const dropCard = {
           id: newId,
           kind: 'link', source: url, link: url, title: initialTitle,
-          x: Math.max(8, Math.round(cx - w / 2)),
-          y: Math.max(8, Math.round(cy - h / 2)),
+          x: Math.round(cx - w / 2),
+          y: Math.round(cy - h / 2),
           w, h,
         };
         if (embed) dropCard.embed = embed;
@@ -13739,7 +14143,7 @@ export function CanvasSurface({
         fetchLinkPreview(url).then(p => {
           // The live map fills on the next render; until then, the card as dropped.
           const patch = previewPatch(p, cardByIdRef.current[newId] || dropCard, dropCard, { grow: { w: 280, h: 290 } });
-          if (Object.keys(patch).length) mutators.updateCardSilent?.(newId, patch);
+          writeLinkPreview(newId, p, patch);
         });
       };
       if (isImage) { placeRemoteImage(); return; }
@@ -13806,8 +14210,8 @@ export function CanvasSurface({
       if (isCopy || payload.sourceBoardId === board.id) {
         c.id = `${c.kind || 'card'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
       }
-      c.x = Math.max(8, Math.round(cx - (c.w || 100) / 2));
-      c.y = Math.max(8, Math.round(cy - (c.h || 100) / 2));
+      c.x = Math.round(cx - (c.w || 100) / 2);
+      c.y = Math.round(cy - (c.h || 100) / 2);
       // Don't try to "move" board-kind cards across boards — they reference
       // a single postgres board which can't have two parents on one canvas.
       // Just create a boardlink instead.
@@ -13866,8 +14270,8 @@ export function CanvasSurface({
       if (!text) return;
       const card = inboxItemToCard({ kind: 'note', body: text }, 0, 0);
       if (!card) return;
-      card.x = Math.max(8, Math.round(cx - card.w / 2));
-      card.y = Math.max(8, Math.round(cy - card.h / 2));
+      card.x = Math.round(cx - card.w / 2);
+      card.y = Math.round(cy - card.h / 2);
       mutators.addCard?.(card);
       return;
     }
@@ -14119,7 +14523,7 @@ export function CanvasSurface({
           return {
             id: `xlink-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
             kind: 'boardlink', target: c.id,
-            x: Math.max(8, Math.round(baseX)), y: Math.max(8, Math.round(baseY)),
+            x: Math.round(baseX), y: Math.round(baseY),
             w: c.w || 220, h: c.h || 160,
           };
         }
@@ -14129,7 +14533,7 @@ export function CanvasSurface({
         return {
           ...c,
           id: `${c.kind || 'card'}-${stamp}-${i}-${Math.floor(Math.random() * 1e6)}`,
-          x: Math.max(8, Math.round(baseX)), y: Math.max(8, Math.round(baseY)),
+          x: Math.round(baseX), y: Math.round(baseY),
         };
       });
       const res = mutators.addCards?.(newCards, isCopy ? {} : { moveFrom: sourceBoardId });
@@ -14226,6 +14630,8 @@ export function CanvasSurface({
   };
 
   const isPanMode = spaceDown || selectedTool === 'pan';
+  const atZoomMin = zoom <= ZOOM_MIN * ZOOM_LIMIT_EPS;
+  const atZoomMax = zoom >= ZOOM_MAX / ZOOM_LIMIT_EPS;
   const strokesInteractive = selectedTool === 'select';
 
   // Stroke and arrow handles are only live under the select tool, so a
@@ -14349,7 +14755,7 @@ export function CanvasSurface({
     const liveObstacle = (r) => {
       if (mr && mr.has(r.id)) { const lv = mr.get(r.id); return { ...r, x: lv.x, y: lv.y, w: lv.w, h: lv.h }; }
       if (dIds && dIds.has(r.id)) return { ...r, x: r.x + dDx, y: r.y + dDy };
-      if (rz && rz.id === r.id) return { ...r, w: Math.max(MIN_W, r.w + (rz.dw || 0)), h: Math.max(MIN_H, r.h + (rz.dh || 0)) };
+      if (rz && rz.id === r.id) return { ...r, x: r.x + (rz.ox || 0), y: r.y + (rz.oy || 0), w: Math.max(MIN_W, r.w + (rz.dw || 0)), h: Math.max(MIN_H, r.h + (rz.dh || 0)) };
       return r;
     };
     return (arrows || []).map((a, i) => {
@@ -14811,7 +15217,8 @@ export function CanvasSurface({
           const h = Math.max(MIN_H, c.h + (resize?.id === c.id ? (resize.dh || 0) : 0));
           const rot = (rotateState && rotateState.id === c.id ? rotateState.rot : c.rotation) || 0;
           const rad = rot * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
-          const cx = c.x + w / 2, cy = c.y + h / 2;
+          const rzOff = resize?.id === c.id ? resize : null;
+          const cx = c.x + (rzOff?.ox || 0) + w / 2, cy = c.y + (rzOff?.oy || 0) + h / 2;
           const tf = `scale(${1 / zoom})${rot ? ` rotate(${rot}deg)` : ''}`;
           const rotX = cx + sin * h / 2, rotY = cy - cos * h / 2;
           // Not where the ⋯ would cover it (the ⋯ is drawn above the handles).
@@ -14841,6 +15248,28 @@ export function CanvasSurface({
                 </div>
               )}
             </>
+          );
+        })()}
+
+        {/* The one selected card's rotate handle under a mouse or pen, drawn
+            here for the same reason: in the card it sat above the top edge,
+            where the clip cut it away and nothing could press it. The same
+            point as the finger's (top centre, undoing the zoom, turning with
+            the card), with the desktop dot. */}
+        {mouseRotateId && !drag && !multiResize && !marquee && !resize && (() => {
+          const c = cardById[mouseRotateId];
+          if (!c) return null;
+          const rotating = rotateState?.id === c.id;
+          if (c.w * zoom < MOUSE_ROTATE_MIN_PX && !rotating) return null;
+          const rot = (rotating ? rotateState.rot : c.rotation) || 0;
+          const rad = rot * Math.PI / 180;
+          const rotX = c.x + c.w / 2 + Math.sin(rad) * c.h / 2;
+          const rotY = c.y + c.h / 2 - Math.cos(rad) * c.h / 2;
+          return (
+            <div className="sel-handle"
+                 style={{ left: rotX, top: rotY, transform: `scale(${1 / zoom})${rot ? ` rotate(${rot}deg)` : ''}` }}>
+              <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title={tr`Drag to rotate (shift = 15° steps)`} />
+            </div>
           );
         })()}
 
@@ -16172,7 +16601,7 @@ export function CanvasSurface({
         <ShowcaseBanner boardId={board?.id} onClear={async () => {
           const ids = cards.filter(isShowcaseCard).map((c) => c.id);
           if (!ids.length) return;
-          const deleted = await mutators.deleteCards?.(ids); // one undo step (boundary default)
+          const deleted = await mutators.deleteCards?.(ids, { via: 'start_fresh' }); // one undo step (boundary default)
           undoToast(feedback, {
             message: tr`Demo cleared — your canvas is yours`,
             undoManager: mutators.undoManager,
@@ -16189,9 +16618,15 @@ export function CanvasSurface({
             what you were looking at slid away with every click. */}
         {/* − and + are icons, and the slider's track fills up to its knob
             (--zf, toolbarLook.css). */}
-        <button aria-label={tr`Zoom out`} aria-keyshortcuts={ariaKeys('Mod+-')}
-                {...tlTip(tr`Zoom out`, 'Mod+-')}
-                onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>
+        {/* At a limit − or + dims and does nothing, and says why. aria-disabled
+            rather than disabled, so its tooltip still shows and it keeps focus. */}
+        <button aria-label={atZoomMin ? tr`Zoomed out all the way` : tr`Zoom out`} aria-keyshortcuts={ariaKeys('Mod+-')}
+                aria-disabled={atZoomMin ? 'true' : undefined}
+                {...(atZoomMin ? tlTip(tr`Zoomed out all the way`) : tlTip(tr`Zoom out`, 'Mod+-'))}
+                onClick={() => {
+                  if (zoomRef.current <= ZOOM_MIN * ZOOM_LIMIT_EPS) return;
+                  markZooming(); zoomAroundCenter(1 / 1.25);
+                }}>
           <Icon as={Minus} size={18} weight="regular" />
         </button>
         <input
@@ -16230,13 +16665,30 @@ export function CanvasSurface({
               {...tlTip(tr`Click: 100% · Double-click: Full Cluster`, 'Mod+0')}
               aria-label={tr`${ph({ round: Math.round(zoom * 100) })}% — reset to 100%`}
               aria-keyshortcuts={ariaKeys('Mod+0')}
-              onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
-              onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
+              onClick={(e) => {
+                // A double-click's own clicks would ease to 100% and then jump
+                // to fit: the second is ignored and the first waits ~220 ms for
+                // it. A keyboard press (detail 0) acts at once.
+                if (e.detail > 1) return;
+                const go = () => { markZooming(); zoomAroundCenter(1 / zoomRef.current); };
+                if (zoomValClickTimerRef.current) clearTimeout(zoomValClickTimerRef.current);
+                zoomValClickTimerRef.current = 0;
+                if (e.detail === 0) { go(); return; }
+                zoomValClickTimerRef.current = setTimeout(() => { zoomValClickTimerRef.current = 0; go(); }, 220);
+              }}
+              onDoubleClick={() => {
+                if (zoomValClickTimerRef.current) { clearTimeout(zoomValClickTimerRef.current); zoomValClickTimerRef.current = 0; }
+                enableSmoothTransform(); markZooming(); fitToContent();
+              }}>
           {`${Math.round(zoom * 100)}%`}
         </button>
-        <button aria-label={tr`Zoom in`} aria-keyshortcuts={ariaKeys('Mod+=')}
-                {...tlTip(tr`Zoom in`, 'Mod+=')}
-                onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>
+        <button aria-label={atZoomMax ? tr`Zoomed in all the way` : tr`Zoom in`} aria-keyshortcuts={ariaKeys('Mod+=')}
+                aria-disabled={atZoomMax ? 'true' : undefined}
+                {...(atZoomMax ? tlTip(tr`Zoomed in all the way`) : tlTip(tr`Zoom in`, 'Mod+='))}
+                onClick={() => {
+                  if (zoomRef.current >= ZOOM_MAX / ZOOM_LIMIT_EPS) return;
+                  markZooming(); zoomAroundCenter(1.25);
+                }}>
           <Icon as={Plus} size={18} weight="regular" />
         </button>
       </div>
@@ -16574,6 +17026,12 @@ export function CanvasSurface({
         const count = drag?.ids?.length || 0;
         const left = Math.min(window.innerWidth - 240, boardDropHoverPos.x + 18);
         const top  = Math.min(window.innerHeight - 60, boardDropHoverPos.y + 18);
+        if (dragMixed) return (
+          <div className="board-drop-label is-no"
+               style={{ position: 'fixed', left, top, zIndex: 2147483646, pointerEvents: 'none' }}>
+            <span className="board-drop-label-text">{tr`Clusters and files go separately`}<span className="board-drop-label-sub">{tr`Drag the clusters, then the files`}</span></span>
+          </div>
+        );
         return (
           <div className="board-drop-label"
                style={{ position: 'fixed', left, top, zIndex: 2147483646, pointerEvents: 'none' }}>

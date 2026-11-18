@@ -12,6 +12,7 @@
 // this one is the bar's own. On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
 import { noteBar } from './helpers/noteBar.js';
+import { stepUp } from '../src/lib/fontSizeSteps.js';
 
 const note = (page) => page.locator('.canvas-wrap .card[data-card-id="home-note"]');
 const button = (page, name) => noteBar(page).getByRole('button', { name, exact: true });
@@ -187,8 +188,11 @@ test('folded two steps, the size is in the font\'s menu and the background in â‹
   await sizeRow.getByRole('menuitem', { name: 'Increase font size' }).click();
   // The menu stays open to see it change.
   await expect(sizeRow).toBeVisible();
-  await expect.poll(sizeOf).toBe(before + 1);
-  await expect(sizeRow.locator('.nb-size-val')).toHaveText(String(before + 1));
+  // + goes to the next size on the scale (lib/fontSizeSteps.js), not one px up.
+  const next = stepUp(before);
+  expect(next).toBeGreaterThan(before);
+  await expect.poll(sizeOf).toBe(next);
+  await expect(sizeRow.locator('.nb-size-val')).toHaveText(String(next));
   await page.keyboard.press('Escape');
   await expect(page.locator('.nb-font-pop')).toBeHidden();
 
