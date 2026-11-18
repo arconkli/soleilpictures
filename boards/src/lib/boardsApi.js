@@ -1102,11 +1102,21 @@ export async function updateBoardMeta(boardId, patch, opts = {}) {
 // The board's canvas background color, for the thumbnail renderer. The
 // regen path in yboard.js only has a boardId (its handle outlives any board
 // row it was created with), so it re-reads the live value per regen — one
-// tiny indexed select behind an 8s throttle + content-hash gate.
+// tiny indexed select behind a 30s throttle + content-hash gate.
 export async function getBoardBgColor(boardId) {
   const { data, error } = await supabase.from('boards').select('bg_color').eq('id', boardId).maybeSingle();
   if (error) return null;
   return data?.bg_color || null;
+}
+
+// thumb_custom and bg_color in ONE select, for the yboard regen funnel, which
+// needs both at the same moment (isBoardThumbCustom and getBoardBgColor above
+// stay for callers that need one). Any error reads as not custom, no color.
+export async function getBoardThumbState(boardId) {
+  if (!boardId) return { custom: false, bgColor: null };
+  const { data, error } = await supabase.from('boards').select('thumb_custom, bg_color').eq('id', boardId).maybeSingle();
+  if (error) return { custom: false, bgColor: null };
+  return { custom: !!data?.thumb_custom, bgColor: data?.bg_color || null };
 }
 
 // Direct child boards of a parent, with just the fields the thumbnail
@@ -1115,7 +1125,7 @@ export async function getBoardBgColor(boardId) {
 // Returns a boards-shaped map { [childId]: row } so it can be passed straight
 // into renderThumbnailBlob({ boards }). Used by the yboard regen path, which
 // has no in-memory boards map. Empty object on error. One indexed select,
-// gated upstream by the 8s throttle + content-hash dedup.
+// gated upstream by the 30s throttle + content-hash dedup.
 export async function getChildBoardThumbs(parentBoardId) {
   if (!parentBoardId) return {};
   const { data, error } = await supabase
@@ -1160,7 +1170,7 @@ export async function updateBoardCardCount(boardId, cardCount) {
 
 // Authoritative "is this board's thumbnail user-set?" check for the yboard regen
 // funnel (_renderUploadStampThumb), which has only a boardId and no in-memory
-// board row. One indexed PK select behind the same 8s throttle + content-hash
+// board row. One indexed PK select behind the same 30s throttle + content-hash
 // gate as the other per-regen reads. Defaults to false on any error so a
 // transient failure never permanently blocks the auto thumbnail.
 export async function isBoardThumbCustom(boardId) {

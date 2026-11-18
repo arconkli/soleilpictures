@@ -286,6 +286,19 @@ export class BoardRoomState {
     return true;
   }
 
+  // A cold start loads board_state afresh, so of the previous life's baseline
+  // only its unsaved state carries over: that its last save failed, and since
+  // when. That keeps an empty room's retry window (roomWake) counted from the
+  // first failure, not from each new life of the room. Returns whether it
+  // carried anything; a baseline that doesn't validate changes nothing.
+  carryUnsaved(b) {
+    if (!b || typeof b !== 'object' || b.v !== 1 || b.dirty !== true) return false;
+    if (!Number.isFinite(b.dirtySince)) return false;
+    this.dirty = true;
+    this.dirtySince = b.dirtySince;
+    return true;
+  }
+
   // Hand the baseline to onBaseline when it differs from the last one handed
   // over. Never throws: keeping it is best effort and must not stop a save.
   _reportBaseline() {
@@ -353,6 +366,11 @@ export class BoardRoomState {
     if (cur.doc) {
       try {
         Y.applyUpdate(doc, b64ToBytes(cur.doc), MERGE_ORIGIN);
+        // board_state now holds exactly these bytes, so the first flush writes
+        // only when the room's doc encodes differently, which is when the local
+        // copy holds something the row lacks. Equal bytes mean equal docs, so a
+        // skipped write can never lose anything (the same check mergeForeign makes).
+        this.lastFlushedB64 = cur.doc;
       } catch (e) {
         // A row that will not decode is not a reason to stop the room. Leave
         // lastSeen unknown so nothing overwrites it without a fresh read.
@@ -366,8 +384,8 @@ export class BoardRoomState {
   }
 
   // Record that board_state holds exactly `doc` as it is now, so the next
-  // flush can skip writing the same bytes back. Used once, after loadInto,
-  // when the merged doc is byte-identical to the row.
+  // flush can skip writing the same bytes back. loadInto and a flush also
+  // record what they read or wrote; this is for a caller that knows the bytes.
   noteStored(b64) { this.lastFlushedB64 = b64; }
 
   // Persist the room's doc. Serialized: a call while one runs is folded into
@@ -390,6 +408,15 @@ export class BoardRoomState {
       }
     });
     return this.inFlight;
+  }
+
+  // Waits for the running save and the one more pass it may have queued, so an
+  // empty room's alarm ends with its save done instead of re-arming for it;
+  // never throws; gives up after `rounds` passes.
+  async settle(rounds = 3) {
+    for (let i = 0; i < rounds && this.inFlight; i++) {
+      try { await this.inFlight; } catch (_) { /* flush never throws */ }
+    }
   }
 
   async _flushLoop(force) {
@@ -464,7 +491,10 @@ export class BoardRoomState {
   // A failed flush is retried on the room's alarm as well as on the next edit.
   // A board unsaved past UNSAVED_REPORTED_MS is reported, once, from here.
   async retryIfDirty() {
-    if (this.dirty && !this.stopped && !this.pendingForeign) await this.flush({ force: true });
+    // A running save is this retry: a forced pass queued behind it would write
+    // the same doc again once it succeeds (`force` only bypasses the "nothing
+    // changed" skip at the top of _flushOnce, which `dirty` already bypasses).
+    if (this.dirty && !this.stopped && !this.pendingForeign && !this.inFlight) await this.flush({ force: true });
     if (this.dirty && this.dirtySince !== null && !this.reported.unsaved
         && this.clock() - this.dirtySince >= UNSAVED_REPORTED_MS) {
       this.reported.unsaved = true;

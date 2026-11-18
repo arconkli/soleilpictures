@@ -143,7 +143,8 @@ export async function runImageDescribe(env, { limit = 12, concurrency = 4, perOw
 
 // Image cards whose picture is described but whose embedding is missing or
 // stale: a copy placed later, a card renamed after it was described.
-export async function runImageEmbedLane(env, { limit = 40 } = {}) {
+export const IMAGE_EMBED_LANE_LIMIT = 40;
+export async function runImageEmbedLane(env, { limit = IMAGE_EMBED_LANE_LIMIT } = {}) {
   if (!ready(env)) return { skipped: 'unconfigured' };
   const rows = (await rpc(env, '_image_card_embed_due', { p_limit: limit })) || [];
   if (!rows.length) return { due: 0 };

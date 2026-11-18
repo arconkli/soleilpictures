@@ -199,6 +199,7 @@ test('a job that swallows a failure so its run goes on still records it', () => 
       "'r2_mirror', e, 'images'", "'r2_mirror', e, 'batches'", "'r2_mirror', e, 'watermark'"],
     'worker-compaction.js': ["'compaction', e, 'candidates'"],
     'worker-aiwatch.js': ["'ai_watch', e, 'raise'", "'ai_watch', e)", "'ai_digest', e)"],
+    'worker-dbmemory.js': ["'db_memory', e, phase)"],
     'worker-aeo.js': ["'aeo_probe', err, 'questions'", "'aeo_probe', err, 'record'"],
     'worker-seo.js': ["'indexnow', e)"],
     'worker-playCopy.js': ["'play_copies', err, 'tick'"],

@@ -193,40 +193,63 @@ function HabitPanel({ presence, work }) {
   );
 }
 
+// Runs the reads at most `limit` at a time (a poll used to fire fifteen at
+// once, which on 17 Nov 2026 timed reads out on a database short of memory),
+// and settles each the way Promise.allSettled does, in the order given, so a
+// failed one doesn't stop the rest. Each entry is a function that starts its
+// read when called.
+async function settleFewAtATime(reads, limit = 3) {
+  const out = new Array(reads.length);
+  let next = 0;
+  const lane = async () => {
+    while (next < reads.length) {
+      const i = next++;
+      try {
+        out[i] = { status: 'fulfilled', value: await reads[i]() };
+      } catch (reason) {
+        out[i] = { status: 'rejected', reason };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, reads.length) }, lane));
+  return out;
+}
+
 export function RetentionView() {
   const f = useAnalyticsFilters();
 
-  // One wave, not four. The old view's sequencing was incidental — no call
-  // depended on another's result — so it was pure added latency.
+  // No call depends on another's result; they run three at a time so a poll
+  // never lands fifteen heavy reads on the database at once, and the view
+  // still fills in a few rounds rather than fifteen.
   // The five slowest reads here take the server's shared ten-minute result
   // (lib/adminReport.js). `fresh` is the toolbar's refresh button, which
   // computes them again.
   const q = useAdminData(async ({ fresh }) => {
-    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss, bmA, bmB] = await Promise.allSettled([
-      supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      fetchRetentionCurve({ p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+    const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss, bmA, bmB] = await settleFewAtATime([
+      () => supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      () => fetchRetentionCurve({ p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // p_require_work: the old call omitted it, so this panel and the habit
       // curve below disagreed about who counts.
-      supabase.rpc('admin_return_rate', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_require_work: true }),
-      supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: false, p_window_days: 28 }),
-      supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: true, p_window_days: 28 }),
+      () => supabase.rpc('admin_return_rate', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_require_work: true }),
+      () => supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: false, p_window_days: 28 }),
+      () => supabase.rpc('admin_habit_curve', { p_exclude_internal: f.excludeInternal, p_require_work: true, p_window_days: 28 }),
       // Weekly, not daily. The daily version of this (admin_retention_cohorts)
       // is still deployed and still wrong for the job: its counts are distinct
       // per DAY, so seven of them cannot be summed into a week without
       // double-counting anyone who came back twice.
-      supabase.rpc('admin_retention_cohort_matrix', {
+      () => supabase.rpc('admin_retention_cohort_matrix', {
         p_weeks: 13, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly, p_require_work: true,
       }),
       // Deployed since 0250 and never once called from the client.
-      supabase.rpc('admin_session_depth', { p_days: 84, p_exclude_internal: f.excludeInternal }),
+      () => supabase.rpc('admin_session_depth', { p_days: 84, p_exclude_internal: f.excludeInternal }),
       // The visit-indexed pair (0279). Deliberately NOT filtered by f.days:
       // both are cohort reads over the whole post-waitlist history, and slicing
       // them to a trailing window would shrink the denominator without
       // answering a different question. p_require_work is left at its default
       // FALSE — see the migration header, the pooled work-gated version spans
       // the did_work epoch and reads as churn.
-      supabase.rpc('admin_survival_curve', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_return_gap', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      () => supabase.rpc('admin_survival_curve', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      () => supabase.rpc('admin_return_gap', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // Fixed horizon (0322): did the second visit begin within seven days of
       // the first, for every first visit at least seven days old. Split by
       // device, first source, day-one depth and signup week. This is the read
@@ -235,27 +258,27 @@ export function RetentionView() {
       // Same cohort as the built read beside it (first visits since 2026-08-17,
       // the usage_session epoch), so the gap between the two panels is glances,
       // not a different set of people.
-      adminReport(supabase, 'admin_return_fixed_horizon', { p_since: '2026-08-17', p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
+      () => adminReport(supabase, 'admin_return_fixed_horizon', { p_since: '2026-08-17', p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
       // Only to size the intake for the power note — how long a change would
       // take to become readable depends on how fast people arrive.
       // Under "Internal: excluded" the intake leaves the team out too (0460
       // gave this RPC the parameter); it used to size the note on everyone.
-      supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly, p_exclude_internal: f.excludeInternal }),
+      () => supabase.rpc('admin_signups_by_day', { p_days: 28, p_verified_only: f.verifiedOnly, p_exclude_internal: f.excludeInternal }),
       // 0361. The same fixed horizon, but only a later visit that MADE something
       // counts — about half of the any-visit returners came back to look for a
       // few seconds, and a change that produces glances must not grade as a win.
-      adminReport(supabase, 'admin_built_return', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
+      () => adminReport(supabase, 'admin_built_return', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
       // 0361. A same-day second sitting: the day-one marker of returning that
       // can be read the day after a signup instead of eight days after.
-      adminReport(supabase, 'admin_second_sitting', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
+      () => adminReport(supabase, 'admin_second_sitting', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
       // 0365. The same fixed horizon split by how the day-one material ARRIVED:
       // placed by hand, card by card, or landed in a burst (a folder drop, a
       // multi-file pick, an import). Hand-placed boards come back and bursts do
       // not, at every depth — the cut that explained what day-one breadth and
       // "stuck" only seemed to. Any-visit and built, so the glance gap stays
       // visible here too.
-      adminReport(supabase, 'admin_return_by_mode', { p_horizon_days: 7, p_measure: 'any', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
-      adminReport(supabase, 'admin_return_by_mode', { p_horizon_days: 7, p_measure: 'built', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
+      () => adminReport(supabase, 'admin_return_by_mode', { p_horizon_days: 7, p_measure: 'any', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
+      () => adminReport(supabase, 'admin_return_by_mode', { p_horizon_days: 7, p_measure: 'built', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;

@@ -15,6 +15,18 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const BOARD = '0b6b3c1e-5b4f-4d0e-9a51-6f2d1c7a9e10';
 const q = (s) => publicBundleQuery(new URLSearchParams(s));
 
+test('a /c/ page starts its content and page reads with the meta read, not after it', () => {
+  const worker = read('../worker.js');
+  const line = (name) => worker.split('\n').find((l) => l.includes(`const ${name} =`));
+  for (const name of ['pubContentPromise', 'pubPagePromise']) {
+    assert.ok(line(name), name);
+    assert.ok(!line(name).includes('pubMetaPromise'), `${name} must not wait on pubMetaPromise`);
+  }
+  assert.ok(!/pubMetaPromise\.then\(/.test(worker), 'nothing chains on pubMetaPromise.then(');
+  // The not-found answer is still matched on the body's code, not the status.
+  assert.match(worker, /text\.includes\('"P0002"'\)\) return PUB_NOT_FOUND/);
+});
+
 test('the query is the slug, and the board id only when it is one', () => {
   assert.deepEqual(q('slug=film-noir-look-book'), { slug: 'film-noir-look-book' });
   assert.deepEqual(q(`slug=film-noir-look-book&b=${BOARD}`), { slug: 'film-noir-look-book', boardId: BOARD });

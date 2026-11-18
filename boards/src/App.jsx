@@ -755,12 +755,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
   // section in the sidebar reads from the same source.
+  const memberWorkspaceIds = useMemo(() => new Set((workspaces || []).map((w) => w?.id).filter(Boolean)), [workspaces]);
   const {
     shared: sharedBoards, loaded: sharedLoaded, refresh: refreshSharedBoards,
     meta: sharedMeta, metaLoaded: sharedMetaLoaded, patchMeta: patchSharedMeta,
     refreshMeta: refreshSharedMeta, settleMeta: settleSharedMeta,
     byYou: sharedByYou, byYouLoaded: sharedByYouLoaded, refreshByYou: refreshSharedByYou,
-  } = useSharedBoards(user.id);
+  } = useSharedBoards(user.id, memberWorkspaceIds);
   // Anything that decides a board id is GONE (the stack and split prunes, the
   // recents prune) must wait for both lists: the shared ones arrive by a
   // separate RPC, and pruning before it lands threw a reload inside a shared

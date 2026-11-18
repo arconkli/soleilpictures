@@ -7,6 +7,8 @@ import {
   MERGE_ORIGIN, WRITER_HEADER, WRITER_NAME,
 } from './boardRoomState.js';
 import { bytesToB64, b64ToBytes } from './boardStateSync.js';
+import { nextAlarmIn, ACTIVE_ALARM_MS } from './roomWake.js';
+import { roomGcFilter } from './roomGc.js';
 
 const BOARD = '11111111-2222-3333-4444-555555555555';
 const URL0 = 'https://example.supabase.co';
@@ -657,4 +659,247 @@ test('without the baseline the restore is adopted as the starting point, which i
   assert.equal(resets, 0);
   assert.equal(woken.versionBaseline, 5);                              // adopted the restore's marker
   assert.deepEqual(cardsOf(table.rows.get(BOARD).doc), { a: '1', b: '2' });   // old board merged back
+});
+
+// ---- a cold start exactly as party/board.ts does it ----
+
+// A realistic history: cards as Y.Maps with Y.Text bodies, edits, a text
+// deletion and a card deletion. `updates` is what a local log would hold. The
+// source is a room-style doc (the row was written by a room), because a doc
+// that collects everything encodes differently from one that keeps deleted cards.
+function history() {
+  const src = new Y.Doc({ gcFilter: roomGcFilter });
+  const updates = [];
+  src.on('update', (u) => updates.push(u));
+  const cards = src.getMap('cards');
+  for (const id of ['a', 'b', 'c', 'd']) {
+    const card = new Y.Map();
+    const body = new Y.Text();
+    card.set('title', `card ${id}`);
+    card.set('body', body);
+    cards.set(id, card);
+    body.insert(0, `hello from ${id}, with some words`);
+  }
+  cards.get('a').get('body').insert(5, ' there');
+  cards.get('b').get('body').delete(0, 6);
+  cards.delete('c');
+  return { src, updates };
+}
+
+const encode = (d) => bytesToB64(Y.encodeStateAsUpdate(d));
+
+// onLoad's doc, loadInto, then the room's document built from onLoad's result.
+async function coldStart(table, localUpdates) {
+  const onLoadDoc = new Y.Doc({ gcFilter: roomGcFilter });
+  for (const u of localUpdates) Y.applyUpdate(onLoadDoc, u);
+  const document = { current: null };
+  const s = room(table, fakeTimers(), document);
+  assert.equal(await s.loadInto(onLoadDoc), true);
+  const d = new Y.Doc({ gcFilter: roomGcFilter });
+  d.gc = true;
+  Y.applyUpdate(d, Y.encodeStateAsUpdate(onLoadDoc));
+  document.current = d;
+  return { s, d };
+}
+
+const storedRow = (table, src) => table.blind(BOARD, src);
+const cardIds = (b64) => {
+  const d = new Y.Doc(); Y.applyUpdate(d, b64ToBytes(b64));
+  return [...d.getMap('cards').keys()].sort();
+};
+
+test('cold start: a local log equal to the row makes no write, twice', async () => {
+  const table = fakeTable();
+  const { src, updates } = history();
+  storedRow(table, src);
+  for (let i = 0; i < 2; i++) {
+    const { s } = await coldStart(table, updates);
+    assert.equal(await s.flush(), false);
+  }
+  assert.equal(table.writes().length, 0);
+});
+
+test('cold start: an extra unsaved card is written once', async () => {
+  const table = fakeTable();
+  const { src, updates } = history();
+  storedRow(table, src);
+  const local = new Y.Doc();
+  for (const u of updates) Y.applyUpdate(local, u);
+  const extra = [];
+  local.on('update', (u) => extra.push(u));
+  const card = new Y.Map(); card.set('title', 'new one');
+  local.getMap('cards').set('z', card);
+  const { s } = await coldStart(table, [...updates, ...extra]);
+  await s.flush();
+  assert.equal(table.writes().length, 1);
+  assert.ok(cardIds(table.rows.get(BOARD).doc).includes('z'));
+});
+
+test('cold start: an unsaved card deletion is written once', async () => {
+  const table = fakeTable();
+  const { src, updates } = history();
+  storedRow(table, src);
+  const local = new Y.Doc();
+  for (const u of updates) Y.applyUpdate(local, u);
+  const extra = [];
+  local.on('update', (u) => extra.push(u));
+  local.getMap('cards').delete('d');
+  const { s } = await coldStart(table, [...updates, ...extra]);
+  await s.flush();
+  assert.equal(table.writes().length, 1);
+  assert.ok(!cardIds(table.rows.get(BOARD).doc).includes('d'));
+});
+
+test('cold start: an unsaved text deletion inside a live card is written once', async () => {
+  const table = fakeTable();
+  const { src, updates } = history();
+  storedRow(table, src);
+  const local = new Y.Doc();
+  for (const u of updates) Y.applyUpdate(local, u);
+  const extra = [];
+  local.on('update', (u) => extra.push(u));
+  local.getMap('cards').get('d').get('body').delete(0, 5);
+  const { s } = await coldStart(table, [...updates, ...extra]);
+  await s.flush();
+  assert.equal(table.writes().length, 1);
+});
+
+test('cold start: a row ahead of the local log makes no write', async () => {
+  const table = fakeTable();
+  const { src, updates } = history();
+  const card = new Y.Map(); card.set('title', 'written elsewhere');
+  src.getMap('cards').set('elsewhere', card);
+  storedRow(table, src);
+  const { s } = await coldStart(table, updates);
+  assert.equal(await s.flush(), false);
+  assert.equal(table.writes().length, 0);
+});
+
+test('settle: waits for a running flush, returns at once when idle, never rejects', async () => {
+  const table = fakeTable();
+  const { src } = history();
+  storedRow(table, src);
+  const doc = { current: new Y.Doc() };
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const slow = (url, init) => (init?.method === 'PATCH' ? gate.then(() => table.fetchImpl(url, init)) : table.fetchImpl(url, init));
+  const s = room(table, fakeTimers(), doc, { fetchImpl: slow });
+  await s.loadInto(doc.current);
+  await s.settle();   // nothing in flight
+  doc.current.getMap('cards').set('n', 'x');
+  const f = s.flush();
+  let done = false;
+  const w = s.settle().then(() => { done = true; });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(done, false);
+  release();
+  await w;
+  assert.equal(done, true);
+  assert.equal(s.inFlight, null);
+  await f;
+
+  s.inFlight = Promise.reject(new Error('x'));
+  s.inFlight.catch(() => {});
+  await assert.doesNotReject(s.settle());
+  // gives up after `rounds` passes
+  let awaited = 0;
+  s.inFlight = { then(res) { awaited++; res(); } };
+  await s.settle(2);
+  assert.equal(awaited, 2);
+});
+
+test('carryUnsaved takes only an unsaved baseline, and nothing else from it', () => {
+  const table = fakeTable();
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const valid = { v: 1, seen: { at: 'x' }, version: { n: 3 }, dirty: true, dirtySince: 1234, failures: 5 };
+  for (const bad of [null, undefined, 'x', { ...valid, v: 2 }, { ...valid, dirty: false },
+    { ...valid, dirtySince: null }, { ...valid, dirtySince: NaN }, { ...valid, dirtySince: 'a' }]) {
+    const s = room(table, fakeTimers(), doc);
+    assert.equal(s.carryUnsaved(bad), false);
+    assert.equal(s.dirty, false);
+    assert.equal(s.dirtySince, null);
+  }
+  const s = room(table, fakeTimers(), doc);
+  assert.equal(s.carryUnsaved(valid), true);
+  assert.equal(s.dirty, true);
+  assert.equal(s.dirtySince, 1234);
+  assert.equal(s.failures, 0);
+  assert.equal(s.lastSeen, undefined);
+  assert.equal(s.versionBaseline, undefined);
+  assert.equal(s.lastFlushedB64, null);
+});
+
+test('an empty room\'s retry window survives a cold start: its alarm ends 15 minutes after the first failure', async () => {
+  const t0 = Date.parse('2026-11-17T10:00:00.000Z');
+  let t = t0;
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc1 = { current: new Y.Doc({ gc: false }) };
+  const seen1 = [];
+  const life1 = room(table, fakeTimers(), doc1, { clock: () => t, onBaseline: (b) => seen1.push(b) });
+  await life1.loadInto(doc1.current);
+  doc1.current.getMap('cards').set('b', '2');
+  table.failNext(1);
+  assert.equal(await life1.flush(), false);
+  const b1 = seen1.at(-1);
+  assert.equal(b1.dirty, true);
+  assert.equal(b1.dirtySince, t0);
+
+  t = t0 + 60_000;
+  const doc2 = { current: new Y.Doc({ gc: false }) };
+  doc2.current.getMap('cards').set('b', '2');
+  const seen2 = [];
+  const life2 = room(table, fakeTimers(), doc2, { clock: () => t, onBaseline: (b) => seen2.push(b) });
+  assert.equal(life2.carryUnsaved(b1), true);
+  await life2.loadInto(doc2.current);
+  table.failNext(1);
+  assert.equal(await life2.flush(), false);
+  assert.equal(life2.dirtySince, t0, 'not restarted by the new life');
+  assert.equal((seen2.at(-1) || life2.baseline()).dirtySince, t0);
+
+  const alarm = (now) => nextAlarmIn({ now, sockets: 0, lastActivityAt: t0, dirty: life2.dirty, dirtySince: life2.dirtySince });
+  assert.equal(alarm(t0 + 14 * 60_000), ACTIVE_ALARM_MS);
+  assert.equal(alarm(t0 + 15 * 60_000 + 1000), null);
+});
+
+test('a carried unsaved room that saves ends clean', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const s = room(table, fakeTimers(), doc);
+  s.carryUnsaved({ v: 1, dirty: true, dirtySince: 1000 });
+  await s.loadInto(doc.current);
+  doc.current.getMap('cards').set('b', '2');
+  assert.equal(await s.flush(), true);
+  assert.equal(s.dirty, false);
+  assert.equal(s.dirtySince, null);
+});
+
+test('retryIfDirty while a save is running queues no second write', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  let hold = false;
+  const fetchImpl = async (url, init = {}) => {
+    if (hold && init.method === 'PATCH') await gate;
+    return table.fetchImpl(url, init);
+  };
+  const s = room(table, fakeTimers(), doc, { fetchImpl });
+  await s.loadInto(doc.current);
+  doc.current.getMap('cards').set('b', '2');
+  table.failNext(1);
+  assert.equal(await s.flush(), false);
+  assert.equal(s.dirty, true);
+  const before = table.writes().length;
+  hold = true;
+  const running = s.flush();
+  await new Promise((r) => setTimeout(r, 0));
+  const retry = s.retryIfDirty();
+  release();
+  await running;
+  await retry;
+  assert.equal(table.writes().length - before, 1, 'exactly one PATCH');
+  assert.equal(s.dirty, false);
 });

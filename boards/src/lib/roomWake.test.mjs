@@ -56,6 +56,15 @@ test('nextAlarmIn: an empty room stops retrying a failed save after 15 minutes',
   assert.equal(nextAlarmIn({ now, sockets: 0, lastActivityAt: now - EMPTY_RETRY_FOR_MS, dirty: true, dirtySince: now - 20 * 60_000 }), null);
 });
 
+test('nextAlarmIn: work still running in an empty room re-arms only within the retry window', () => {
+  const now = 10_000_000;
+  assert.equal(nextAlarmIn({ now, sockets: 0, lastActivityAt: now - EMPTY_RETRY_FOR_MS + 1, dirty: false, busy: true }), ACTIVE_ALARM_MS);
+  assert.equal(nextAlarmIn({ now, sockets: 0, lastActivityAt: now - EMPTY_RETRY_FOR_MS, dirty: false, busy: true }), null);
+  assert.equal(nextAlarmIn({ now, sockets: 0, lastActivityAt: undefined, dirty: false, busy: true }), null);
+  assert.equal(nextAlarmIn({ now, sockets: 0, lastActivityAt: 0, dirty: false, busy: true }), null);
+  assert.equal(nextAlarmIn({ now, sockets: 0, lastActivityAt: now - 1, dirty: false, busy: false }), null);
+});
+
 test('lastHeardAt takes the largest usable time, numbers or Dates', () => {
   assert.equal(lastHeardAt(), 0);
   assert.equal(lastHeardAt(null, undefined, NaN, '5000', -3, 0), 0);
