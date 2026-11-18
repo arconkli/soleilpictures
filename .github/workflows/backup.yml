@@ -353,6 +353,12 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.B2_DB_BACKUP_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_DB_BACKUP_APP_KEY }}
           AWS_DEFAULT_REGION: us-east-005
+          # Unlike R2, B2 needs a checksum here: on a bucket with a retention
+          # lock it refuses a single-request upload that carries neither
+          # Content-MD5 nor x-amz-checksum-* (400 InvalidRequest), which is what
+          # the job's when_required sends for the small schema file. B2 accepts
+          # aws-cli's default checksums on single and multipart uploads alike.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_supported
         run: |
           set -euo pipefail
           if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
