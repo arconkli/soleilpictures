@@ -201,7 +201,13 @@ export const CEILINGS = {
   // .cand-pop-*) left styles.css. CI-style builds read 98,603 B on main
   // 0b2d33f9 and 91,686 B with it; the ceiling moves by the difference,
   // 6,917 B, rounded up.
-  entryCss: 91_800,
+  // 2026-11-18: +0.2 KB for the most-used tools (styles.css): the wheel tip's
+  // Zoom with the wheel button and its Undo, a link card's loading and no
+  // preview lines, zoom − and + dimmed at their limits, and the top bar's
+  // cluster name as a menu button. CI-style builds read 91,686 B on main
+  // 7f140d69 and 91,854 B with it (1742d30e); the ceiling moves by the
+  // difference, 168 B, rounded up.
+  entryCss: 92_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -564,7 +570,15 @@ export const CEILINGS = {
   // useSidebarFiles.js) and the cover's last redraw (lib/yboard.js).
   // CI-style builds read 803,767 B on main 02a5a753 and 804,634 B with it;
   // the ceiling moves by the difference, 867 B, rounded up.
-  appJs: 804_800,
+  // 2026-11-18: +4.9 KB for the most-used tools (1742d30e): tap-then-drag on
+  // touch, click or Enter to type in a note, the empty new note that goes
+  // away off the undo stack, the wheel tip's switch (lib/wheelMode.js), text
+  // size steps (lib/fontSizeSteps.js), rotated resize (lib/rotatedResize.js),
+  // a pasted picture address making a picture, link preview states, and the
+  // top bar's cluster menu (CanvasSurface.jsx, cards.jsx, App.jsx). CI-style
+  // builds read 804.6 KB on main 7f140d69 and 809,497 B with it; main's CI
+  // went red on it. The ceiling moves by 4,863 B, rounded up.
+  appJs: 809_700,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
