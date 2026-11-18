@@ -5,19 +5,26 @@
 // the doc stays open once the second tap's click lands; one tap only selects.
 //
 // On the real canvas, through ?local=1&richdocs=1 (the doc tool's cards get the
-// doc store App gives them), placed with the rail's doc tool, which every
-// device shows.
+// doc store App gives them), placed with the rail's doc tool on a sideways
+// iPad, and with the empty panel's Doc tile on the phone's shell, which has no
+// rail.
 import { expect, test } from '@playwright/test';
 import { emptyCanvasPoint, tap } from './helpers.js';
 
 const docCards = (page) => page.locator('.cards-layer .card.card-kind-doc');
 const openDoc = (page) => page.locator('.doc-card-modal');
+// The phone's shell (phones, an upright iPad): a touch screen up to 1024px wide.
+const mobileShell = (page) => page.viewportSize().width <= 1024;
 
 async function placeDoc(page) {
   await page.goto('/?local=1&reset=1&blank=1&richdocs=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
-  await page.getByRole('button', { name: 'Add doc tool' }).tap();
-  await tap(page, await emptyCanvasPoint(page));
+  if (mobileShell(page)) {
+    await page.locator('.cnv-empty-tile').filter({ has: page.locator('.cnv-empty-tile-lbl', { hasText: /^Doc$/ }) }).tap();
+  } else {
+    await page.getByRole('button', { name: 'Add doc tool' }).tap();
+    await tap(page, await emptyCanvasPoint(page));
+  }
   await expect(docCards(page)).toHaveCount(1);
   // A doc just added opens, its title ready to name (doc-start-touch.spec.js):
   // Enter goes on to the body, and closing it leaves the card closed, and

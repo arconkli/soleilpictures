@@ -5,7 +5,7 @@ h1: Shapes and drawing
 navLabel: Shapes and drawing
 section: canvas
 order: 4
-updated: 2026-11-17
+updated: 2026-11-18
 answer: Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.
 faq:
   - q: What is the difference between free-draw and an art canvas?
@@ -27,8 +27,10 @@ situations.
 
 ## Free-draw
 
-Press `D`. On a phone or tablet the draw tool is on the rail itself, and in the
-add sheet. Draw anywhere — over cards, between them, across the whole board.
+Press `D`. On an iPad held sideways the draw tool is on the rail itself, and in
+the add sheet. On a phone or an upright iPad a cluster has no rail, so it is in
+the add sheet, behind the **+** at the bottom of the board. Draw anywhere — over
+cards, between them, across the whole board.
 
 Strokes live on the board's own drawing layer. They do **not** attach to a card,
 so moving a card does not drag your annotation with it. This is the right

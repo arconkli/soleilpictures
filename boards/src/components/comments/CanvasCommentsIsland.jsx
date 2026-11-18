@@ -1,4 +1,5 @@
 import { useMemo, useRef, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../Icon.jsx';
 import { MessageCircle, MessageCircleOff } from '../../lib/icons.js';
 import { tlTip } from '../../lib/looks.js';
@@ -22,10 +23,13 @@ import { t as tr } from '@lingui/core/macro';
 //   visible, onVisibleChange(bool)   my "Show comments on the canvas" switch
 //   onGoTo(anchor)   bring a conversation's place into view
 //   sheet            on a phone: the list is a sheet from the bottom
+//   slot             the top bar's element for the button on a phone or upright
+//                    iPad (App.jsx .tb-comments-slot): the button is drawn there
+//                    as a top-bar icon (.is-in-bar) instead of over the canvas
 //   failed           the comments could not be fetched, after every try: the list says so
 export function CanvasCommentsIsland({
   comments, currentUser, viewsByRootId, ui, cards, groupBox, groupById, boards, boardId, workspaceId,
-  visible = true, onVisibleChange, onGoTo, sheet = false, failed = false,
+  visible = true, onVisibleChange, onGoTo, sheet = false, slot = null, failed = false,
 }) {
   const listOpen = useSyncExternalStore(ui.subscribe, () => !!ui.get().listOpen);
   const btnRef = useRef(null);
@@ -39,10 +43,9 @@ export function CanvasCommentsIsland({
   const open = openCount;
   const label = openCommentsLabel(open, unread);
 
-  return (
-    <>
+  const button = (
       <button ref={btnRef} type="button"
-              className={`cnv-comments-eye${visible ? '' : ' is-muted'}${listOpen ? ' is-on' : ''}`}
+              className={`cnv-comments-eye${slot ? ' tb-icon is-in-bar' : ''}${visible ? '' : ' is-muted'}${listOpen ? ' is-on' : ''}`}
               {...(listOpen ? {} : tlTip(tr`Comments`))}
               aria-label={label}
               aria-haspopup="dialog"
@@ -51,10 +54,15 @@ export function CanvasCommentsIsland({
               onFocus={preloadCommentParts}
               onPointerDown={(e) => { e.stopPropagation(); preloadCommentParts(); }}
               onClick={() => ui.set({ listOpen: !listOpen, hoverId: null })}>
-        <Icon as={visible ? MessageCircle : MessageCircleOff} size={16} weight="regular" />
-        {openCount > 0 && <span className="cnv-comments-eye-count">{openCount}</span>}
+        <Icon as={visible ? MessageCircle : MessageCircleOff} size={16} weight={slot ? undefined : 'regular'} />
+        {openCount > 0 && !slot && <span className="cnv-comments-eye-count">{openCount}</span>}
         {unread && <span className="cnv-comments-eye-dot" aria-hidden="true" />}
       </button>
+  );
+
+  return (
+    <>
+      {slot ? createPortal(button, slot) : button}
       {listOpen && (
         <CanvasCommentsList
           ui={ui} btnRef={btnRef}

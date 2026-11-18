@@ -40,18 +40,31 @@ test('the Upgrade chip steps aside while a full-screen overlay is open', async (
 // VIS-08: the note bar's keyboard lift wrote `bottom: 8px` inline even with
 // no keyboard up, beating the stylesheet's nav clearance and parking the bar
 // behind the fixed bottom nav.
+//
+// A phone has no tool rail, so the empty board's Note tile adds the note,
+// already open for typing. While a note is typed in, the nav steps down out
+// of the way and the bar rests on the screen's bottom edge; either way the
+// bar must not lie behind the nav.
 test('the note formatting bar clears the phone bottom nav with no keyboard up', async ({ page }) => {
   await boot(page, { width: 390, height: 844 });
   await expect(page.locator('.canvas-wrap')).toBeVisible();
-  await page.getByRole('button', { name: 'Add note tool', exact: true }).click();
-  await page.locator('.canvas-wrap').click({ position: { x: 195, y: 300 } });
+  await page
+    .locator('.cnv-empty-tile')
+    .filter({ has: page.locator('.cnv-empty-tile-lbl', { hasText: /^Note$/ }) })
+    .click();
   await page.locator('.note-body[contenteditable="true"]').waitFor();
   const bar = page.locator('.tob').first();
   await expect(bar).toBeVisible();
-  const nav = await page.locator('.mb-nav').boundingBox();
-  const box = await bar.boundingBox();
-  expect(nav, 'the bottom nav must be laid out').not.toBeNull();
-  expect(box.y + box.height, 'the bar must sit above the bottom nav').toBeLessThanOrEqual(nav.y);
+  // The nav is sliding away when this is first read, so poll until the bar's
+  // bottom edge is at or above the nav's top.
+  await expect
+    .poll(async () => {
+      const nav = await page.locator('.mb-nav').boundingBox();
+      const box = await bar.boundingBox();
+      if (!nav || !box) return false;
+      return box.y + box.height <= nav.y + 0.5;
+    }, { message: 'the bar must sit above the bottom nav' })
+    .toBe(true);
   // The keyboard lift measures from the viewport, so the bar must be fixed
   // to it — the grain layering block's `position: absolute` used to win.
   expect(await bar.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');

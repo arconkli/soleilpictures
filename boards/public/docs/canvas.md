@@ -2,7 +2,7 @@
 
 > A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-11-17_
+_Source: https://clusters.soleilpictures.com/docs/canvas · Updated 2026-11-18_
 
 The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface —
 position means something here, which is the whole point. Two images side by side
@@ -63,6 +63,11 @@ The **+** at the top of the rail opens the rest, grouped:
 - *Tools* — Draw (`D`), Shape, Palette
 - *Create* — File, Folder (on a desktop browser), Link, Linked cluster
 - *Annotate* — Comment, Vote
+
+On a phone or an upright iPad there is no rail inside a cluster. One **+** at
+the bottom of the board opens a sheet with everything above that adds
+something, Arrow, Comment and Vote included. See
+[Mobile and tablet](/docs/account/mobile#layout-differences).
 
 ## Right-click
 

@@ -67,7 +67,7 @@ const LISTS = [
 // name's case: the app's own face is "aileron" there.
 const fontName = (family) => (/[A-Z]/.test(family) ? family : family.replace(/(^|[\s-])\w/g, (c) => c.toUpperCase()));
 
-export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, fore, balanced, bg, cellPinned, paletteColors, act }) {
+export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, fore, balanced, bg, cellPinned, paletteColors, act, docked = false }) {
   const { isPhone, isTouch } = useBreakpoint();
   const input = isPhone ? 'phone' : isTouch ? 'touch' : 'desktop';
   const [fontsOpen, setFontsOpen] = useState(false);
@@ -257,6 +257,8 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
 
   const cls = ['tob', 'tob-a', 'nb-a', `is-${input === 'desktop' ? 'desk' : input}`];
   if (tight) cls.push('is-tight');
+  // Writing mode on the mobile shell: a flat row on the keyboard (styles.css).
+  if (docked) cls.push('is-docked');
   return (
     <IconWeightContext.Provider value="regular">
       <div ref={barRef} className={cls.join(' ')} role="toolbar" aria-label={label}

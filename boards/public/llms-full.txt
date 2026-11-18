@@ -83,7 +83,7 @@ A: The changelog at /changelog lists every user-visible change, newest first, on
 ========================================================================
 # Getting started
 URL: https://clusters.soleilpictures.com/docs/getting-started
-Updated: 2026-11-15
+Updated: 2026-11-18
 
 Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 25 cards and up to 10 people who edit.
 
@@ -121,6 +121,8 @@ Everything else lives in two places:
 
 The tool rail down the left edge — select, pan, image, note, doc, cluster, grid, arrow.
 Right-click the canvas — quick buttons for note, picture, cluster, doc and link, an Add › menu, plus paste, select all, background and export.
+
+On a phone there is no rail: one + at the bottom of the board adds everything. See Mobile and tablet.
 
 A few things worth knowing on day one:
 
@@ -620,7 +622,7 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 ========================================================================
 # The canvas
 URL: https://clusters.soleilpictures.com/docs/canvas
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.
 
@@ -663,6 +665,8 @@ The + at the top of the rail opens the rest, grouped:
 Tools — Draw (D), Shape, Palette
 Create — File, Folder (on a desktop browser), Link, Linked cluster
 Annotate — Comment, Vote
+
+On a phone or an upright iPad there is no rail inside a cluster. One + at the bottom of the board opens a sheet with everything above that adds something, Arrow, Comment and Vote included. See Mobile and tablet.
 
 Right-click
 
@@ -717,7 +721,7 @@ Q: Can I change the background?
 A: Yes. Right-click the canvas, choose Background and pick a colour — seven presets plus a custom picker. The setting is per cluster.
 
 Q: Does the canvas work on a tablet?
-A: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger.
+A: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. On an iPad held sideways the tool rail adapts; on a phone or an upright iPad one + at the bottom of the board takes its place. Drawing works with a stylus or a finger.
 
 
 ========================================================================
@@ -940,7 +944,7 @@ A: Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) a
 ========================================================================
 # Notes
 URL: https://clusters.soleilpictures.com/docs/canvas/notes
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 
@@ -953,6 +957,8 @@ Writing
 Double-click a note to start editing; the caret lands where you clicked. A click does the same on a note that is already the one selected card, as long as you don't drag it. With one note selected, Enter starts typing with the caret at the end. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up.
 
 Click or tap away — or press Esc — to finish. Your edits are shared live with collaborators as you type, so there is no separate "cancel". A new note you never typed in goes away when you click off it, with no undo toast, since there was nothing in it. ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it. Right after a colour, font, size or Center in the box from the toolbar, ⌘Z takes that back first.
+
+On a phone or an upright iPad, the formatting row rests right on top of the keyboard while you type, and Done in the top bar, or a tap on the board, finishes and puts the keyboard away. See Mobile and tablet.
 
 Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and Tx — clear formatting (⌘\), which strips the selection back to the note's own font and size while keeping links and comments. ⌥F10 (Alt+F10 on Windows) takes you from the note's text to that toolbar, and Esc brings you back.
 
@@ -1021,7 +1027,7 @@ A: Drag its corner. Notes also grow downward on their own as you type past the b
 ========================================================================
 # Shapes and drawing
 URL: https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.
 
@@ -1029,7 +1035,7 @@ Four different things that all involve making marks, for four different situatio
 
 Free-draw
 
-Press D. On a phone or tablet the draw tool is on the rail itself, and in the add sheet. Draw anywhere — over cards, between them, across the whole board.
+Press D. On an iPad held sideways the draw tool is on the rail itself, and in the add sheet. On a phone or an upright iPad a cluster has no rail, so it is in the add sheet, behind the + at the bottom of the board. Draw anywhere — over cards, between them, across the whole board.
 
 Strokes live on the board's own drawing layer. They do not attach to a card, so moving a card does not drag your annotation with it. This is the right behaviour for circling three images and writing "these" beside them, and the wrong behaviour if you wanted the mark to belong to one image — use an art canvas for that.
 
@@ -1139,7 +1145,7 @@ A: Yes. Switch the draw tool to Lasso and circle them. A stroke is taken when mo
 ========================================================================
 # Arrows
 URL: https://clusters.soleilpictures.com/docs/canvas/arrows
-Updated: 2026-10-25
+Updated: 2026-11-18
 
 Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.
 
@@ -1147,7 +1153,7 @@ Arrows are for showing relationships: this shot follows that one, this reference
 
 Drawing one
 
-Press A, then drag from the source to the target.
+Press A, then drag from the source to the target. On a phone or an upright iPad, choose Arrow in the sheet the + opens, then drag.
 
 Card to card — the arrow anchors to both and follows them.
 Empty space to empty space — a free-floating arrow, behaving like a shape.
@@ -1351,13 +1357,13 @@ A: Yes. Right-click a grid and choose Templates › Share layout to start a fami
 ========================================================================
 # Vote cards
 URL: https://clusters.soleilpictures.com/docs/canvas/vote-cards
-Updated: 2026-08-08
+Updated: 2026-11-18
 
 A vote card is a small up/down poll you anchor anywhere on a canvas — beside an image, over a group, on empty space. Everyone with access can vote once, counts are live, and it exists so a team can settle a choice between options without turning it into a comment thread nobody reads.
 
 A vote card is deliberately the smallest possible decision tool: a ✓ and an ✗ with live counts, anchored wherever the decision actually is.
 
-Add one from the rail's + menu → Annotate → Vote.
+Add one from the rail's + menu → Annotate → Vote. On a phone or an upright iPad, Vote is in the sheet the + at the bottom of the board opens.
 
 Anchoring
 
@@ -2113,7 +2119,7 @@ A: To the trash, for 30 days, from which they can be restored. See Trash and rec
 ========================================================================
 # The sidebar
 URL: https://clusters.soleilpictures.com/docs/clusters/sidebar
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\ hides Files, and F opens the full Files page.
 
@@ -2216,7 +2222,7 @@ Sizes and arrangement are remembered on your device, not your account: they belo
 
 On a phone
 
-On a phone the sidebar is the drawer, behind Open menu at the top left. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with Done. Hold a file for its menu; its Select puts a check on every file, so taps pick several for the bar at the bottom of Files, which ends with Done. Going to a file, or opening the full Files page, closes the drawer.
+On a phone the sidebar is the drawer, behind Open menu (☰) at the top left. Search and Settings are in it too, and the ☰ shows a dot when Messages has something unread. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with Done. Hold a file for its menu; its Select puts a check on every file, so taps pick several for the bar at the bottom of Files, which ends with Done. Going to a file, or opening the full Files page, closes the drawer.
 
 ## Frequently asked questions
 
@@ -2239,7 +2245,7 @@ A: Yes. Each card has its own size: drag its right edge, its bottom edge or its 
 ========================================================================
 # Files view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
@@ -2398,7 +2404,7 @@ A file with more than one version lists them under Versions, where you can make 
 
 Adding files here
 
-Drag files into Files, or use Add files beside the search — on a phone or tablet, the + in the bottom bar. They join the cluster without going on its board: they wait in Files, marked Not on board, until you drag them onto the board or choose Put on board. The same goes for Upload in the sidebar — dropping on the canvas is how you put files straight on the board. An empty cluster offers Add files, New cluster and Link a cluster right where its contents would be.
+Drag files into Files, or use Add files beside the search — on a phone or an upright iPad, the + at the bottom of the screen. They join the cluster without going on its board: they wait in Files, marked Not on board, until you drag them onto the board or choose Put on board. The same goes for Upload in the sidebar — dropping on the canvas is how you put files straight on the board. An empty cluster offers Add files, New cluster and Link a cluster right where its contents would be.
 
 Drop a single file onto a file of the same kind instead, and it becomes that file's next version — the file lights up and says so first. Hold ⌥ to add it as a separate file.
 
@@ -2448,7 +2454,7 @@ Q: Can I drag files from Files onto the board?
 A: Yes, from the sidebar's Files card. A file from this cluster that is waiting in Files goes where you drop it; a file from another cluster moves there, and holding Option (Ctrl on Windows) as you let go copies it instead, with nothing uploaded again. See moving and copying files on the sidebar page.
 
 Q: Can I upload from Files?
-A: Yes. Drag files into it, or use Add files beside the search (on a phone or tablet, the + in the bottom bar). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
+A: Yes. Drag files into it, or use Add files beside the search (on a phone or an upright iPad, the + at the bottom of the screen). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
 
 Q: Can I make Files the default?
 A: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, under More › in a cluster's menu, makes that cluster open in Files for everyone.
@@ -3537,7 +3543,7 @@ A: Turning off Allow downloading removes the Download button and the original fi
 ========================================================================
 # Presence
 URL: https://clusters.soleilpictures.com/docs/collaborate/presence
-Updated: 2026-11-15
+Updated: 2026-11-18
 
 When several people are in a cluster you see each other's cursors, selections and text carets live. A facepile shows who is on the current board, and a workspace facepile shows who is anywhere in the workspace — clicking someone jumps you to whatever board they are on. Everyone has a stable colour that stays the same across sessions.
 
@@ -3549,6 +3555,8 @@ Live cursors, each labelled with a name
 Selection halos — what someone has selected is outlined in their colour
 Text carets inside notes and documents, so you can see where someone is typing before the words appear
 A facepile in the header — each person's picture, or their initial on their colour until they add one — with the full roster on click
+
+On a phone or an upright iPad, the dot in the top bar that shows the live connection appears only when someone else is in the cluster or the connection is lost.
 
 Across the workspace
 
@@ -3601,7 +3609,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.
 
@@ -3616,7 +3624,7 @@ An empty point | "something should go here"
 The board | "the whole thing"
 A text range in a document or a note | "this sentence"
 
-Right-click a card, a group or the empty canvas and choose the comment item (on a phone, touch and hold), or use the rail's + → Annotate → Comment and click what it is about. A box opens right there, beside the spot its pin will sit on.
+Right-click a card, a group or the empty canvas and choose the comment item (on a phone, touch and hold), or use the rail's + → Annotate → Comment and click what it is about. A box opens right there, beside the spot its pin will sit on. On a phone or an upright iPad, Comment is in the sheet the + at the bottom of the board opens.
 
 A comment on the board as a whole has no place on the canvas, so it has no pin: it shows in the comments list. Those come from the API or an assistant.
 
@@ -3637,7 +3645,7 @@ Delete a card and its comments go with it; restore the card and they come back.
 
 The comments list
 
-The comments button at the top left of the board shows how many conversations are open, with a dot when one is unread. Press it for the list:
+The comments button at the top left of the board shows how many conversations are open, with a dot when one is unread. On a phone or an upright iPad it is in the top bar. Press it for the list:
 
 Tab | Holds
 Open | Every open conversation on the board
@@ -4293,7 +4301,7 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-11-14
+Updated: 2026-11-18
 
 The free Demo plan gives you 25 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
 
@@ -4376,7 +4384,7 @@ Extra storage can be added once a Creator trial has made its first payment, and 
 
 Trying Creator first
 
-Once there is a real cluster on your account, or as soon as a drop or an import is more than your free card limit holds, Clusters offers you 14 days of Creator before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, when the files you drop will not fit, in Settings → Plan & billing, and on the upgrade screen.
+Once there is a real cluster on your account, or as soon as a drop or an import is more than your free card limit holds, Clusters offers you 14 days of Creator before you pay. The offer appears where you are already working: on the upgrade pill in the corner, on the prompts that show up as a cluster fills, when the files you drop will not fit, in Settings → Plan & billing, and on the upgrade screen. On a phone or an upright iPad the pill is in the menu (☰) instead of on the board.
 
 While this is being tried out, some free accounts are offered the trial from their first card.
 
@@ -4716,9 +4724,9 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-11-17
+Updated: 2026-11-18
 
-Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
+Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus. Inside a cluster on a phone or an upright iPad the board gets the whole screen, with one + at the bottom for adding and the menu top left for everything else. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
 Two ways to run it on a phone or tablet: the mobile browser, or the same app added to your home screen. They are the same app.
 
@@ -4748,11 +4756,13 @@ Select… is for picking cards a box can't reach together: until you press Done 
 
 While you type in a note, the board glides to keep your line above the keyboard and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in any text field.
 
+On a phone or an upright iPad, while you type on a board (a note, a grid cell, a caption, a link's title or a cluster's name), the board's other buttons step back until you finish. The top bar keeps Undo and Redo and shows Done. A note's formatting row rests right on top of the keyboard. Done, or a tap on the board, finishes typing and puts the keyboard away. When a note's words would be small, or would sit under the keyboard, the board moves and zooms in so the note you are typing stays above the keyboard.
+
 With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable.
 
 Menus under a finger
 
-On a phone the menu is a sheet from the bottom. What you held is shown at its top, and a row of tiles holds the quick actions. A row with a › (Arrange, Edit, Background, Export, Tidy up, Move to cluster) steps into the menu itself instead of opening beside it. Inside a submenu a Back row goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls.
+On a phone the menu is a sheet from the bottom. What you held is shown at its top, and a row of tiles holds the quick actions. A row with a › (Arrange, Edit, Background, Export, Tidy up, Move to cluster) steps into the menu itself instead of opening beside it. Inside a submenu a Back row goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar, where there is one, and scrolls.
 
 On an iPad held sideways, a tap on a row with a › opens its list beside the menu and leaves it open. A list's own list, such as a group's Outline shape, opens beside it.
 
@@ -4784,11 +4794,11 @@ Switch it off for a device with Vibration in Settings → Appearance, under Canv
 
 Layout differences
 
-Bottom navigation replaces the sidebar — Home, the current board, Messages, and more.
+Bottom navigation replaces the sidebar — Home, the current board, Messages, and more. It shows outside a cluster, on Home, Messages and the like. Inside a cluster the board gets the whole screen: there is no bottom bar, no tools down the left edge and no "Add images" banner. Moving around is the same: drag to move, pinch to zoom, hold and drag to select.
 
-The top bar keeps what you reach for on the board: the cluster's name, Undo, Redo, who else is here, and Share.
+The top bar keeps what you reach for on the board: the cluster's name, Undo, Redo, who else is here, and Share. Inside a cluster, Comments is a button there too. Redo appears only after you undo, and the dot that shows the live connection appears only when someone else is in the cluster or the connection is lost.
 
-A drawer, behind Open menu, holds the sidebar — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
+A drawer, behind Open menu, holds the sidebar — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. Open menu is the ☰ at the top left. Home, Search, Messages and Settings are in it, and the ☰ shows a dot when Messages has something unread. On the free plan, the plan reminder (the upgrade pill) shows in the menu instead of on the board. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list.
 
 Files with a finger
 
@@ -4804,7 +4814,7 @@ While you are selecting, the selection bar acts on what is checked — put it on
 
 Back — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app. Once nothing is open on top, Back returns to the cluster you were on before.
 
-The add sheet, behind the + in the middle of the bottom bar, lays out everything you can add across the screen, sized for thumbs. The tool rail keeps its own +, whose menu opens beside the rail. A new card lands in free space where you are looking, and a new note or document zooms in so you can read and type in it.
+The add sheet, behind the + at the bottom of the board, lays out everything you can add across the screen, sized for thumbs: photos, notes, docs, clusters, grids, files, links, drawing, arrows, comments, votes and the rest. Someone who can only comment on a cluster gets a + that places a comment, and someone who can only view it sees no +. On an iPad held sideways the tool rail keeps its own +, whose menu opens beside the rail. A new card lands in free space where you are looking, and a new note or document zooms in so you can read and type in it.
 
 Comments — on a phone or an iPad, Add comment opens the conversation's sheet from the bottom edge of the screen, and tapping a pin opens the same sheet. Its box grows as you type, the Close button and the send arrow are sized for a finger, the keyboard's return key sends, and the sheet rides up with the keyboard so the box stays above it.
 
@@ -4822,7 +4832,7 @@ On the 10.2-inch iPad held sideways, Files start folded under the clusters to gi
 
 Turning an iPad keeps the board where it was.
 
-Drawing is on the rail directly on touch, and in the add sheet, rather than behind the D shortcut there is no keyboard for. A stylus draws with pressure; flipping it over erases. The full-screen sketch pad goes edge to edge, with pinch-to-zoom inside the frame for detail work. Its chrome is two rows that never scroll — leaving and committing on one, the tools and Layers on the other — with the brushes, colours and sizes a tap behind the chip showing what you are drawing with, and the frame formats offered on the bar itself while the frame is still empty.
+Drawing is on the rail directly on touch, and in the add sheet, rather than behind the D shortcut there is no keyboard for. On a phone or an upright iPad, where a cluster has no rail, it is in the add sheet. A stylus draws with pressure; flipping it over erases. The full-screen sketch pad goes edge to edge, with pinch-to-zoom inside the frame for detail work. Its chrome is two rows that never scroll — leaving and committing on one, the tools and Layers on the other — with the brushes, colours and sizes a tap behind the chip showing what you are drawing with, and the frame formats offered on the bar itself while the frame is still empty.
 
 On a phone or a touch tablet, Home is your clusters on their own: the ones you were last in, every cluster at the top of your workspace, and New cluster. The 3D workspace graph is left for larger screens, and is never loaded here.
 
@@ -4862,7 +4872,7 @@ Q: How do I select several cards with a finger?
 A: Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out.
 
 Q: How do I type in a note on a phone?
-A: Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done.
+A: Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done. While you type, the board's other buttons step back, and Done in the top bar finishes too and puts the keyboard away.
 
 Q: Is anything unavailable on mobile?
 A: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.

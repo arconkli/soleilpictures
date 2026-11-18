@@ -3797,6 +3797,7 @@ msgstr "{value} 추가"
 msgid "Add 1 TB · {price} a month"
 msgstr "1TB 추가 · 월 {price}"
 
+#: src/App.jsx
 #: src/components/shell/MobileBottomNav.jsx
 msgid "Add a card"
 msgstr "카드 추가"
@@ -3963,6 +3964,7 @@ msgstr "왼쪽에 열 추가"
 msgid "Add column right"
 msgstr "오른쪽에 열 추가"
 
+#: src/App.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/menus/rows.js
@@ -8636,6 +8638,11 @@ msgstr "기다리기 싫으세요?"
 #: src/components/StorageAddonSheet.jsx
 #: src/lib/importCopy.js
 #: src/lib/onboardingTourWords.js
+msgid "Done"
+msgstr "완료"
+
+#: src/App.jsx
+msgctxt "finish typing"
 msgid "Done"
 msgstr "완료"
 
@@ -15185,6 +15192,10 @@ msgstr "연결된 클러스터 열기"
 #: src/App.jsx
 msgid "Open menu"
 msgstr "메뉴 열기"
+
+#: src/App.jsx
+msgid "Open menu, unread messages"
+msgstr "메뉴 열기, 읽지 않은 메시지 있음"
 
 #: src/pages/ResumePage.jsx
 msgid "Open my clusters"

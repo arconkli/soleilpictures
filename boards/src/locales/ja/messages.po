@@ -3797,6 +3797,7 @@ msgstr "{value}を追加"
 msgid "Add 1 TB · {price} a month"
 msgstr "1TBを追加・月額{price}"
 
+#: src/App.jsx
 #: src/components/shell/MobileBottomNav.jsx
 msgid "Add a card"
 msgstr "カードを追加"
@@ -3963,6 +3964,7 @@ msgstr "左に列を追加"
 msgid "Add column right"
 msgstr "右に列を追加"
 
+#: src/App.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/menus/rows.js
@@ -8636,6 +8638,11 @@ msgstr "待ちたくないですか？"
 #: src/components/StorageAddonSheet.jsx
 #: src/lib/importCopy.js
 #: src/lib/onboardingTourWords.js
+msgid "Done"
+msgstr "完了"
+
+#: src/App.jsx
+msgctxt "finish typing"
 msgid "Done"
 msgstr "完了"
 
@@ -15185,6 +15192,10 @@ msgstr "リンクされたクラスターを開く"
 #: src/App.jsx
 msgid "Open menu"
 msgstr "メニューを開く"
+
+#: src/App.jsx
+msgid "Open menu, unread messages"
+msgstr "メニューを開く、未読メッセージあり"
 
 #: src/pages/ResumePage.jsx
 msgid "Open my clusters"

@@ -81,6 +81,10 @@ export function createNoteUndoRoute(textUndo) {
       if (item) past.push({ board: e.board, item, depth: depth('undoStack') });
       return true;
     },
+    // Whether undo() / redo() would take the step now (the same checks, read
+    // only): what a button shows before it is pressed.
+    canUndo() { const e = last(past); return !!e && depth('undoStack') <= e.depth && last(e.board.undoManager?.undoStack) === e.item; },
+    canRedo() { const e = last(future); return !!e && depth('redoStack') <= e.depth && last(e.board.undoManager?.redoStack) === e.item; },
     destroy() {
       if (!textUndo) return;
       textUndo.off('stack-item-added', onText);

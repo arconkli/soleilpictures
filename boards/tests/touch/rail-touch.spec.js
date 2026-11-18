@@ -5,12 +5,22 @@
 // armed on the press) and scroll nothing (the tool kept the press from the
 // rail), and the rail squeezed its tools to half a finger instead of scrolling.
 // CDP touch: Chromium only (helpers.js).
+//
+// The rail is a sideways iPad's (and a computer's). The phone's shell (phones,
+// an upright iPad, a phone held sideways) has no rail: its one + opens the add
+// sheet, whose tiles arm the tools. Each test here asks the same of the +
+// and its sheet there.
 import { expect, test } from '@playwright/test';
 import { needsHold, swipe, tap } from './helpers.js';
 
 const rail = (page) => page.locator('.cnv-tools');
 const tool = (page, name) => rail(page).getByRole('button', { name, exact: true });
 const addMenu = (page) => page.locator('.cnv-add-menu');
+const phoneShell = (page) => (page.viewportSize()?.width ?? 0) <= 1024;
+const plusBtn = (page) => page.getByRole('button', { name: 'Add a card' });
+const sheet = (page) => page.locator('.mobile-add-grid');
+const tile = (page, name) => page.locator('.mobile-add-tile')
+  .filter({ has: page.locator('.mobile-add-lbl', { hasText: new RegExp(`^${name}$`) }) });
 
 async function open(page, { sideways = false } = {}) {
   if (sideways) {
@@ -43,6 +53,15 @@ const toolInView = (page) => rail(page).evaluate((r) => {
 test('a tap on a tool arms it, and a tap on + opens the add menu', async ({ page, browserName }) => {
   needsHold(test, browserName);
   await open(page);
+  if (phoneShell(page)) {
+    await expect(rail(page)).toHaveCount(0);
+    await tap(page, await centre(plusBtn(page)));
+    await expect(sheet(page)).toBeVisible();
+    await tile(page, 'Draw').tap();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
+    return;
+  }
   await tap(page, await centre(tool(page, 'Add note tool')));
   await expect(tool(page, 'Add note tool')).toHaveAttribute('aria-pressed', 'true');
   await tap(page, await centre(tool(page, 'Add menu')));
@@ -52,6 +71,15 @@ test('a tap on a tool arms it, and a tap on + opens the add menu', async ({ page
 test('a swipe that starts on a tool arms nothing, and one that starts on + opens nothing', async ({ page, browserName }) => {
   needsHold(test, browserName);
   await open(page);
+  if (phoneShell(page)) {
+    await expect(rail(page)).toHaveCount(0);
+    const at = await centre(plusBtn(page));
+    await swipe(page, at, { x: at.x, y: at.y - 70 });
+    await page.waitForTimeout(300);
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
+    return;
+  }
   const from = await centre(tool(page, 'Add note tool'));
   await swipe(page, from, { x: from.x, y: from.y + 70 });
   await page.waitForTimeout(300);
@@ -62,10 +90,29 @@ test('a swipe that starts on a tool arms nothing, and one that starts on + opens
   await expect(addMenu(page)).toHaveCount(0);
 });
 
-test('held sideways, the rail keeps its tools a finger tall and scrolls under a swipe that starts on one', async ({ page, browserName }, info) => {
+// A phone held sideways is the phone's shell too: no rail to squeeze, and the
+// + is a finger tall, on the screen, and opens the sheet.
+test('held sideways, a phone has no rail: its + is a finger tall and opens the add sheet', async ({ page, browserName }, info) => {
   needsHold(test, browserName);
   test.skip(info.project.name !== 'mobile-chrome', 'a phone held sideways');
   await open(page, { sideways: true });
+  await expect(rail(page)).toHaveCount(0);
+  const b = await plusBtn(page).boundingBox();
+  const v = page.viewportSize();
+  expect(Math.min(b.width, b.height)).toBeGreaterThanOrEqual(40);
+  expect(b.y).toBeGreaterThanOrEqual(0);
+  expect(b.y + b.height).toBeLessThanOrEqual(v.height);
+  await tap(page, await centre(plusBtn(page)));
+  await expect(sheet(page)).toBeVisible();
+});
+
+// The rail of a short, wide screen that has one (a sideways tablet's window
+// made short): its tools stay a finger tall and it scrolls.
+test('on a short screen, the rail keeps its tools a finger tall and scrolls under a swipe that starts on one', async ({ page, browserName }, info) => {
+  needsHold(test, browserName);
+  test.skip(info.project.name !== 'tablet-landscape-chrome', 'a rail on a short screen');
+  await page.setViewportSize({ width: page.viewportSize().width, height: 390 });
+  await open(page);
   const heights = await rail(page).locator('.cnv-tool')
     .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
   expect(Math.min(...heights), `the rail's tool heights: ${heights.join(', ')}`).toBeGreaterThanOrEqual(40);
@@ -90,6 +137,33 @@ test('held sideways, the rail keeps its tools a finger tall and scrolls under a 
 // be under the finger where it's drawn.
 test('the add menu opens beside the rail, whole, and a tap on an item takes it', async ({ page }) => {
   await open(page);
+  if (phoneShell(page)) {
+    // The phone's add sheet: every tile under the finger where it's drawn.
+    await plusBtn(page).tap();
+    await expect(sheet(page)).toBeVisible();
+    await page.waitForTimeout(350);   // the sheet slides up
+    const count = await sheet(page).locator('.mobile-add-tile').count();
+    expect(count).toBeGreaterThan(4);
+    const lost = [];
+    for (let i = 0; i < count; i++) {
+      const t = sheet(page).locator('.mobile-add-tile').nth(i);
+      await t.scrollIntoViewIfNeeded();
+      const hit = await t.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!at && el.contains(at);
+      });
+      if (!hit) lost.push(await t.innerText());
+    }
+    expect(lost, 'tiles a finger can\'t reach').toEqual([]);
+    // The sheet's Shape puts a shape on the board (no tool to arm there).
+    const shapes = page.locator('.canvas-wrap .card.card-kind-shape');
+    const had = await shapes.count();
+    await tile(page, 'Shape').tap();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(shapes).toHaveCount(had + 1);
+    return;
+  }
   await tool(page, 'Add menu').tap();
   await expect(addMenu(page)).toBeVisible();
   const missed = await addMenu(page).getByRole('menuitem').evaluateAll((els) => els.filter((el) => {
@@ -106,6 +180,18 @@ test('the add menu opens beside the rail, whole, and a tap on an item takes it',
 test('a tap outside the add menu closes it, a card\'s included', async ({ page, browserName }) => {
   needsHold(test, browserName);
   await open(page);
+  if (phoneShell(page)) {
+    // The sheet: a tap above it, on the board it covers, closes it and
+    // selects nothing.
+    await tap(page, await centre(plusBtn(page)));
+    await expect(sheet(page)).toBeVisible();
+    await page.waitForTimeout(350);
+    const top = (await sheet(page).boundingBox()).y;
+    await tap(page, { x: page.viewportSize().width / 2, y: Math.max(8, Math.min(100, top / 2)) });
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(page.locator('.canvas-wrap .card.is-selected')).toHaveCount(0);
+    return;
+  }
   await tap(page, await centre(tool(page, 'Add menu')));
   await expect(addMenu(page)).toBeVisible();
   await tap(page, await centre(page.locator('.canvas-wrap .card[data-card-id="home-note"]')));

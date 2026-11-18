@@ -1,5 +1,6 @@
-// An iPad turned: upright it is the phone shell (the bottom nav, no sidebar),
-// sideways the desktop layout with the floating sidebar beside the board. The
+// An iPad turned: upright it is the phone shell (no sidebar, no rail, one
+// floating + inside a cluster), sideways the desktop layout with the floating
+// sidebar and the tool rail beside the board. The
 // board goes with the canvas's left edge across that switch, so the note being
 // typed is in view both ways and back where it was on every turn upright.
 // CanvasSurface holdBoardStill used to hold the board against the sidebar on
@@ -15,27 +16,31 @@ const LANDSCAPE = { width: 1194, height: 834 };
 // Boots upright, in the phone shell.
 test.use({ viewport: PORTRAIT });
 
+// (The + itself steps back while a note is typed, so the shell is told by the
+// body's mark and the rail.)
 const upright = async (page) => {
-  await expect(page.locator('.mb-nav')).toBeVisible();
-  await expect(page.locator('.cnv-tools')).toBeVisible();
+  await expect(page.locator('body')).toHaveAttribute('data-phone-cluster', '1');
+  await expect(page.locator('.cnv-tools')).toHaveCount(0);
 };
 const sideways = async (page) => {
-  await expect(page.locator('.mb-nav')).toHaveCount(0);
+  await expect(page.locator('body')).not.toHaveAttribute('data-phone-cluster');
+  await expect(page.locator('.mb-add-fab')).toHaveCount(0);
+  await expect(page.locator('.cnv-tools')).toBeVisible();
   await expect(page.locator('.sb-ws-trigger')).toBeVisible();
 };
-// The note's box, and the visible canvas: the wrap, from the rail's right edge,
-// under the top islands that lie across the note's columns and above a
+// The note's box, and the visible canvas: the wrap, from the rail's right edge
+// (sideways; upright there is no rail and it is the wrap's own), under the top islands that lie across the note's columns and above a
 // finger's format bar.
 const scene = (page) => page.evaluate(() => {
   const wrap = document.querySelector('.canvas-wrap');
   const r = wrap.getBoundingClientRect();
-  const rail = wrap.querySelector('.cnv-tools').getBoundingClientRect();
+  const rail = wrap.querySelector('.cnv-tools')?.getBoundingClientRect();
   const b = wrap.querySelector('.cards-layer .card[data-card-id]').getBoundingClientRect();
   const m = new DOMMatrixReadOnly(getComputedStyle(wrap.querySelector('.canvas')).transform);
   return {
     zoom: m.a,
     wrap: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
-    railRight: rail.right,
+    railRight: rail ? rail.right : r.left,
     islandsBottom: Math.max(0, ...[...document.querySelectorAll('.chrome-island')]
       .map((el) => el.getBoundingClientRect())
       .filter((i) => i.width > 0 && i.height > 0 && i.left < b.right && i.right > b.left)
@@ -103,16 +108,14 @@ test('a note being typed stays put through three turns to landscape and back', a
   await expect(page.locator('.cards-layer .card[data-card-id]')).toContainText('Half typed end');
 });
 
-// A note from the rail's tool starts at the top of the upright board, under
-// the phone's top bar. Sideways the canvas runs to the window's top, under the
+// A new note starts at the top of the upright board, under the phone's top
+// bar (the view zooms in to it there). Sideways the canvas runs to the window's top, under the
 // floating islands, so the note is moved down clear of them (CanvasSurface
 // keepEditedCardInView), at the zoom there is.
 test('a note typed at the top of the board comes out from under the top islands in landscape', async ({ page }) => {
   await boot(page);
   await upright(page);
-  await page.locator('.cnv-tools').getByRole('button', { name: 'Add note tool', exact: true }).tap();
-  const w = await page.locator('.canvas-wrap').boundingBox();
-  await page.touchscreen.tap(Math.round(w.x + w.width * 0.55), Math.round(w.y + w.height * 0.3));
+  await page.locator('.cnv-empty-tile', { hasText: 'Note' }).tap();
   await expect(page.locator('.cards-layer .card[data-card-id]')).toHaveCount(1);
   await page.waitForTimeout(1200);
   await page.keyboard.type('Half typed');
@@ -137,12 +140,15 @@ test('the + sheet closes on the turn to landscape and stays closed on the turn b
   await boot(page);
   await upright(page);
   // A board with a card on it: on an empty one the + adds a note itself.
-  // The note holds words, or leaving it (the + tap) would discard it as empty.
+  // The note holds words, or leaving it (Done) would discard it as empty.
   await page.locator('.cnv-empty-tile', { hasText: 'Note' }).tap();
   await expect(page.locator('.cards-layer .card[data-card-id]')).toHaveCount(1);
   await page.waitForTimeout(1200);
   await page.keyboard.type('Opening shot');
   await page.waitForTimeout(400);
+  // Typing hides the +: Done first.
+  await page.locator('.topbar .tb-done').tap();
+  await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
   await page.getByRole('button', { name: 'Add a card' }).tap();
   await expect(page.locator('.mobile-add-grid')).toBeVisible();
   await turn(page, LANDSCAPE, sideways);

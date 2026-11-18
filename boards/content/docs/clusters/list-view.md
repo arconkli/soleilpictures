@@ -5,7 +5,7 @@ h1: Files view
 navLabel: Files view
 section: clusters
 order: 1
-updated: 2026-11-17
+updated: 2026-11-18
 answer: Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 faq:
   - q: Does opening Files change my board?
@@ -15,7 +15,7 @@ faq:
   - q: Can I drag files from Files onto the board?
     a: Yes, from the sidebar's Files card. A file from this cluster that is waiting in Files goes where you drop it; a file from another cluster moves there, and holding Option (Ctrl on Windows) as you let go copies it instead, with nothing uploaded again. See moving and copying files on the sidebar page.
   - q: Can I upload from Files?
-    a: Yes. Drag files into it, or use Add files beside the search (on a phone or tablet, the + in the bottom bar). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
+    a: Yes. Drag files into it, or use Add files beside the search (on a phone or an upright iPad, the + at the bottom of the screen). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board.
   - q: Can I make Files the default?
     a: Yes. Settings → Card defaults sets which view new clusters open in, and Always open in Files, under More › in a cluster's menu, makes that cluster open in Files for everyone.
   - q: Can I use Clusters like Google Drive?
@@ -351,7 +351,7 @@ version…** too.
 ## Adding files here
 
 Drag files into Files, or use **Add files** beside the search — on a phone or
-tablet, the **+** in the bottom bar. They join the
+an upright iPad, the **+** at the bottom of the screen. They join the
 cluster without going on its board: they wait in Files, marked
 [**Not on board**](#not-on-board), until you drag them onto the board or choose
 **Put on board**. The same goes for **Upload** in the sidebar — dropping on the

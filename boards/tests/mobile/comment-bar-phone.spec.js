@@ -274,20 +274,23 @@ test('Send puts the comment on the card it was made for', async ({ page }) => {
     },
   });
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('.mb-nav')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('.mb-add-fab')).toBeVisible({ timeout: 30000 });
 
-  const wrap = await page.locator('.canvas-wrap').boundingBox();
-  await page.getByRole('button', { name: 'Add note tool', exact: true }).tap();
-  await page.touchscreen.tap(wrap.x + wrap.width * 0.45, wrap.y + wrap.height * 0.3);
-  await page.keyboard.type('Opening shot');
+  // The empty board's first note comes from the empty panel's Note tile (a
+  // phone's cluster has no rail).
+  await page.locator('.cnv-empty-tile').filter({ hasText: /note/i }).first().tap();
   const note = page.locator('.card').first();
   await expect(note).toBeVisible();
-  // Out of the note, and nothing selected.
-  // (The first tap on bare board may only end the typing.)
-  await expect(async () => {
+  await expect.poll(() => page.evaluate(() => !!document.activeElement?.isContentEditable)).toBe(true);
+  await page.keyboard.type('Opening shot');
+  // Out of the note by the top bar's Done, and nothing selected.
+  await page.locator('.topbar .tb-done').tap();
+  await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
+  if (await page.locator('.card.is-selected').count()) {
+    const wrap = await page.locator('.canvas-wrap').boundingBox();
     await page.touchscreen.tap(wrap.x + wrap.width * 0.85, wrap.y + wrap.height * 0.9);
-    await expect(page.locator('.note.is-editing, .sel-menu')).toHaveCount(0, { timeout: 1000 });
-  }).toPass();
+  }
+  await expect(page.locator('.note.is-editing, .sel-menu')).toHaveCount(0);
   const cardId = await note.getAttribute('data-card-id');
 
   await addComment(page, note);

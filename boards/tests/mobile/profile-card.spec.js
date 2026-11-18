@@ -33,6 +33,13 @@ test.beforeEach(async ({ page }, testInfo) => {
 });
 
 test('Settings opens with a card for you, and the card opens Profile', async ({ page }) => {
+  // Inside a cluster the phone has no tab bar: Home has it, by the ☰ drawer.
+  await expect(page.locator('.mb-nav')).toHaveCount(0);
+  await page.getByLabel('Open menu').first().tap();
+  const drawer = page.locator('.sidebar.is-mobile-open');
+  await expect(drawer).toBeVisible();
+  await drawer.locator('.sbf-quickbtn', { hasText: 'Home' }).tap();
+  await expect(page.locator('.app.is-home')).toHaveCount(1);
   await page.locator('.mb-nav-tab', { hasText: 'Settings' }).tap();
   const panel = settings(page);
   await expect(panel).toBeVisible();

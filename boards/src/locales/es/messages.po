@@ -3803,6 +3803,7 @@ msgstr "Añadir {value}"
 msgid "Add 1 TB · {price} a month"
 msgstr "Añadir 1 TB · {price} al mes"
 
+#: src/App.jsx
 #: src/components/shell/MobileBottomNav.jsx
 msgid "Add a card"
 msgstr "Añadir una tarjeta"
@@ -3969,6 +3970,7 @@ msgstr "Añadir columna a la izquierda"
 msgid "Add column right"
 msgstr "Añadir columna a la derecha"
 
+#: src/App.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/menus/rows.js
@@ -8642,6 +8644,11 @@ msgstr "¿No quieres esperar?"
 #: src/components/StorageAddonSheet.jsx
 #: src/lib/importCopy.js
 #: src/lib/onboardingTourWords.js
+msgid "Done"
+msgstr "Listo"
+
+#: src/App.jsx
+msgctxt "finish typing"
 msgid "Done"
 msgstr "Listo"
 
@@ -15191,6 +15198,10 @@ msgstr "Abrir clúster enlazado"
 #: src/App.jsx
 msgid "Open menu"
 msgstr "Abrir menú"
+
+#: src/App.jsx
+msgid "Open menu, unread messages"
+msgstr "Abrir menú, mensajes no leídos"
 
 #: src/pages/ResumePage.jsx
 msgid "Open my clusters"

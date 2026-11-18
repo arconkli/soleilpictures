@@ -2,7 +2,7 @@
 
 > Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 25 cards and up to 10 people who edit.
 
-_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-11-15_
+_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-11-18_
 
 From an empty account to a board you would show someone, in about five minutes.
 
@@ -62,6 +62,9 @@ Everything else lives in two places:
 
 - The **tool rail** down the left edge — select, pan, image, note, doc, cluster, grid, arrow.
 - **Right-click the canvas** — quick buttons for note, picture, cluster, doc and link, an Add › menu, plus paste, select all, background and export.
+
+On a phone there is no rail: one **+** at the bottom of the board adds
+everything. See [Mobile and tablet](/docs/account/mobile).
 
 A few things worth knowing on day one:
 

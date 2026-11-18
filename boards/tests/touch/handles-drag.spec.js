@@ -227,7 +227,12 @@ test('everything selected, held by one card and moved, stays where it was put', 
   const ids = await page.$$eval('.canvas-wrap .cards-layer .card', (els) => els.map((el) => el.getAttribute('data-card-id')));
   // A hold on empty board, then a drag: the box that selects.
   const all = await Promise.all(ids.map((id) => rectOf(page, id)));
-  const from = { x: Math.min(...all.map((r) => r.left)) + 32, y: Math.max(...all.map((r) => r.bottom)) + 58 };
+  // The tab bar lies over the board's foot on a phone: start above it.
+  const footTop = await page.evaluate(() => {
+    const r = document.querySelector('.mb-nav, .mb-add-fab')?.getBoundingClientRect();
+    return r && r.height > 0 ? r.top : window.innerHeight;
+  });
+  const from = { x: Math.min(...all.map((r) => r.left)) + 32, y: Math.min(Math.max(...all.map((r) => r.bottom)) + 58, footTop - 12) };
   const to = { x: Math.max(...all.map((r) => r.right)) + 6, y: Math.min(...all.map((r) => r.top)) - 20 };
   await holdDrag(page, from, [to], { ms: 750, steps: 16 });
   await expect(page.locator('.canvas-wrap .card.is-selected')).toHaveCount(ids.length);

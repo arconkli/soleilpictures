@@ -129,7 +129,7 @@ export const DOCS_PAGES = [
     "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 25 cards and up to 10 people who edit.",
     "section": "start",
     "order": 1,
-    "updated": "2026-11-15",
+    "updated": "2026-11-18",
     "navLabel": "Getting started",
     "headings": [
       {
@@ -400,7 +400,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Overview",
     "headings": [
       {
@@ -448,7 +448,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does the canvas work on a tablet?",
-        "a": "Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger."
+        "a": "Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. On an iPad held sideways the tool rail adapts; on a phone or an upright iPad one + at the bottom of the board takes its place. Drawing works with a stylus or a finger."
       }
     ]
   },
@@ -596,7 +596,7 @@ export const DOCS_PAGES = [
     "answer": "A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.",
     "section": "canvas",
     "order": 3,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Notes",
     "headings": [
       {
@@ -660,7 +660,7 @@ export const DOCS_PAGES = [
     "answer": "Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.",
     "section": "canvas",
     "order": 4,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Shapes and drawing",
     "headings": [
       {
@@ -720,7 +720,7 @@ export const DOCS_PAGES = [
     "answer": "Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.",
     "section": "canvas",
     "order": 5,
-    "updated": "2026-10-25",
+    "updated": "2026-11-18",
     "navLabel": "Arrows",
     "headings": [
       {
@@ -886,7 +886,7 @@ export const DOCS_PAGES = [
     "answer": "A vote card is a small up/down poll you anchor anywhere on a canvas — beside an image, over a group, on empty space. Everyone with access can vote once, counts are live, and it exists so a team can settle a choice between options without turning it into a comment thread nobody reads.",
     "section": "canvas",
     "order": 9,
-    "updated": "2026-08-08",
+    "updated": "2026-11-18",
     "navLabel": "Vote cards",
     "headings": [
       {
@@ -1366,7 +1366,7 @@ export const DOCS_PAGES = [
     "answer": "The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\\ hides Files, and F opens the full Files page.",
     "section": "clusters",
     "order": 0.5,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Sidebar",
     "headings": [
       {
@@ -1435,7 +1435,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Files view",
     "headings": [
       {
@@ -1528,7 +1528,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I upload from Files?",
-        "a": "Yes. Drag files into it, or use Add files beside the search (on a phone or tablet, the + in the bottom bar). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board."
+        "a": "Yes. Drag files into it, or use Add files beside the search (on a phone or an upright iPad, the + at the bottom of the screen). They join the cluster and wait in Files, marked Not on board, until you drag them onto the board or choose Put on board."
       },
       {
         "q": "Can I make Files the default?",
@@ -2207,7 +2207,7 @@ export const DOCS_PAGES = [
     "answer": "When several people are in a cluster you see each other's cursors, selections and text carets live. A facepile shows who is on the current board, and a workspace facepile shows who is anywhere in the workspace — clicking someone jumps you to whatever board they are on. Everyone has a stable colour that stays the same across sessions.",
     "section": "collaborate",
     "order": 2,
-    "updated": "2026-11-15",
+    "updated": "2026-11-18",
     "navLabel": "Presence",
     "headings": [
       {
@@ -2263,7 +2263,7 @@ export const DOCS_PAGES = [
     "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Comments",
     "headings": [
       {
@@ -2692,7 +2692,7 @@ export const DOCS_PAGES = [
     "answer": "The free Demo plan gives you 25 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.",
     "section": "account",
     "order": 1,
-    "updated": "2026-11-14",
+    "updated": "2026-11-18",
     "navLabel": "Plans and pricing",
     "headings": [
       {
@@ -2994,10 +2994,10 @@ export const DOCS_PAGES = [
     "title": "Mobile and Tablet — Soleil Clusters",
     "metaDescription": "Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.",
     "h1": "Mobile and tablet",
-    "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
+    "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus. Inside a cluster on a phone or an upright iPad the board gets the whole screen, with one + at the bottom for adding and the menu top left for everything else. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
@@ -3065,7 +3065,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I type in a note on a phone?",
-        "a": "Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done."
+        "a": "Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done. While you type, the board's other buttons step back, and Done in the top bar finishes too and puts the keyboard away."
       },
       {
         "q": "Is anything unavailable on mobile?",

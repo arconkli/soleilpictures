@@ -109,3 +109,42 @@ test('a style, typing, then a style within the capture window undo as three step
   s.undo(); assert.deepEqual(s.state(), [true, '', '#dbeafe']);
   s.undo(); assert.deepEqual(s.state(), [true, '', null]);
 });
+
+test('canUndo is true right after a style and false once text is typed after it', async () => {
+  const s = setup();
+  assert.equal(s.route.canUndo(), false);
+  s.type('a');
+  assert.equal(s.route.canUndo(), false);
+  s.style('bgColor', '#dbeafe'); await tick();
+  assert.equal(s.route.canUndo(), true);
+  assert.equal(s.route.canRedo(), false);
+  s.type('b');
+  assert.equal(s.route.canUndo(), false);
+  // The typing undone, the style is the next step back again.
+  s.undo();
+  assert.equal(s.route.canUndo(), true);
+});
+
+test('canRedo is true after an undone style and false once text is typed after it', async () => {
+  const s = setup();
+  s.type('a');
+  s.style('bgColor', '#dbeafe'); await tick();
+  assert.equal(s.route.undo(), true);
+  assert.equal(s.route.canUndo(), false);
+  assert.equal(s.route.canRedo(), true);
+  assert.equal(s.route.redo(), true);
+  assert.deepEqual(s.state(), [true, 'a', '#dbeafe']);
+  assert.equal(s.route.canRedo(), false);
+  assert.equal(s.route.canUndo(), true);
+  s.undo();
+  s.type('c');
+  assert.equal(s.route.canRedo(), false);
+});
+
+test('canUndo is false for a board step the route did not write', async () => {
+  const s = setup();
+  s.style('bgColor', '#dbeafe'); await tick();
+  s.boardUm.stopCapturing();
+  s.ydoc.transact(() => s.card.set('x', 10), 'local');
+  assert.equal(s.route.canUndo(), false);
+});

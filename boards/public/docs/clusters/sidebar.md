@@ -2,7 +2,7 @@
 
 > The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\ hides Files, and F opens the full Files page.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/sidebar · Updated 2026-11-17_
+_Source: https://clusters.soleilpictures.com/docs/clusters/sidebar · Updated 2026-11-18_
 
 The sidebar is where everything in a workspace is reachable from: the places
 you go, the clusters you work in, and the files inside them. On a computer it
@@ -186,7 +186,9 @@ belong to the screen.
 
 ## On a phone
 
-On a phone the sidebar is the drawer, behind **Open menu** at the top left.
+On a phone the sidebar is the drawer, behind **Open menu** (☰) at the top left.
+Search and Settings are in it too, and the ☰ shows a dot when Messages has
+something unread.
 It holds the same things — Home, Messages, your clusters and Files, with the
 same tabs, search and menus — at full width, without the sizing handles. The
 list of clusters opens as a sheet from the bottom, with **Done**. Hold a file

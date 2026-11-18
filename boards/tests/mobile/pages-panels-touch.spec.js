@@ -27,7 +27,8 @@ async function bootSigned(page) {
     rpc: { get_my_tier: [{ tier: 'demo', demo_card_count: 0, onboarding: { seeded: true, done: true } }] },
   });
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('.mb-nav')).toBeVisible({ timeout: 30000 });
+  // Inside a cluster the phone shell is up once its + is.
+  await expect(page.locator('.mb-add-fab')).toBeVisible({ timeout: 30000 });
 }
 
 async function bootLocal(page) {

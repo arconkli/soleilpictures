@@ -21,6 +21,8 @@ import { safeRun } from '../lib/safeEditorCmd.js';
 import { noteFontSizePatch } from '../lib/noteFontSize.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { tlTip } from '../lib/looks.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 import { t } from '@lingui/core/macro';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
@@ -684,6 +686,11 @@ function NoteRichTextBar({ paletteColors, openPickerAt, noteLook, onUpdateEditin
     : fmt;
   // The bar (NoteBarA), once its chunk is here.
   const Bar = useNoteBarA();
+  // Writing mode: on the mobile shell (phones, upright iPads) the row of a
+  // note or box being typed in docks flat on the keyboard. A box that is
+  // only selected keeps the floating bar.
+  const { mobileShell } = shellOf(useBreakpoint());
+  const docked = mobileShell && !selectedBox;
   // Mobile: lift the bar above the soft keyboard. In mobile Safari the keyboard
   // overlays the layout viewport (visualViewport shrinks, the page doesn't), so
   // a CSS `bottom` would sit the bar UNDER the keyboard. Track visualViewport
@@ -704,6 +711,16 @@ function NoteRichTextBar({ paletteColors, openPickerAt, noteLook, onUpdateEditin
     if (!narrow && !touch) return;
     const apply = () => {
       const kb = Math.round(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+      // Writing mode: the row rests on the keyboard itself, and on the
+      // screen's bottom edge with none (.is-docked, styles.css).
+      if (docked) {
+        el.style.bottom = `${kb}px`;
+        // The home bar's room only with the keyboard down: iOS keeps
+        // reporting the inset while the keyboard covers it.
+        el.style.setProperty('--tob-dock-safe', kb > 0 ? '0px' : 'env(safe-area-inset-bottom, 0px)');
+        return;
+      }
+      el.style.removeProperty('--tob-dock-safe');
       // Only override while a keyboard is up. With none, clear it so the
       // stylesheet's bottom applies: on the mobile shell that clears the
       // fixed bottom nav, and an inline 8px parked the bar behind the nav.
@@ -716,7 +733,7 @@ function NoteRichTextBar({ paletteColors, openPickerAt, noteLook, onUpdateEditin
       vv.removeEventListener('resize', apply);
       vv.removeEventListener('scroll', apply);
     };
-  }, [Bar]);
+  }, [Bar, docked]);
 
   // What the controls do. A grid's box keeps its text style
   // on the box (onCellStyle, shared or pinned); a note styles the selection,
@@ -770,7 +787,7 @@ function NoteRichTextBar({ paletteColors, openPickerAt, noteLook, onUpdateEditin
 
   if (!Bar) return null;
   return (
-    <Bar barRef={barRef} onKeyDown={barKeys}
+    <Bar barRef={barRef} onKeyDown={barKeys} docked={docked}
          label={selectedBox ? t`Box style` : t`Text formatting`} text={!selectedBox}
          show={{ typography: showTypography, emphasis: showEmphasis, cell: cellStyleMode, card: cardLevel || cellStyleMode }}
          fmt={fmt} display={display} fore={currentFore} balanced={balanced} cellPinned={cellPinned}

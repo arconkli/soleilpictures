@@ -61,8 +61,14 @@ async function emptyPoint(page) {
     for (let fy = 0.3; fy < 0.85; fy += 0.05) {
       for (let fx = 0.9; fx > 0.1; fx -= 0.05) {
         const x = b.left + b.width * fx; const y = b.top + b.height * fy;
-        const el = document.elementFromPoint(x, y);
-        if (el && el.closest('.canvas-wrap') && ['cards-layer', 'canvas-wrap', 'grain-canvas', 'cnv-ground'].some((c) => el.classList.contains(c))) return { x, y };
+        // (and a fingertip of board around it: Chrome moves a touch onto a
+        // card within its radius, and a phone's new note sits zoomed in,
+        // close to the board's edge)
+        const bare = (px, py) => {
+          const el = document.elementFromPoint(px, py);
+          return !!el && !!el.closest('.canvas-wrap') && ['cards-layer', 'canvas-wrap', 'grain-canvas', 'cnv-ground'].some((c) => el.classList.contains(c));
+        };
+        if ([[0, 0], [-20, 0], [20, 0], [0, -20], [0, 20]].every(([dx, dy]) => bare(x + dx, y + dy))) return { x, y };
       }
     }
     return null;
@@ -97,12 +103,16 @@ test('a held finger on a pin, the island, the list or the open conversation open
   // shows its first-card tiles over the middle of the canvas
   await page.locator('.cnv-empty-tiles').getByRole('button', { name: 'Note' }).tap();
   await expect(page.locator('.canvas-wrap .card')).toHaveCount(1);
+  // (the note's editor is up: an Escape sent before it mounts ends nothing,
+  // and the phone would stay in writing mode with the note open)
+  await expect(page.locator('.canvas-wrap .card .note-body[contenteditable="true"]')).toBeFocused();
   await page.keyboard.type('Dusk set');
   await expect(page.locator('.cnv-empty-tiles')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(page.locator('.canvas-wrap .card .note-body[contenteditable="true"]')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(page.locator('.canvas-wrap .card.is-selected')).toHaveCount(0);
+  await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
   await nothingOfTheCanvas(page);
   await page.waitForTimeout(900);
 
