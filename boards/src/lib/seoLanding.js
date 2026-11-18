@@ -193,7 +193,7 @@ const PAGES = [
       'Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.',
     answer:
       'Soleil Clusters is a free online mood board maker: drag images, links, video, color palettes and any other file onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.',
-    updated: '2026-11-04',
+    updated: '2026-11-17',
     cta: { label: 'Start a mood board — free', sub: 'No credit card. Your first board in seconds.' },
     stepsHeading: 'How to make a mood board',
     steps: [
@@ -206,10 +206,10 @@ const PAGES = [
     sections: [
       {
         heading: 'Everything in one place, not fifteen tabs',
-        body: 'A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.',
+        body: 'A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Nest boards inside boards and search every board at once, so a growing project stays findable.',
         bullets: [
           'Drag in images, links, video, PDFs — any file, at any size',
-          'Tags gather references from every board into one view',
+          'Search finds references from every board in one place',
           'Color palettes and notes sit right beside the imagery',
         ],
       },
@@ -671,7 +671,7 @@ const PAGES = [
       'Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.',
     answer:
       'Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.',
-    updated: '2026-11-04',
+    updated: '2026-11-17',
     cta: { label: 'Make a reference board', sub: 'Free Demo tier — no credit card, no trial clock.' },
     stepsHeading: 'How to make a reference board',
     steps: [
@@ -709,7 +709,7 @@ const PAGES = [
           'Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.',
           'Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; any other file lands as a card too, at any size.',
           'Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.',
-          'One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.',
+          'One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and search finds an image from any board.',
         ],
       },
       {
@@ -869,14 +869,14 @@ const PAGES = [
       'One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.',
     answer:
       'Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.',
-    updated: '2026-11-04',
+    updated: '2026-11-17',
     cta: { label: 'Start a team board — free', sub: 'Free to start. Editors join free.' },
     stepsHeading: 'How a studio sets one up',
     steps: [
       { t: 'Make the project’s board', d: 'Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.' },
       { t: 'Invite the team', d: `Invite artists as editors by email or with an invite link. Up to ${EDITOR_LIMIT} people edit free on Free and Creator, and everyone lands in the same live board.` },
       { t: 'Pull reference in bulk', d: 'Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.' },
-      { t: 'Mark what matters', d: 'Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.' },
+      { t: 'Mark what matters', d: 'Comment on a card or a group, and put a vote card beside each option when the team has to pick one.' },
       { t: 'Show the supervisor', d: 'Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.' },
     ],
     sections: [
@@ -900,10 +900,10 @@ const PAGES = [
       },
       {
         heading: 'Organised the way a studio thinks',
-        body: 'Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.',
+        body: 'Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Search reaches across the nesting, so every reference for a character, a setting or a thing is one query away. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.',
         bullets: [
           'Nested clusters per character, environment or shot',
-          'Typed tags gather a character’s references across boards',
+          'Search finds a character’s references across boards',
           'Black-and-white value checks, and swatches sampled off any image',
         ],
       },
@@ -938,7 +938,7 @@ const PAGES = [
       'Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.',
     answer:
       'A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.',
-    updated: '2026-11-14',
+    updated: '2026-11-17',
     cta: { label: 'Start a treatment — free', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'The treatment template, section by section',
     // The same sections the starter document is written from (starterDocs.js),
@@ -1032,7 +1032,7 @@ const PAGES = [
       'A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.',
     answer:
       'Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.',
-    updated: '2026-11-04',
+    updated: '2026-11-17',
     cta: { label: 'Start a set board — free', sub: 'Free to start. The department joins free.' },
     stepsHeading: 'How an art department uses it',
     steps: [
@@ -1066,8 +1066,8 @@ const PAGES = [
         body: 'Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — pinned to the reference, not a paragraph in an email — and a vote card beside each chair settles “which of these three” without a meeting.',
       },
       {
-        heading: 'Tag by setting and character',
-        body: 'Tags cut across the nesting. Type a tag as a setting — the diner — and its view gathers every reference for that place from anywhere in the workspace, including the costume and camera boards. Tag a character, and their room, their props and their wardrobe come back in one view.',
+        heading: 'Find by setting and character',
+        body: 'Search cuts across the nesting. Search a setting — the diner — and every reference for that place comes back from anywhere in the workspace, including the costume and camera boards. Search a character’s name, and every reference that carries it — their room, their props, their wardrobe — comes back together.',
       },
       {
         heading: 'What it does not do',
@@ -1094,8 +1094,8 @@ const PAGES = [
     subhead:
       'A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.',
     answer:
-      'Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.',
-    updated: '2026-11-04',
+      'Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and search finds every reference for that character across the project.',
+    updated: '2026-11-17',
     cta: { label: 'Start a costume board — free', sub: 'Free to start. Your team joins free.' },
     stepsHeading: 'How a costume department uses it',
     steps: [
@@ -1120,8 +1120,8 @@ const PAGES = [
         body: 'Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it. A supplier’s PDF, a pattern file or the sketch itself can sit beside the look too — any file lands on the board as a card, at any size.',
       },
       {
-        heading: 'One character tag, every reference',
-        body: 'Tags in Clusters can be typed as characters. Tag a reference with the character once, and the tag’s view gathers every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the tag just finds it.',
+        heading: 'One search, every reference',
+        body: 'Put a character’s name on a reference once, and search finds every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the search just finds it.',
       },
       {
         heading: 'Assistants, buyers and the director, live',
@@ -1393,12 +1393,12 @@ const PAGES = [
       'Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.',
     answer:
       `Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat ${PRICING.monthly.billedLabel} with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.`,
-    updated: '2026-11-14',
+    updated: '2026-11-17',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     stepsHeading: 'How to move a Storyflow project to Clusters',
     steps: [
       { t: 'Export what you made', d: 'Storyflow exports boards as PNG, SVG or PDF and documents as files. Keep the original images you gathered as well — those are the references, and they are yours.' },
-      { t: 'Drop them on a new board', d: 'Drag the whole set onto a fresh cluster in one drop, then group and tag the references as you rebuild.' },
+      { t: 'Drop them on a new board', d: 'Drag the whole set onto a fresh cluster in one drop, then group the references as you rebuild.' },
       { t: 'Rebuild the structure as nested boards', d: 'A mood board, a storyboard grid and a shot list become linked boards in one project rather than one long canvas.' },
       { t: 'Share one link', d: 'Send it to the crew or the client. It opens in the browser, no account is needed to view, and everyone you invite edits free.' },
     ],
@@ -1417,7 +1417,7 @@ const PAGES = [
         body: `A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on every plan; Creator holds ${CREATOR_STORAGE_LABEL}. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.`,
         bullets: [
           'Mood board, storyboard, shot list and screenplay as nested boards',
-          'Tags and a relationship graph across the whole project',
+          'A relationship graph across the whole project',
           'Connect Claude or any MCP client with one URL — no in-app allowance',
         ],
       },
@@ -1509,7 +1509,7 @@ const PAGES = [
       'Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.',
     answer:
       'Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.',
-    updated: '2026-11-04',
+    updated: '2026-11-17',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     stepsHeading: 'How to bring an Eagle project into Clusters',
     steps: [
@@ -1550,7 +1550,7 @@ const PAGES = [
         { feature: 'Real-time collaboration', us: 'Yes — live cursors and presence', them: 'No; teams share a library on a NAS or a synced folder' },
         { feature: 'Works offline, on your own disk', us: 'No — it lives in the cloud', them: 'Yes' },
         { feature: 'AI search by image or description', us: 'No', them: 'Yes — the AI Search plugin, offline' },
-        { feature: 'Organising', us: 'Tags and nested clusters', them: 'Tags, smart folders and colour search' },
+        { feature: 'Organising', us: 'Nested clusters and search', them: 'Tags, smart folders and colour search' },
         { feature: 'Notes, docs and a screenplay beside the images', us: 'Yes', them: 'Notes on each asset' },
         { feature: 'Comments and votes from a team', us: 'Yes', them: 'No' },
         { feature: 'Any file, any size', us: `Yes — video, audio and PDFs play or open on the card; the drive is the only limit (${FREE_STORAGE_LABEL} free, ${CREATOR_STORAGE_LABEL} on Creator)`, them: 'Yes — any format, previews for images, GIFs, video and audio' },
@@ -1604,7 +1604,7 @@ const PAGES = [
       'Drive stores your files. Clusters shows them — every reference on one canvas your team builds on together, organised the way your folders were.',
     answer:
       'Soleil Clusters is a Google Drive alternative for a creative team’s working files: drop a folder and it becomes nested boards, every file kept under its own name and laid out where the whole team can see it, comment and decide. Keep Drive for backup, sync and offline copies; use Clusters for the work.',
-    updated: '2026-10-02',
+    updated: '2026-11-17',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     stepsHeading: 'How to bring a Drive folder into Clusters',
     steps: [
@@ -1656,7 +1656,7 @@ const PAGES = [
       { q: 'Is Soleil Clusters a Google Drive alternative?', a: 'For a creative team’s working files, yes: drop a folder and it becomes nested boards where every file is on screen, kept under its own name, and worked on together. For backup, sync to your computer and offline copies, keep Drive — Clusters does not do those.' },
       { q: 'Can I bring a whole folder over from Google Drive?', a: 'Yes. Download it from Drive, which gives you a zip, unzip it, and drop the folder onto a Clusters canvas. It becomes a cluster with a nested cluster for each folder inside, and every file a card under its own name. A very large folder can go in over a few drops.' },
       { q: 'Does Clusters sync with Google Drive?', a: 'No. Nothing syncs in either direction: Clusters keeps its own copy of what you drop in, and Drive keeps its own. That is why the honest split is Drive for the archive and Clusters for the project you are working on.' },
-      { q: 'Can I find a file by its name in Clusters?', a: 'Yes. Search finds photos and videos by the name their file had, along with cluster names, card text and tags, and list view sorts and filters a cluster like a folder.' },
+      { q: 'Can I find a file by its name in Clusters?', a: 'Yes. Search finds photos and videos by the name their file had, along with cluster names and card text, and list view sorts and filters a cluster like a folder.' },
       { q: 'Is there a Clusters app for my phone?', a: 'Clusters runs in the mobile browser and can be added to the home screen as a web app. There is no App Store or Play Store listing yet, and a phone cannot drop a whole folder.' },
     ],
     docsLinks: [
@@ -1708,7 +1708,7 @@ const PAGES = [
       'PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.',
     answer:
       'PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.',
-    updated: '2026-10-02',
+    updated: '2026-11-17',
     cta: { label: 'Try Clusters free', sub: 'Runs in your browser. Free to start.' },
     stepsHeading: 'How to move a PureRef board to Clusters',
     steps: [
@@ -1752,10 +1752,10 @@ const PAGES = [
       },
       {
         heading: 'Switching from PureRef takes an afternoon',
-        body: 'Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.',
+        body: 'Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and nested boards keep it organized as the project grows.',
         bullets: [
           'Select a folder’s references and drag them all in at once',
-          'Tags and nested boards keep a growing board findable',
+          'Nested boards keep a growing board findable',
           'One board per project — or nest boards inside it',
         ],
       },
@@ -1830,7 +1830,7 @@ const PAGES = [
       'Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.',
     answer:
       'Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.',
-    updated: '2026-11-04',
+    updated: '2026-11-17',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {
@@ -1840,7 +1840,7 @@ const PAGES = [
           'Image-first cards with photo adjustments and palettes',
           'Video, audio, PDFs and any other file on the board, at any size',
           'Docs and screenplay mode built in',
-          'Tags and a relationship graph across boards',
+          'A relationship graph across boards',
         ],
       },
       {

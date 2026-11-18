@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { registerModalOpen, registerBackLayer } from '../../lib/modalGuard.js';
 
 // Slide-in left drawer for phone width. Wraps existing sidebar
-// content (workspace switcher, board tree, tags, footer) without
+// content (workspace switcher, board tree, footer) without
 // requiring those components to know about mobile.
 //
 // Props:

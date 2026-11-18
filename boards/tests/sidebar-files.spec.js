@@ -750,7 +750,7 @@ test.describe('the top bar as floating islands', () => {
     const canvas = await rect(page.locator('.sbqa-canvas'));
     expect(canvas.t).toBe(main.t);
     expect(left.t - main.t).toBe(8);
-    for (const sel of ['.cnv-comments-eye', '.board-tags-strip', '.canvas-presence-roster', '.cnv-hint']) {
+    for (const sel of ['.cnv-comments-eye', '.canvas-presence-roster', '.cnv-hint']) {
       const box = await rect(page.locator(sel));
       expect(overlaps(box, left), `${sel} vs the left island`).toBe(false);
       expect(overlaps(box, right), `${sel} vs the right island`).toBe(false);

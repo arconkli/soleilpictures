@@ -153,12 +153,12 @@ export function WorkspaceGeneralTab({
 
       <SettingsCategory title={t`AI`} desc={t`What may go to an AI model`}>
         {canManage ? (
-          <Toggle label={t`AI suggestions`}
-                  desc={t`Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work.`}
+          <Toggle label={t`AI for pictures and search`}
+                  desc={t`Describes the pictures people add, so search finds them by what's in them and More like this finds similar ones, and translates searches typed in another language. A small copy of each picture and those searches go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted.`}
                   value={aiOn !== false}
                   onChange={changeAi} />
         ) : (
-          <Field label={t`AI suggestions`}>
+          <Field label={t`AI for pictures and search`}>
             <span className="settings-toggle-desc">
               {aiOn === null ? t`… · only the owner or a co-owner can change this`
                 : aiOn ? t`On · only the owner or a co-owner can change this`

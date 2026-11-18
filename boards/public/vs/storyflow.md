@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
 
-_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-11-17_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
 
@@ -21,7 +21,7 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on every plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
 - Mood board, storyboard, shot list and screenplay as nested boards
-- Tags and a relationship graph across the whole project
+- A relationship graph across the whole project
 - Connect Claude or any MCP client with one URL — no in-app allowance
 
 ## A free plan you can use today, and a flat price after it
@@ -43,7 +43,7 @@ Both of these tools come from small teams, and you should weigh that either way.
 ## How to move a Storyflow project to Clusters
 
 1. **Export what you made** — Storyflow exports boards as PNG, SVG or PDF and documents as files. Keep the original images you gathered as well — those are the references, and they are yours.
-2. **Drop them on a new board** — Drag the whole set onto a fresh cluster in one drop, then group and tag the references as you rebuild.
+2. **Drop them on a new board** — Drag the whole set onto a fresh cluster in one drop, then group the references as you rebuild.
 3. **Rebuild the structure as nested boards** — A mood board, a storyboard grid and a shot list become linked boards in one project rather than one long canvas.
 4. **Share one link** — Send it to the crew or the client. It opens in the browser, no account is needed to view, and everyone you invite edits free.
 

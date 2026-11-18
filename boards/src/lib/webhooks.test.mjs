@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { MIGRATIONS_DIR, migrationFiles, latestDefinition } from './migrationText.mjs';
 import {
   signBody, verifySignature, webhookUrlProblem, fanOutEvents, deliverDue, deliverOne, runWebhooks,
-  WEBHOOK_EVENTS, MAX_ATTEMPTS, DISABLE_AFTER_FAILURES, REPLAY_WINDOW_SECONDS, AFTER_WRITE_DRAIN,
+  WEBHOOK_EVENTS, isRemovedEvent, withoutRemovedEvents, MAX_ATTEMPTS, DISABLE_AFTER_FAILURES, REPLAY_WINDOW_SECONDS, AFTER_WRITE_DRAIN,
 } from './webhooks.js';
 
 // ── signing ──────────────────────────────────────────────────────────────────
@@ -275,13 +275,34 @@ test('a delivery for a hook that was switched off is dropped, not retried foreve
   assert.match(p.error, /inactive/);
 });
 
-test('the event vocabulary is closed and covers boards, cards, images, comments and tags', () => {
+test('a removed tag event is dropped from a name list, never fanned out, never delivered', async () => {
+  assert.deepEqual(withoutRemovedEvents(['card.created', 'tag.applied', 'tag.removed', '*']), ['card.created', '*']);
+  assert.equal(isRemovedEvent('tag.applied'), true);
+  assert.equal(isRemovedEvent('card.created'), false);
+
+  const db = fakeDb({ events: [ev({ event: 'tag.applied' })], hooks: [hook({ events: ['tag.applied', 'card.created'] }), hook({ id: 'h-2', events: ['*'] })] });
+  const out = await fanOutEvents({}, { db });
+  assert.equal(out.deliveries, 0);
+  assert.equal(db.writes.inserted.length, 0);
+
+  const queued = fakeDb({ deliveries: [pending({ event: 'tag.removed' })], hooks: [hook({ events: ['tag.removed', 'card.created'] })] });
+  let called = false;
+  await deliverDue({}, { db: queued, fetchImpl: async () => { called = true; return { ok: true, status: 200 }; } });
+  assert.equal(called, false);
+  assert.match(queued.writes.patched.find((w) => w.tbl === 'webhook_deliveries').patch.error, /removed/);
+
+  const other = fakeDb({ deliveries: [pending()], hooks: [hook({ events: ['tag.applied', 'card.created'] })] });
+  await deliverDue({}, { db: other, fetchImpl: async () => { called = true; return { ok: true, status: 200 }; } });
+  assert.equal(called, true, 'a subscription that listed a tag event still delivers its other events');
+});
+
+test('the event vocabulary is closed and covers boards, cards, images, comments', () => {
   assert.ok(WEBHOOK_EVENTS.includes('board.created'));
   assert.ok(WEBHOOK_EVENTS.includes('card.created'));
   assert.ok(WEBHOOK_EVENTS.includes('card.moved'));
   assert.ok(WEBHOOK_EVENTS.includes('image.created'));
   assert.ok(WEBHOOK_EVENTS.includes('comment.resolved'));
-  assert.ok(WEBHOOK_EVENTS.includes('tag.applied'));
+  assert.ok(!WEBHOOK_EVENTS.includes('tag.applied') && !WEBHOOK_EVENTS.includes('tag.removed'), 'tag events were removed');
   // Every name is `object.verb`, which is what lets a subscriber filter by
   // prefix and what the payload's resource.type is derived from.
   for (const e of WEBHOOK_EVENTS) assert.match(e, /^[a-z]+\.[a-z]+$/);
@@ -302,7 +323,7 @@ test('every event a webhook can subscribe to is one the database writes, and bac
   for (const fn of emitters) {
     const def = latestDefinition(fn);
     assert.ok(def, `${fn} has a definition`);
-    for (const m of def.body.matchAll(/'([a-z]+\.[a-z]+)'/g)) written.add(m[1]);
+    for (const m of def.body.matchAll(/'([a-z]+\.[a-z]+)'/g)) if (!isRemovedEvent(m[1])) written.add(m[1]);
   }
   assert.deepEqual([...written].sort(), [...WEBHOOK_EVENTS].sort());
 });

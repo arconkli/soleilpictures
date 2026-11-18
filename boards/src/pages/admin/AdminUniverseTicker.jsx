@@ -26,9 +26,8 @@
 // the same thing. Each count carries its own +N.
 //
 // `Drawn` is deliberately NOT one of those counts. Several kinds of row never
-// become anything you can see — entity_links are overwhelmingly tag
-// attachments, which the graph renders as nothing at all — so Drawn comes from
-// the renderer itself, and the HUD can only ever claim what is on screen.
+// become anything you can see — entity_links are rows the graph renders as
+// nothing at all — so Drawn comes from the renderer itself, and the HUD can only ever claim what is on screen.
 //
 // Live (2026-10-21): the counts are exact and roll as an odometer's digits do,
 // so a single new card is a visible 7,189 → 7,190 where "7.2K" never moved, and
@@ -49,7 +48,7 @@ const CELLS = [
   { key: 'total_cards', label: 'Cards', recentKey: 'cards',
     hint: 'Cards on clusters that are not trashed. "+N" counts cards created on them in the last 24 hours.' },
   { key: 'drawn', label: 'Drawn', source: 'graph',
-    hint: 'Nodes · connections the renderer actually drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards. Tag attachments are not drawn at all.' },
+    hint: 'Nodes · connections the renderer actually drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards. Link rows are not drawn at all.' },
   { key: 'total_seconds_in_app', label: 'Time', format: 'duration', rises: false,
     hint: 'Summed time-in-app across every signed-in user (profiles.seconds_in_app). Signed-out visits are not counted.' },
 ];

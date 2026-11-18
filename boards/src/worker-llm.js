@@ -1,6 +1,5 @@
 // Shared helpers for Cloudflare Workers AI (env.AI) text-model calls.
-// Used by worker-ai.js (candidate "type + confirm") and worker-tags.js
-// (doc-page word-level tagging, migrated off OpenAI gpt-4o).
+// Used by the Workers AI routes and jobs that ask a chat model for JSON.
 //
 // Workers AI is the FREE in-worker tier — no API key, no credits. Text
 // models return { response }: a string, or the value already parsed when the

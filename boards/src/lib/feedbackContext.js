@@ -56,7 +56,7 @@ export function buildFeedbackContext(input = {}, env = {}) {
 const SURFACE_NAMES = {
   get canvas() { return t`board`; }, get list() { return t`Files`; },
   get doc() { return t`document`; }, get universe() { return t`home`; },
-  get tag() { return t`tag page`; }, get settings() { return t`settings`; },
+  get settings() { return t`settings`; },
   get public() { return t`public page`; },
 };
 const TIER_NAMES = {

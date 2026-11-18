@@ -4,7 +4,7 @@
 //
 // Why it exists: on 2026-05-08 Cloudflare's Workers AI changelog said
 // @cf/meta/llama-3.1-8b-instruct would be retired on 05-30. Nothing here read
-// the changelog, so doc word-tagging failed every call for the next five
+// the changelog, so the model's calls failed every time for the next five
 // months (error 5028) and nobody noticed. The watch pages the owner when a
 // model below
 //   - is listed under a deprecation heading in that changelog,
@@ -25,8 +25,8 @@ import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 export const AI_MODELS = [
   {
     id: '@cf/baai/bge-m3', kind: 'embedding', dims: 1024,
-    uses: 'tag embeddings (/api/tags/embed) and the server\'s card embeddings; the pgvector columns are vector(1024) since 0418',
-    files: ['boards/src/lib/serverEmbed.js', 'boards/src/worker-tags.js'],
+    uses: 'the server\'s picture embeddings; the pgvector columns are vector(1024) since 0418',
+    files: ['boards/src/lib/serverEmbed.js'],
   },
   {
     id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', kind: 'chat',
@@ -45,8 +45,8 @@ export const AI_MODELS = [
     // messages, reasons away its whole answer unless told not to, and answers
     // in the OpenAI shape (responseText reads choices[0]).
     id: '@cf/google/gemma-4-26b-a4b-it', kind: 'vision-chat', image: 'part', noThinking: true,
-    uses: 'picture descriptions (worker-vision.js, 0593), admin alt text (/api/seo/alt), doc word-tagging (/api/tags/apply), tag-candidate typing (/api/ai/candidates), and Scout\'s message intent and questions',
-    files: ['boards/src/lib/scoutIntent.js', 'boards/src/worker-ai.js', 'boards/src/worker-seo.js', 'boards/src/worker-tags.js', 'boards/src/worker-vision.js', 'scout/src/pipeline.js'],
+    uses: 'picture descriptions (worker-vision.js, 0593), admin alt text (/api/seo/alt), and Scout\'s message intent and questions',
+    files: ['boards/src/lib/scoutIntent.js', 'boards/src/worker-seo.js', 'boards/src/worker-vision.js', 'scout/src/pipeline.js'],
   },
   {
     // The two Whisper models take audio differently (transcribe.js).

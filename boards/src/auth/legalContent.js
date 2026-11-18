@@ -31,7 +31,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: 'November 10, 2026',
+  updated: 'November 17, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com, including through our API, our MCP server, and the AI assistants and other apps you connect to it. By using the Service, you agree to this Policy.",
   sections: [
@@ -42,7 +42,7 @@ const privacy = {
         {
           list: [
             'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password. If you add a passkey, we store its public key and the name of the device it was made on — never your fingerprint, your face, or the passkey’s private key, which stay on your device. To understand who uses the Service, we also group addresses by the kind of provider they come from — a personal email service, a school or university, or an organization’s own domain — and, for a school or university, by the institution.',
-            'Content you create. The clusters, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas, and the descriptions our AI features make of your pictures (see section 3).',
+            'Content you create. The clusters, canvases, notes, documents, comments, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas, and the descriptions our AI features make of your pictures (see section 3).',
             'Drafts made through an AI assistant. An assistant connected to the no-account address (clusters.soleilpictures.com/mcp) can build a draft cluster for someone who is not signed in. A draft stores what the assistant puts in it (the cards, pictures and text), a one-way hash of the access key the assistant passes back (and, for ChatGPT, of its anonymous user identifier), which kind of assistant made it, when it was last used, and a count of its requests in the hour. If nobody keeps it, it is deleted 30 days after its last change, and the hashed record of its key is removed 90 days after that; keeping it takes an email address and a one-time passcode, and the cluster then belongs to that account.',
             'Apps and AI assistants you connect. When you connect an app or AI assistant to your account, we keep a record of the app (the name, website, logo and version it gives us, the addresses it may return you to, and the IP address it registered from), what you allowed it to do, and when. When it acts on your account through our API or MCP server, we log each call: which connection made it, the route or tool, the response status and how long it took, the IP address and user agent, whether the call failed and the short error code it failed with, and, on an assistant’s first message of a session, the name and version the app reports for itself. Section 4 explains this in full.',
             'Collaboration data. When you share a cluster, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace. When you invite someone who does not have an account, we email them at the address you give us. If you take part in our referral program, we also process the email address you use to invite someone and the information needed to determine reward eligibility.',
@@ -83,15 +83,15 @@ const privacy = {
     {
       heading: '3. AI Features',
       blocks: [
-        'Some features use AI to help you organize and find your work. All of this processing runs on Cloudflare Workers AI, operated by our hosting provider Cloudflare on our behalf:',
+        'Some features use AI to help you find your work. All of this processing runs on Cloudflare Workers AI, operated by our hosting provider Cloudflare on our behalf:',
         {
           list: [
-            'Text. The text of your cards and documents is turned into a numeric summary so we can find related items and suggest tags.',
             'Pictures. A small copy of each picture you upload is read to write a short description, keywords and labels, and to pick out any text in the picture. These are stored with the picture so you can search for it. When you publish a cluster, a picture’s description may be used as its alt text, which anyone who can see the published cluster can read.',
             'Voice notes. Voice notes sent through Scout are transcribed into text.',
+            'Searches. When you search in another language, the words you type are translated into English so they can match picture descriptions.',
           ],
         },
-        'We do not use your content to train AI models, and Cloudflare does not use it to train theirs. The owner or a co-owner of a workspace can turn these features off in Settings › Workspace › AI suggestions. While they are off, nothing from that workspace is sent for AI processing, and the picture descriptions already made are deleted.',
+        'We do not use your content to train AI models, and Cloudflare does not use it to train theirs. The owner or a co-owner of a workspace can turn these features off in Settings › Workspace › AI for pictures and search. While they are off, nothing from that workspace is sent for AI processing, and the picture descriptions already made are deleted.',
         'AI assistants you connect yourself, such as Claude or ChatGPT, are separate from these features and are described in section 4.',
       ],
     },
@@ -101,7 +101,7 @@ const privacy = {
         'You can connect an AI assistant (such as Claude or ChatGPT) or another app to your account through our MCP server or our REST API. You sign in to Clusters and approve the connection on a consent screen before the app can reach your account. Without an account, an assistant can only make a new draft cluster through clusters.soleilpictures.com/mcp; section 1 describes what a draft stores and when it is deleted.',
         {
           list: [
-            'What it can reach. Only what you approve: reading (seeing the clusters, cards, documents, comments and tags you can open), writing (making and changing them), and deleting, which is off unless you tick it on the consent screen. An app can never do more than your own account can.',
+            'What it can reach. Only what you approve: reading (seeing the clusters, cards, documents and comments you can open), writing (making and changing them), and deleting, which is off unless you tick it on the consent screen. An app can never do more than your own account can.',
             'What we receive. Only what the app puts in its requests to Clusters, such as a search, the text of a card it adds, or a link to import. We never ask for or receive your conversation history, your other chats, or the assistant’s memory.',
             'Where your content goes. What the app reads from Clusters is sent to that app, and through it to the company that runs it — for an AI assistant, the assistant’s provider, such as Anthropic or OpenAI. From there it is handled under that company’s terms and privacy policy, which we do not control.',
             'What we keep. The record of the connection and the log of its calls described in section 1. Records of calls are deleted after 30 days. Access tokens are stored only as one-way hashes and expire on their own; the connection lasts until you disconnect it.',
@@ -152,7 +152,7 @@ const privacy = {
         'We keep your account and your content while your account is open, and for as long as needed to provide the Service. Some records are deleted automatically after a set period:',
         {
           list: [
-            'Clusters, comments, tags and votes you delete stay in Trash for 30 days, then are permanently deleted.',
+            'Clusters, comments and votes you delete stay in Trash for 30 days, then are permanently deleted.',
             'Draft clusters made by an AI assistant that nobody keeps: see section 1.',
             'Records of calls made through the API or by a connected app: 30 days.',
             'Webhook delivery records: 30 days.',
@@ -164,7 +164,7 @@ const privacy = {
           ],
         },
         'Other records, such as email delivery and open records, security records, app registrations, and Scout sign-ups, have no set period. We keep them only as long as they are needed for the purposes in this Policy.',
-        'Deleting your account. You can delete your account yourself in Settings › Profile (if you own a Team, close the team first). It takes effect immediately and cannot be undone. Workspaces that nobody else can edit are deleted with everything in them. A workspace that others can edit passes to a co-owner or its longest-standing editor, so their work is not lost. Any subscription is cancelled, and your usage and error records are de-identified. Comments, tags and votes you left in other people’s clusters stay, with your name removed. Records of the emails we sent you and a Scout sign-up (your number and consent) are not removed automatically; email us and we will delete them. Stripe keeps the payment records it is required to keep. If Settings does not let you delete your account, email us.',
+        'Deleting your account. You can delete your account yourself in Settings › Profile (if you own a Team, close the team first). It takes effect immediately and cannot be undone. Workspaces that nobody else can edit are deleted with everything in them. A workspace that others can edit passes to a co-owner or its longest-standing editor, so their work is not lost. Any subscription is cancelled, and your usage and error records are de-identified. Comments and votes you left in other people’s clusters stay, with your name removed. Records of the emails we sent you and a Scout sign-up (your number and consent) are not removed automatically; email us and we will delete them. Stripe keeps the payment records it is required to keep. If Settings does not let you delete your account, email us.',
         'Backups. We keep a backup copy of uploaded files so we can recover from loss. Deleting a file or an account does not currently remove its backup copy. Our database provider also keeps backups of the database for a limited time, which can hold deleted information until they are replaced. Backups are stored securely, used only to restore lost data, and not used for anything else.',
         'We may keep certain information longer where required by law, to resolve disputes, prevent abuse, and enforce our agreements.',
       ],
@@ -185,7 +185,7 @@ const privacy = {
             'Delete. Delete content (it stays in Trash for 30 days), or delete your account in Settings › Profile.',
             'Disconnect apps. Settings › Connections › Connected apps.',
             'Drafts. A draft cluster an assistant made that nobody keeps is deleted on its own; email us to remove one sooner.',
-            'Turn off AI features. Settings › Workspace › AI suggestions (workspace owner or co-owner).',
+            'Turn off AI features. Settings › Workspace › AI for pictures and search (workspace owner or co-owner).',
             'Layout outlines. Say yes or no when the app asks, or change your answer at any time in Settings › Profile. Turning it off leaves your clusters out of every outline made after that, and at once deletes any outline from the week you signed up that is still noted as yours. Other outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours. Like every outline, they are deleted after 400 days.',
             'Email. Use the unsubscribe link in any lifecycle or activity email.',
             'Advertising. Send the Global Privacy Control signal, or use the controls in our Cookie Policy.',
@@ -229,7 +229,7 @@ const privacy = {
 const terms = {
   slug: 'terms',
   title: 'Terms of Service',
-  updated: 'November 10, 2026',
+  updated: 'November 17, 2026',
   intro:
     "These Terms of Service (\"Terms\") are a binding agreement between you and Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") and govern your use of Soleil Clusters (the \"Service\"), including through our API, our MCP server, and any app or AI assistant you connect to it. By creating an account or using the Service, you agree to these Terms and to our Privacy Policy. If you do not agree, do not use the Service.",
   sections: [
@@ -317,7 +317,7 @@ const terms = {
     {
       heading: '8. AI Features',
       blocks: [
-        'The Service uses AI to suggest tags, describe pictures, and transcribe voice notes, as described in our Privacy Policy. AI output, including anything an assistant you connect writes into your account, can be wrong, incomplete or unsuitable. Review it before you rely on it or publish it. A workspace owner or co-owner can turn our AI features off in Settings › Workspace › AI suggestions.',
+        'The Service uses AI to describe pictures and transcribe voice notes, as described in our Privacy Policy. AI output, including anything an assistant you connect writes into your account, can be wrong, incomplete or unsuitable. Review it before you rely on it or publish it. A workspace owner or co-owner can turn our AI features off in Settings › Workspace › AI for pictures and search.',
       ],
     },
     {

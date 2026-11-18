@@ -19,22 +19,22 @@ const req = (url, method = 'GET') => ({ url, method });
 test('a route that threw is a worker row, with its route and never its query', () => {
   const row = serverErrorRow({
     source: 'worker', kind: 'route', status: 500, release: 'abc1234',
-    request: req('https://clusters.soleilpictures.com/api/tags/apply?q=My%20Film', 'POST'),
+    request: req('https://clusters.soleilpictures.com/api/search/translate?q=My%20Film', 'POST'),
     error: Object.assign(new TypeError("Cannot read properties of undefined (reading 'id')"), {
-      stack: 'TypeError: Cannot read properties of undefined (reading \'id\') at "My Film"\n    at handleApply (worker.js:10:5)',
+      stack: 'TypeError: Cannot read properties of undefined (reading \'id\') at "My Film"\n    at handleTranslate (worker.js:10:5)',
     }),
   }, makeServerErrorState(), 1_000_000);
   assert.equal(row.source, 'worker');
   assert.equal(row.kind, 'route');
   assert.equal(row.severity, 'error');
   assert.equal(row.name, 'TypeError');
-  assert.equal(row.path, '/api/tags/apply');
+  assert.equal(row.path, '/api/search/translate');
   assert.equal(row.message, "Cannot read properties of undefined (reading 'id')");
-  assert.equal(row.stack, "TypeError: Cannot read properties of undefined (reading 'id')\n    at handleApply (worker.js:10:5)");
+  assert.equal(row.stack, "TypeError: Cannot read properties of undefined (reading 'id')\n    at handleTranslate (worker.js:10:5)");
   assert.equal(row.env, 'prod');
   assert.equal(row.release, 'abc1234');
   assert.equal(row.user_agent, null);
-  assert.deepEqual(row.context, { op: 'route', http: { method: 'POST', svc: 'worker', route: 'api/tags/apply', status: 500 } });
+  assert.deepEqual(row.context, { op: 'route', http: { method: 'POST', svc: 'worker', route: 'api/search/translate', status: 500 } });
   assert.doesNotMatch(JSON.stringify(row), /My%20Film|My Film/);
   for (const k of Object.keys(row.context)) assert.ok(ERROR_CONTEXT_KEYS.includes(k), `${k} survives 0580's allowlist`);
 });
@@ -114,8 +114,8 @@ test('a failed database call is said by what was called and why, never its body'
 
 test('a 5xx answered with nothing thrown is named by its route', () => {
   const row = serverErrorRow({ source: 'worker', kind: 'route', status: 504,
-    request: req('https://main-soleil-boards.arconkli.workers.dev/api/tags/embed', 'POST') }, makeServerErrorState(), 0);
-  assert.equal(row.message, 'POST /api/tags/embed: gateway timeout');
+    request: req('https://main-soleil-boards.arconkli.workers.dev/api/search/translate', 'POST') }, makeServerErrorState(), 0);
+  assert.equal(row.message, 'POST /api/search/translate: gateway timeout');
   assert.equal(row.env, 'preview');
   assert.equal(row.stack, null);
 });
@@ -125,12 +125,12 @@ test('a guard hands the door what it caught, by the request', () => {
   // workerErrors.js, the Party's from here.
   assert.equal(workerErrors.answeredWith, answeredWith);
   assert.equal(workerErrors.answerOf, answerOf);
-  const request = req('https://clusters.soleilpictures.com/api/tags/apply');
+  const request = req('https://clusters.soleilpictures.com/api/search/translate');
   assert.deepEqual(answerOf(request), {});
   const e = new Error('x');
   answeredWith(request, e, { kind: 'api', code: 'internal_error' });
   assert.deepEqual(answerOf(request), { error: e, kind: 'api', code: 'internal_error' });
-  assert.deepEqual(answerOf(req('https://clusters.soleilpictures.com/api/tags/apply')), {});
+  assert.deepEqual(answerOf(req('https://clusters.soleilpictures.com/api/search/translate')), {});
   assert.deepEqual(answerOf(null), {});
 });
 

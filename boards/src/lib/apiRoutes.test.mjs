@@ -1327,12 +1327,11 @@ test('a card list with include=seen still answers when the pictures cannot be re
   assert.equal('in_picture' in r.body.cards[0], false);
 });
 
-// Cards the API writes are embedded off the response path, through the one
-// server embedder, from the card_index projection; with AI off, never.
-async function writeWithAi(method, path, body, aiOn = true) {
+// What the API writes is not embedded: text embeddings were removed with tags.
+async function writeWithAi(method, path, body) {
   const texts = [];
   const pending = [];
-  on('GET', 'workspaces', () => reply([{ id: 'w1', created_by: 'u1', ai_tagger_enabled: aiOn }]));
+  on('GET', 'workspaces', () => reply([{ id: 'w1', created_by: 'u1', ai_tagger_enabled: true }]));
   on('POST', 'rpc/_ai_budget_take', () => reply(true));
   const env = { ...ENV, AI: { run: async (_m, { text }) => { texts.push(...text); return { data: text.map(() => new Array(1024).fill(0.5)) }; } } };
   const url = new URL(`https://clusters.test/api/v1${path}`);
@@ -1344,24 +1343,18 @@ async function writeWithAi(method, path, body, aiOn = true) {
   return { status: res.status, texts, stored };
 }
 
-test('cards the API writes are embedded for search by meaning, pictures left to the describe job', async () => {
+test('cards the API writes are not embedded', async () => {
   putBoard(B1, [], { name: 'Diner' });
   const made = await writeWithAi('POST', `/boards/${B1}/cards`, { cards: [
     { kind: 'note', title: 'Logline', body: 'A cabbie finds a reel of film.', x: 0, y: 0 },
-    { kind: 'link', url: 'https://example.com/neon', title: 'Neon reference', x: 400, y: 0 },
   ] });
   assert.equal(made.status, 201);
-  assert.equal(made.texts.length, 2);
-  assert.ok(made.texts.some((t) => t.startsWith('Logline') && t.includes('A cabbie finds a reel of film.')));
-  assert.deepEqual(made.stored.map((r) => [r.entity_kind, r.workspace_id, r.board_id]),
-    [['card', 'w1', B1], ['card', 'w1', B1]]);
-  assert.ok(made.stored.every((r) => /^[0-9a-f]+$/.test(r.content_hash)));
+  assert.deepEqual([made.texts, made.stored], [[], []]);
 
   const id = cardsOn(B1).find((c) => c.kind === 'note').id;
-  calls = [];
   const changed = await writeWithAi('PATCH', `/boards/${B1}/cards/${id}`, { body: 'A cabbie burns the reel.' });
   assert.equal(changed.status, 200);
-  assert.deepEqual(changed.stored.map((r) => r.card_id), [id]);
+  assert.deepEqual([changed.texts, changed.stored], [[], []]);
 });
 
 // A Worker's ExecutionContext throws "Illegal invocation" when waitUntil is
@@ -1375,16 +1368,13 @@ class StrictContext {
   settle() { return Promise.all(this.#pending); }
 }
 
-test('add_cards in a draft over /mcp embeds what it wrote, on a real Worker context', async () => {
+test('add_cards in a draft over /mcp runs on a real Worker context', async () => {
   putBoard(B1, [], { name: 'Diner' });
   on('POST', 'rpc/mcp_draft_resolve', () => reply([{
     state: 'live', draft_id: '11111111-2222-4333-8444-555555555555', user_id: 'u1', workspace_id: 'w1',
     expires_at: '2026-11-26T00:00:00+00:00', req_count: 1, req_limit: 300,
   }]));
   on('POST', 'rpc/api_session_begin', () => reply([{ access_token: 'jwt-u1' }]));
-  on('GET', 'workspaces', () => reply([{ id: 'w1', created_by: 'u1', ai_tagger_enabled: true }]));
-  on('POST', 'rpc/_ai_budget_take', () => reply(true));
-  const env = { ...ENV, AI: { run: async (_m, { text }) => ({ data: text.map(() => new Array(1024).fill(0.5)) }) } };
   const ctx = new StrictContext();
   const url = new URL('https://main-soleil-boards.arconkli.workers.dev/mcp'); // drafts are open on preview
   const res = await handleMcpEndpoint(url, new Request(url, {
@@ -1394,19 +1384,10 @@ test('add_cards in a draft over /mcp embeds what it wrote, on a real Worker cont
       name: 'add_cards',
       arguments: { draft: `dk_${'a'.repeat(43)}`, board_id: B1, cards: [{ kind: 'note', title: 'Logline', body: 'A reel of film.' }] },
     } }),
-  }), env, ctx);
+  }), ENV, ctx);
   const body = await res.json();
   assert.ok(body.result && body.result.isError !== true, JSON.stringify(body).slice(0, 400));
   await ctx.settle();
-  const stored = calls.filter((c) => c.method === 'POST' && c.path === 'card_embeddings').flatMap((c) => c.body);
-  assert.equal(stored.length, 1);
-});
-
-test('with AI features off, nothing the API writes is embedded', async () => {
-  putBoard(B1, [], { name: 'Diner' });
-  const r = await writeWithAi('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', body: 'Neon', x: 0, y: 0 }] }, false);
-  assert.equal(r.status, 201);
-  assert.deepEqual([r.texts, r.stored], [[], []]);
 });
 
 test('a card list with include=groups carries the board\'s groups, read in the same open', async () => {
@@ -1836,4 +1817,50 @@ test('a card write can name auto, and its sections land apart', async () => {
       assert.ok(!overlapping(frameOf(cards, groups[i]), frameOf(cards, groups[j])), 'sections apart');
     }
   }
+});
+
+// ── tags were removed: their paths answer 410 gone ───────────────────────────
+
+test('every old tag path answers 410 gone, whatever the method', async () => {
+  const T1 = '66666666-6666-4666-8666-666666666666';
+  for (const [method, path, body] of [
+    ['GET', `/workspaces/${W1}/tags`],
+    ['GET', `/tags/${T1}`],
+    ['GET', `/boards/${B1}/tags`],
+    ['POST', `/boards/${B1}/tags`, { card_ids: ['c1'], add: ['Day'] }],
+  ]) {
+    const r = await api(method, path, body);
+    assert.equal(r.status, 410, `${method} ${path}`);
+    assert.equal(r.body.code, 'gone');
+    assert.equal(r.body.error, 'Tags were removed from Clusters.');
+  }
+});
+
+// ── tag events are gone from webhooks, compatibly ────────────────────────────
+
+test('a webhook that still lists a tag event is created and read back without it', async () => {
+  let sent;
+  on('POST', 'rpc/webhook_create', (c) => { sent = c.body; return reply([{ id: H1, secret: 's', created_at: '2026-11-17T00:00:00Z' }]); });
+  const r = await api('POST', '/webhooks', {
+    workspace_id: W1, url: 'https://hooks.example.com/hook', events: ['card.created', 'tag.applied', 'tag.removed'],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(sent.p_events, ['card.created']);
+  assert.deepEqual(r.body.webhook.events, ['card.created']);
+
+  on('POST', 'rpc/webhook_list', () => reply([{ id: H1, workspace_id: W1, events: ['tag.applied', 'board.created'] }]));
+  const list = await api('GET', '/webhooks');
+  assert.deepEqual(list.body.webhooks[0].events, ['board.created']);
+
+  on('POST', 'rpc/webhook_update', (c) => { sent = c.body; return reply(true); });
+  const upd = await api('PATCH', `/webhooks/${H1}`, { events: ['tag.applied', 'card.moved'] });
+  assert.equal(upd.status, 200, JSON.stringify(upd.body));
+  assert.deepEqual(sent.p_events, ['card.moved']);
+  assert.deepEqual(upd.body.webhook.events, ['board.created']);
+
+  const bad = await api('POST', '/webhooks', { workspace_id: W1, url: 'https://hooks.example.com/hook', events: ['nope.event'] });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /unknown event "nope.event"/);
+  const only = await api('POST', '/webhooks', { workspace_id: W1, url: 'https://hooks.example.com/hook', events: ['tag.applied'] });
+  assert.equal(only.status, 400);
 });

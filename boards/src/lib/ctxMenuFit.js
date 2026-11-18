@@ -27,8 +27,8 @@ export function fitMenuAbove(bottom, h, pad = MENU_PAD) {
   return Math.max(pad, bottom - h);
 }
 
-// Runs after every render (the content can change while open: tags and the
-// backlink count load after it opens), writes the fitted top, and caps the
+// Runs after every render (the content can change while open: the
+// backlink count loads after it opens), writes the fitted top, and caps the
 // height to what is left below it so anything taller scrolls. `above`: `y` is
 // where the menu ends (fitMenuAbove), and what's loading is reserved over it.
 //

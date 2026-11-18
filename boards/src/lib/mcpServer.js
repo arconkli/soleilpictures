@@ -27,7 +27,7 @@
 // permission model, which is the only way the two cannot drift apart.
 
 import {
-  HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, UNTRUSTED_NOTE, toolManifest, ApiError,
+  HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, REMOVED, RENAMED_PROMPTS, UNTRUSTED_NOTE, toolManifest, ApiError,
   describeApiError, BOARD_VIEW, parseFetchId,
 } from './mcpTools.js';
 import { checkArgs, argsProblemText } from './mcpValidate.js';
@@ -578,6 +578,9 @@ export async function handleMcpMessage(msg, ctx) {
       const out = await callTool(tools, name, callArgs, callCtx);
       if (out.unknown) {
         const available = tools.map((t) => t.name);
+        if (Object.hasOwn(REMOVED, name)) {
+          return err(id, ERR.INVALID_PARAMS, `${name} is gone: ${REMOVED[name]}`, { removed: true, available });
+        }
         // A host holding the list from before 3.0 is told what does that now.
         const moved = Object.hasOwn(RENAMED, name) ? RENAMED[name] : null;
         if (moved) {

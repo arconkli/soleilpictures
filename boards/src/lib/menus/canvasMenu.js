@@ -52,7 +52,7 @@ export function canvasMenu(ctx, acts) {
       [add, 'paste', 'select-all', 'select-touch'],
       ['tidy', 'fit'],
       ['background', 'export'],
-      ['share-cluster', 'copy-link', 'tag-cluster', 'cluster-info'],
+      ['share-cluster', 'copy-link', 'cluster-info'],
       ['clear-drawings'],
     ], acts),
   };

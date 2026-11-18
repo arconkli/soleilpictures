@@ -129,10 +129,6 @@ msgstr "“{clusterName}”과(와) 모든 콘텐츠가 영구적으로 삭제�
 msgid "\"{clusterName}\", the {insideLabel} and ALL their content will be permanently removed. This cannot be undone."
 msgstr "“{clusterName}”과(와) {insideLabel}, 그리고 모든 콘텐츠가 영구적으로 삭제돼요. 되돌릴 수 없어요."
 
-#: src/components/SidebarTags.jsx
-msgid "“{name}” — seen {n}× in your prose. Adopt as an entity."
-msgstr "“{name}” — 글에서 {n}번 나왔어요. 개체로 채택해 보세요."
-
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” deleted"
 msgstr "“{name}” 삭제됨"
@@ -144,34 +140,6 @@ msgstr "“{name}”에서 동기화 오류가 발생해 서버에서 다시 불
 #: src/App.jsx
 msgid "“{name}” is no longer shared with you."
 msgstr "“{name}”이(가) 더 이상 나와 공유되지 않아요."
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a {kind}"
-msgstr "{kind}(으)로 지정했어요: “{name}”"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a character"
-msgstr "캐릭터로 지정했어요: “{name}”"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a setting"
-msgstr "배경으로 지정했어요: “{name}”"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a tag"
-msgstr "태그로 지정했어요: “{name}”"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a thing"
-msgstr "사물로 지정했어요: “{name}”"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a topic"
-msgstr "주제로 지정했어요: “{name}”"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now an organization"
-msgstr "조직으로 지정했어요: “{name}”"
 
 #: src/App.jsx
 #: src/components/shared/SharedPage.jsx
@@ -283,8 +251,6 @@ msgid "{0, plural, one {# audio file} other {# audio files}}"
 msgstr "{0, plural, other {오디오 파일 #개}}"
 
 #. placeholder {0}: a.board_ids.length
-#. placeholder {0}: r.shared
-#: src/components/TagDetailView.jsx
 #: src/components/WorkspaceAlertBanner.jsx
 msgid "{0, plural, one {# board} other {# boards}}"
 msgstr "{0, plural, other {클러스터 #개}}"
@@ -429,17 +395,10 @@ msgstr "{0, plural, other {항목 #개 — 이 날 열기}}"
 
 #. placeholder {0}: dayCounts[d.date]
 #. placeholder {0}: list.length
-#. placeholder {0}: vis.total
 #: src/components/cards/ScheduleWall.jsx
-#: src/components/EntityHoverPopover.jsx
 #: src/lib/cardInfo.js
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, other {항목 #개}}"
-
-#. placeholder {0}: g.member_count
-#: src/components/TagDetailView.jsx
-msgid "{0, plural, one {# item} other {# items}} · open the cluster to view"
-msgstr "{0, plural, other {항목 #개}} · 클러스터를 열어 확인하세요"
 
 #. placeholder {0}: workspaceMembers.length
 #: src/App.jsx
@@ -544,11 +503,6 @@ msgstr "{0, plural, other {획 #개가 삭제돼요. 실행 취소할 수 있어
 #: src/components/LinkPopover.jsx
 msgid "{0, plural, one {# TARGETS} other {# TARGETS}}"
 msgstr "{0, plural, other {대상 #개}}"
-
-#. placeholder {0}: counts.get(tag.id)
-#: src/components/SidebarTags.jsx
-msgid "{0, plural, one {# thing} other {# things}}"
-msgstr "{0, plural, other {항목 #개}}"
 
 #. placeholder {0}: zips.length
 #: src/lib/importStart.js
@@ -1006,16 +960,6 @@ msgstr "{count, plural, other {파일 #개가 파일에 있어요}}"
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, other {파일 #개}}"
 
-#: src/components/SidebarTags.jsx
-msgid "{count, plural, one {# item are tagged with \"{name}\". Delete the tag and all of its applications?\n"
-"\n"
-"You can undo this — it's recoverable for 30 days.} other {# items are tagged with \"{name}\". Delete the tag and all of its applications?\n"
-"\n"
-"You can undo this — it's recoverable for 30 days.}}"
-msgstr "{count, plural, other {항목 #개에 “{name}” 태그가 달려 있어요. 태그와 모든 적용 항목을 삭제할까요?\n"
-"\n"
-"실행 취소할 수 있어요. 30일 동안 복구할 수 있어요.}}"
-
 #: src/components/cards/ScheduleRail.jsx
 msgid "{count, plural, one {# item on {when}} other {# items on {when}}}"
 msgstr "{count, plural, other {{when} 항목 #개}}"
@@ -1116,10 +1060,6 @@ msgstr "{days, plural, =1 {하루} other {#일}}"
 #: src/lib/billingCopyWords.js
 msgid "{days} days free"
 msgstr "{days}일 무료"
-
-#: src/components/TagDetailView.jsx
-msgid "{distPct}% match"
-msgstr "{distPct}% 일치"
 
 #: src/lib/teamCopy.js
 msgid "{domain} is verified."
@@ -1368,10 +1308,6 @@ msgstr "보기 전용이라 복사돼요: {from}"
 msgid "{from} is view only, so they’re copied"
 msgstr "보기 전용이라 복사돼요: {from}"
 
-#: src/components/SidebarTags.jsx
-msgid "{fromCount, plural, one {Merge \"{fromName}\" into \"{intoName}\". # application moves over and \"{fromName}\" is deleted.} other {Merge \"{fromName}\" into \"{intoName}\". # applications move over and \"{fromName}\" is deleted.}}"
-msgstr "{fromCount, plural, other {“{fromName}” 태그를 “{intoName}” 태그에 병합해요. 적용 항목 #개가 옮겨지고 “{fromName}” 태그는 삭제돼요.}}"
-
 #: src/components/cards/ScheduleCard.jsx
 msgid "{fullTitle} — jump to date"
 msgstr "{fullTitle} — 날짜로 이동"
@@ -1467,10 +1403,6 @@ msgstr "{label} · 시작 {frameToTC}"
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{label} · press to see another cluster’s files"
 msgstr "{label} · 눌러서 다른 클러스터의 파일 보기"
-
-#: src/components/CandidatePromptPopover.jsx
-msgid "{label} (suggested)"
-msgstr "{label} (추천)"
 
 #: src/components/ShareModal.jsx
 msgid "{label} can now edit every cluster in \"{name}\"."
@@ -2119,10 +2051,6 @@ msgid "{name} — click to jump to their view"
 msgstr "{name} — 클릭하면 해당 화면으로 이동"
 
 #: src/components/CanvasSurface.jsx
-msgid "{name} — click to light it up on this cluster"
-msgstr "{name} — 클릭하면 이 클러스터에서 강조돼요"
-
-#: src/components/CanvasSurface.jsx
 msgid "{name} — click to start an arrow from this group"
 msgstr "{name} — 클릭해서 이 그룹에서 화살표 시작"
 
@@ -2142,10 +2070,6 @@ msgstr "{name} — 우클릭하면 그룹 작업"
 #: src/pages/MakePage.jsx
 msgid "{name} — Soleil Clusters"
 msgstr "{name} — Soleil Clusters"
-
-#: src/components/SidebarTags.jsx
-msgid "{name} · {c} applied"
-msgstr "{name} · {c}개에 적용됨"
 
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{name} · {where}"
@@ -2186,14 +2110,6 @@ msgstr "{name} · 눌러서 다른 클러스터의 파일 보기"
 #: src/components/SidebarSharedBoards.jsx
 msgid "{name} · view only"
 msgstr "{name} · 보기 전용"
-
-#: src/components/CanvasSurface.jsx
-msgid "{name} ({source}) — click to light it up on this cluster"
-msgstr "{name} ({source}) — 클릭하면 이 클러스터에서 강조돼요"
-
-#: src/components/CanvasSurface.jsx
-msgid "{name} ({source}) — right-click to confirm — click to light it up on this cluster"
-msgstr "{name} ({source}) — 우클릭해서 확인 — 클릭하면 이 클러스터에서 강조돼요"
 
 #: src/App.jsx
 msgid "{name} (copy)"
@@ -2356,12 +2272,12 @@ msgid "{next} ends at {endsAt}"
 msgstr "{next} · 종료 {endsAt}"
 
 #: src/App.jsx
-msgid "{nKept, plural, one {# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search or tags until there's room.} other {# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search or tags until there's room.}}"
-msgstr "{nKept, plural, other {여기 있는 카드 #장은 집계되지 않아요. 이 클러스터 소유자가 카드 한도에 도달했어요. 캔버스에는 그대로 남지만 여유가 생길 때까지 검색과 태그에는 나타나지 않아요.}}"
+msgid "{nKept, plural, one {# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search until there's room.} other {# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search until there's room.}}"
+msgstr "{nKept, plural, other {여기 있는 카드 #장은 집계되지 않아요. 이 클러스터 소유자가 카드 한도에 도달했어요. 캔버스에는 그대로 남지만 여유가 생길 때까지 검색에는 나타나지 않아요.}}"
 
 #: src/App.jsx
-msgid "{nKept, plural, one {# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search or tags until there's room.} other {# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search or tags until there's room.}}"
-msgstr "{nKept, plural, other {여기 있는 카드 #장은 집계되지 않아요. 카드 한도에 도달했어요. 캔버스에는 그대로 남지만 여유가 생길 때까지 검색과 태그에는 나타나지 않아요.}}"
+msgid "{nKept, plural, one {# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search until there's room.} other {# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search until there's room.}}"
+msgstr "{nKept, plural, other {여기 있는 카드 #장은 집계되지 않아요. 카드 한도에 도달했어요. 캔버스에는 그대로 남지만 여유가 생길 때까지 검색에는 나타나지 않아요.}}"
 
 #: src/components/fileShare/FileComments.jsx
 msgid "{nOpen, plural, one {# open} other {# open}}"
@@ -2783,10 +2699,6 @@ msgstr "{total}개 중 {shown}개"
 msgid "{shownCount, plural, one {# card} other {# cards}} · not saved yet"
 msgstr "{shownCount, plural, other {카드 #장}} · 아직 저장되지 않음"
 
-#: src/components/CommandPalette.jsx
-msgid "{shownCount, plural, one {# shown} other {# shown}}"
-msgstr "{shownCount, plural, other {#개 표시}}"
-
 #. placeholder {0}: files.length
 #: src/lib/cardInfo.js
 msgid "{size} ({known} of {0, plural, one {# file} other {# files}})"
@@ -2815,18 +2727,6 @@ msgstr "{strokeArrowCount, plural, =1 {삭제했어요} other {#개를 삭제했
 #: src/components/NewClusterButton.jsx
 msgid "{sweep, plural, one {All # loose cards move into it. Undo puts them back.} other {All # loose cards move into it. Undo puts them back.}}"
 msgstr "{sweep, plural, other {낱개 카드 #장이 모두 그 안으로 이동해요. 실행 취소하면 되돌려 놓아요.}}"
-
-#: src/components/DocTagGutter.jsx
-msgid "{tag} · {source}"
-msgstr "{tag} · {source}"
-
-#: src/components/TagDetailView.jsx
-msgid "{taggedCount} tagged"
-msgstr "태그됨 {taggedCount}"
-
-#: src/components/TagDetailView.jsx
-msgid "{taggedCount} tagged · {insideCount} inside"
-msgstr "태그됨 {taggedCount} · 내부 {insideCount}"
 
 #: src/components/ImportCapDialog.jsx
 msgid "{take, plural, one {Add the first # card} other {Add the first # cards}}"
@@ -2931,14 +2831,6 @@ msgstr "오늘 {today}(이번 달 남은 기간분), 이후 {then}. {planName} �
 #: src/lib/billingCopyWords.js
 msgid "{today} today for the rest of this year, then {then}, on the card you pay {planName} with. You can remove it later in Settings → Plan & billing."
 msgstr "오늘 {today}(올해 남은 기간분), 이후 {then}. {planName} 결제에 쓰는 카드로 청구돼요. 나중에 설정 → 요금제 및 결제에서 제거할 수 있어요."
-
-#: src/components/TagRangeHoverPopover.jsx
-msgid "{total, plural, one {# item} other {# items}}"
-msgstr "{total, plural, other {항목 #개}}"
-
-#: src/components/TagManyPicker.jsx
-msgid "{total, plural, one {Tag # card} other {Tag # cards}}"
-msgstr "{total, plural, other {카드 #장에 태그 달기}}"
 
 #: src/lib/activityTray.js
 msgid "{total, plural, other {Preparing download of # files}}"
@@ -3049,10 +2941,6 @@ msgstr "{value}님이 여기 있어요. 클릭하면 이동"
 #: src/components/cards/ScheduleCard.jsx
 msgid "{value} more on this date"
 msgstr "이 날짜에 {value}개 더"
-
-#: src/components/CanvasSurface.jsx
-msgid "{value} of {count} cards"
-msgstr "{value} / 카드 {count}장"
 
 #: src/components/CanvasSurface.jsx
 msgid "{value} selected"
@@ -3395,14 +3283,6 @@ msgstr "<0>{email} 메일함을 확인하세요.</0> 그곳의 링크를 따라�
 msgid "<0>esc</0> close"
 msgstr "<0>esc</0> 닫기"
 
-#: src/components/CanvasSurface.jsx
-msgid "<0>Esc</0>clears"
-msgstr "<0>Esc</0> 지우기"
-
-#: src/components/TagManyPicker.jsx
-msgid "<0>Esc</0>Close"
-msgstr "<0>Esc</0>닫기"
-
 #: src/components/settings/DocsTab.jsx
 msgid "<0>Open the full documentation →</0> It is also readable as plain Markdown at <1>/docs/*.md</1>, and as <2>/llms.txt</2> for AI agents."
 msgstr "<0>전체 문서 열기 →</0> 일반 Markdown은 <1>/docs/*.md</1>에서, AI 에이전트용은 <2>/llms.txt</2>에서도 읽을 수 있어요."
@@ -3624,8 +3504,8 @@ msgid "A photo in an album can come out twice: in the album and in its year."
 msgstr "앨범에 있는 사진은 앨범과 연도에 두 번 나올 수 있어요."
 
 #: src/components/CommandPalette.jsx
-msgid "A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI suggestions are off. To find one by your own words, hover it and choose Caption."
-msgstr "이미지는 올라온 지 몇 분 뒤부터 그 안에 담긴 내용으로 찾을 수 있어요. 워크스페이스의 AI 추천이 꺼져 있다면 해당되지 않아요. 직접 쓴 말로 찾으려면 이미지에 마우스를 올리고 캡션을 선택하세요."
+msgid "A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI for pictures and search is off. To find one by your own words, hover it and choose Caption."
+msgstr "이미지는 올라온 지 몇 분 뒤부터 그 안에 담긴 내용으로 찾을 수 있어요. 워크스페이스의 이미지 및 검색 AI가 꺼져 있다면 해당되지 않아요. 직접 쓴 말로 찾으려면 이미지에 마우스를 올리고 캡션을 선택하세요."
 
 #: src/lib/helpHub.js
 msgid "A question with options that everyone on the cluster can vote on."
@@ -3686,10 +3566,6 @@ msgstr "스토리보드"
 #: src/components/SidebarBoardTree.jsx
 msgid "a sub-board"
 msgstr "하위 클러스터"
-
-#: src/components/SidebarTags.jsx
-msgid "A tag you deleted recently is still called “{clean}” (deleted tags are kept for 30 days so they can be restored). Pick another name."
-msgstr "최근에 삭제한 태그 중 이름이 “{clean}”인 태그가 있어요(삭제한 태그는 30일 동안 보관돼 복원할 수 있어요). 다른 이름을 고르세요."
 
 #: src/lib/workspaceSetup.js
 msgid "A team"
@@ -3779,14 +3655,6 @@ msgstr "약 {min}분 남음"
 #: src/components/settings/AppearanceTab.jsx
 msgid "Accent"
 msgstr "강조색"
-
-#: src/components/TagDetailView.jsx
-msgid "Accept"
-msgstr "수락"
-
-#: src/components/TagDetailView.jsx
-msgid "Accept failed: {reason}"
-msgstr "수락하지 못했어요: {reason}"
 
 #: src/components/settings/BillingTab.jsx
 msgid "Access"
@@ -4485,14 +4353,6 @@ msgstr "관리자가 사람과 시트를 관리해요. 워크스페이스는 팀
 msgid "Admins, and work the team owns"
 msgstr "관리자, 그리고 팀이 소유하는 작업"
 
-#: src/components/SidebarTags.jsx
-msgid "Adopt \"{name}\" as an entity"
-msgstr "개체로 채택: “{name}”"
-
-#: src/components/SidebarTags.jsx
-msgid "Adopt failed: {reason}"
-msgstr "채택하지 못했어요: {reason}"
-
 #: src/lib/workspaceSetup.js
 msgid "Ads & brand"
 msgstr "광고 및 브랜드"
@@ -4510,8 +4370,8 @@ msgid "AI"
 msgstr "AI"
 
 #: src/components/settings/WorkspaceTab.jsx
-msgid "AI suggestions"
-msgstr "AI 제안"
+msgid "AI for pictures and search"
+msgstr "이미지 및 검색 AI"
 
 #: src/components/settings/fields.jsx
 msgid "Aileron (default)"
@@ -4562,7 +4422,6 @@ msgstr "위쪽 정렬"
 msgid "Align: {label}"
 msgstr "정렬: {label}"
 
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/lib/sidebarShelves.js
 msgid "All"
@@ -4621,10 +4480,6 @@ msgstr "모든 페이지"
 #: src/components/SidebarSharedBoards.jsx
 msgid "All shared"
 msgstr "모든 공유 항목"
-
-#: src/components/TagDetailView.jsx
-msgid "All types"
-msgstr "모든 유형"
 
 #: src/pages/OAuthConsentPage.jsx
 msgid "Allow deleting"
@@ -4895,10 +4750,6 @@ msgstr "앱 탐색"
 msgid "Appearance"
 msgstr "모양"
 
-#: src/components/TagDetailView.jsx
-msgid "Appears in"
-msgstr "표시되는 곳"
-
 #: src/components/EntityHoverPopover.jsx
 msgid "APPEARS IN"
 msgstr "나타나는 곳"
@@ -4912,17 +4763,12 @@ msgid "Applies to the next link you create. Existing links keep their own settin
 msgstr "다음에 만드는 링크에 적용돼요. 기존 링크는 각자의 설정을 유지하니 아래에서 변경하세요."
 
 #: src/components/CanvasSurface.jsx
-#: src/components/TagManyPicker.jsx
 msgid "Apply"
 msgstr "적용"
 
 #: src/lib/menus/rows.js
 msgid "Apply template…"
 msgstr "템플릿 적용…"
-
-#: src/components/TagDetailView.jsx
-msgid "Apply this tag"
-msgstr "이 태그 적용"
 
 #: src/components/team/TeamPeople.jsx
 msgid "Approve"
@@ -5141,18 +4987,9 @@ msgstr "강조된 행 미리 듣기 (파일, 목록 레이아웃)"
 msgid "Author"
 msgstr "작가"
 
-#: src/components/DocTagGutter.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "auto"
 msgstr "자동"
-
-#: src/components/TagDetailView.jsx
-msgid "Auto"
-msgstr "자동"
-
-#: src/components/TagDetailView.jsx
-msgid "Auto-applied only"
-msgstr "자동 적용만"
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Automatic ({autoName})"
@@ -5354,7 +5191,6 @@ msgstr "클러스터"
 #: src/components/HomeGraphDetailDrawer.jsx
 #: src/components/settings/WorkspaceTab.jsx
 #: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/ViewSwitch.jsx
 #: src/lib/cardInfo.js
 #: src/lib/viewSwitch.js
@@ -5913,7 +5749,6 @@ msgstr "카드 제목"
 msgid "Card, invoices and receipts are in Stripe."
 msgstr "카드, 청구서, 영수증은 Stripe에 있어요."
 
-#: src/components/TagDetailView.jsx
 #: src/lib/billingCopyWords.js
 msgid "Cards"
 msgstr "카드"
@@ -5995,18 +5830,10 @@ msgstr "변경 사항은 이 기기에 보관돼요"
 msgid "Channels"
 msgstr "채널"
 
-#: src/lib/entityTypes.js
-msgid "Character"
-msgstr "캐릭터"
-
 #: src/lib/screenplayFlowWords.js
 msgctxt "screenplay element"
 msgid "Character"
 msgstr "등장인물"
-
-#: src/lib/entityTypes.js
-msgid "Characters"
-msgstr "캐릭터"
 
 #: src/lib/menus/rows.js
 msgctxt "background"
@@ -6153,10 +5980,6 @@ msgstr "지우기"
 msgid "Clear (esc)"
 msgstr "지우기 (esc)"
 
-#: src/components/TagDetailView.jsx
-msgid "Clear {label}"
-msgstr "{label} 지우기"
-
 #: src/lib/menus/rows.js
 msgid "Clear all drawings"
 msgstr "그림 모두 지우기"
@@ -6172,10 +5995,6 @@ msgstr "칸 비우기"
 #: src/components/DocPageEditor.jsx
 msgid "Clear color"
 msgstr "색상 지우기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Clear filter: {name}"
-msgstr "필터 지우기: {name}"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/ListSurface.jsx
@@ -6238,10 +6057,6 @@ msgstr "선택 해제"
 #: src/components/ShowcaseBanner.jsx
 msgid "Clears the demo so you can start your own."
 msgstr "데모를 지우고 나만의 작업을 시작해요."
-
-#: src/components/TagManyPicker.jsx
-msgid "Click – to add to all"
-msgstr "클릭하면 모두에 추가"
 
 #: src/components/CanvasSurface.jsx
 msgid "Click a card to attach, or empty space to drop a comment"
@@ -6311,29 +6126,13 @@ msgstr "클릭해서 복사"
 msgid "Click to edit"
 msgstr "클릭해서 편집"
 
-#: src/components/TagDetailView.jsx
-msgid "Click to open"
-msgstr "클릭해서 열기"
-
 #: src/components/SidebarBoardTree.jsx
 msgid "Click to open · double-click to rename · drag onto another board to nest it"
 msgstr "클릭해서 열기 · 더블클릭해서 이름 변경 · 다른 클러스터로 끌어 넣기"
 
-#: src/components/TagDetailView.jsx
-msgid "Click to open · right-click for actions"
-msgstr "클릭해서 열기 · 우클릭해서 작업"
-
-#: src/components/TagDetailView.jsx
-msgid "Click to open the parent cluster · right-click for actions"
-msgstr "클릭해서 상위 클러스터 열기 · 우클릭해서 작업"
-
 #: src/components/CanvasSurface.jsx
 msgid "Click to place a cluster: a canvas inside this one. Drop cards onto it to file them."
 msgstr "클릭해서 클러스터 놓기: 이 캔버스 안의 캔버스예요. 카드를 그 위에 놓아 정리하세요."
-
-#: src/components/TagDetailView.jsx
-msgid "Click to preview · right-click for actions"
-msgstr "클릭해서 미리보기 · 우클릭해서 작업"
 
 #: src/components/HomeGraph.jsx
 msgid "Click to see it · double-click to open it"
@@ -6389,7 +6188,6 @@ msgstr "클립 타임코드"
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/SketchPadOverlay.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamPageLive.jsx
 #: src/components/TrashModal.jsx
@@ -6837,6 +6635,10 @@ msgstr "파일 흐름에 따른 댓글"
 msgid "Comments and find"
 msgstr "댓글 및 찾기"
 
+#: src/components/settings/DeleteAccount.jsx
+msgid "Comments and votes you left on other people's clusters stay where they are, with your name removed."
+msgstr "다른 사람의 클러스터에 남긴 댓글과 투표는 이름만 지워진 채 그대로 남아요."
+
 #: src/components/comments/CanvasCommentsList.jsx
 #: src/components/comments/commentChunkFail.js
 #: src/components/comments/commentPartsLazy.jsx
@@ -6862,10 +6664,6 @@ msgstr "이 문서의 댓글이 여기에 표시돼요."
 #: src/components/comments/DocFloatCards.jsx
 msgid "Comments on this note"
 msgstr "이 메모의 댓글"
-
-#: src/components/settings/DeleteAccount.jsx
-msgid "Comments, tags and votes you left on other people's clusters stay where they are, with your name removed."
-msgstr "다른 사람의 클러스터에 남긴 댓글, 태그, 투표는 이름만 지워진 채 그대로 남아요."
 
 #: src/lib/gridLayoutWords.js
 msgid "Community"
@@ -6935,16 +6733,6 @@ msgstr "확인"
 #: src/components/AppFeedback.jsx
 msgid "Confirm action"
 msgstr "작업 확인"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/TagDetailView.jsx
-msgid "Confirm failed: {reason}"
-msgstr "확인하지 못했어요: {reason}"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/TagDetailView.jsx
-msgid "Confirm tag"
-msgstr "태그 확인"
 
 #: src/lib/passkeyWords.js
 msgid "Confirm your email first: sign in with the code we send."
@@ -7341,10 +7129,6 @@ msgstr "공유 링크를 만들 수 없어요. 다시 시도해 주세요."
 msgid "Could not create cluster: {reason}"
 msgstr "클러스터를 만들 수 없어요: {reason}"
 
-#: src/hooks/useCandidateTagging.js
-msgid "Could not create tag: {reason}"
-msgstr "태그를 만들 수 없었어요: {reason}"
-
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Could not create that token."
 msgstr "토큰을 만들 수 없었어요."
@@ -7372,14 +7156,6 @@ msgstr "삭제할 수 없어요: {reason}"
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Could not disconnect that app."
 msgstr "그 앱의 연결을 해제할 수 없었어요."
-
-#: src/components/CanvasSurface.jsx
-msgid "Could not dismiss it: {reason}"
-msgstr "무시할 수 없어요: {reason}"
-
-#: src/hooks/useCandidateTagging.js
-msgid "Could not dismiss: {reason}"
-msgstr "무시할 수 없었어요: {reason}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Could not find the image element."
@@ -7413,10 +7189,6 @@ msgstr "사본을 마무리할 수 없어요. 다시 시도해 주세요."
 msgid "Could not invite: {reason}"
 msgstr "초대할 수 없었어요: {reason}"
 
-#: src/components/CanvasSurface.jsx
-msgid "Could not keep it: {reason}"
-msgstr "유지할 수 없어요: {reason}"
-
 #: src/components/MessageThread.jsx
 msgid "Could not leave the conversation — try again."
 msgstr "대화에서 나갈 수 없어요. 다시 시도해 주세요."
@@ -7436,10 +7208,6 @@ msgstr "프로필을 불러올 수 없었어요."
 #: src/components/settings/SecurityTab.jsx
 msgid "Could not load security: {reason}"
 msgstr "보안 정보를 불러올 수 없었어요: {reason}"
-
-#: src/components/DocPageEditor.jsx
-msgid "Could not load tags: {reason}"
-msgstr "태그를 불러올 수 없어요: {reason}"
 
 #: src/App.jsx
 msgid "Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment."
@@ -7584,11 +7352,6 @@ msgstr "커버를 설정할 수 없어요: {reason}"
 #: src/App.jsx
 msgid "Could not set thumbnail: {reason}"
 msgstr "썸네일을 설정할 수 없어요: {reason}"
-
-#: src/components/SidebarTags.jsx
-#: src/components/TagDetailView.jsx
-msgid "Could not set type"
-msgstr "유형을 설정할 수 없어요"
 
 #: src/App.jsx
 msgid "Could not start your copy — try again."
@@ -8112,14 +7875,6 @@ msgstr "크림"
 msgid "Create"
 msgstr "만들기"
 
-#: src/components/TagManyPicker.jsx
-msgid "Create “{trim}”<0>new tag on all {total}</0>"
-msgstr "“{trim}” 만들기<0>카드 {total}장 모두에 새 태그</0>"
-
-#: src/components/TagPicker.jsx
-msgid "Create \"<0>{trim}</0>\""
-msgstr "“<0>{trim}</0>” 만들기"
-
 #: src/lib/oauthTrustWords.js
 msgid "Create and change"
 msgstr "만들기 및 변경"
@@ -8341,17 +8096,12 @@ msgstr "Delete"
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 #: src/lib/menus/rows.js
 #: src/lib/oauthTrustWords.js
 msgid "Delete"
 msgstr "삭제"
-
-#: src/components/SidebarTags.jsx
-msgid "Delete \"{name}\"? You can undo this — it's recoverable for 30 days."
-msgstr "“{name}” 삭제할까요? 실행 취소할 수 있어요. 30일 동안 복구할 수 있어요."
 
 #: src/components/DocPageTree.jsx
 msgid "Delete \"{pageLabel}\"?"
@@ -8438,7 +8188,6 @@ msgstr "그리기 삭제"
 
 #: src/App.jsx
 #: src/components/CanvasVoteCard.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/TrashModal.jsx
 msgid "Delete failed: {reason}"
 msgstr "삭제하지 못했어요: {reason}"
@@ -8476,14 +8225,6 @@ msgstr "선택 항목 삭제"
 #: src/components/doc/DocTableBar.jsx
 msgid "Delete table"
 msgstr "표 삭제"
-
-#: src/components/SidebarTags.jsx
-msgid "Delete tag"
-msgstr "태그 삭제"
-
-#: src/components/SidebarTags.jsx
-msgid "Delete tag?"
-msgstr "태그를 삭제할까요?"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Delete the selection"
@@ -8567,6 +8308,10 @@ msgstr "삭제하는 중…"
 msgid "Demo cleared — your canvas is yours"
 msgstr "데모를 지웠어요. 이제 캔버스는 내 거예요"
 
+#: src/components/settings/WorkspaceTab.jsx
+msgid "Describes the pictures people add, so search finds them by what's in them and More like this finds similar ones, and translates searches typed in another language. A small copy of each picture and those searches go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted."
+msgstr "추가한 이미지를 설명해서, 검색으로 이미지 속 내용을 찾고 비슷한 항목에서 닮은 이미지를 찾을 수 있게 해요. 다른 언어로 입력한 검색어도 번역해요. 각 이미지의 작은 사본과 그 검색어는 Cloudflare Workers AI로 전송돼요. 끄면 Clusters는 아무것도 보내지 않고 이미지 설명은 삭제돼요."
+
 #: src/components/clusterBrowser/ClusterTile.jsx
 msgid "Deselect {name}"
 msgstr "{name} 선택 해제"
@@ -8618,17 +8363,9 @@ msgstr "대사"
 msgid "Diamond"
 msgstr "마름모"
 
-#: src/components/SidebarTags.jsx
-msgid "Did you mean"
-msgstr "혹시 이건가요"
-
 #: src/auth/AuthGate.jsx
 msgid "Did you mean <0>{suggestion}</0>?"
 msgstr "혹시 <0>{suggestion}</0> 아닌가요?"
-
-#: src/components/SidebarTags.jsx
-msgid "Did you mean…"
-msgstr "혹시 이건가요…"
 
 #: src/components/cards/CardTransferState.jsx
 msgid "Didn’t finish"
@@ -8714,7 +8451,6 @@ msgstr "“{client_name}” 연결을 해제했어요."
 #: src/components/FeedbackOverlay.jsx
 #: src/components/fileShare/DocShareView.jsx
 #: src/components/ScoutClaimBanner.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/TeamJoinCard.jsx
 #: src/components/TemplateAddedPrompt.jsx
 #: src/components/WorkspaceAlertBanner.jsx
@@ -8723,14 +8459,6 @@ msgstr "“{client_name}” 연결을 해제했어요."
 #: src/lib/activityTray.js
 msgid "Dismiss"
 msgstr "닫기"
-
-#: src/components/SidebarTags.jsx
-msgid "Dismiss failed"
-msgstr "무시하지 못했어요"
-
-#: src/components/TagDetailView.jsx
-msgid "Dismiss failed: {reason}"
-msgstr "무시하지 못했어요: {reason}"
 
 #: src/lib/activityTray.js
 msgid "Dismiss: {title}"
@@ -8799,10 +8527,6 @@ msgstr "문서 · {pageName}"
 msgid "Doc anchor"
 msgstr "문서 앵커"
 
-#: src/lib/tagVisuals.js
-msgid "Doc page"
-msgstr "문서 페이지"
-
 #: src/components/doc/DocBarA.jsx
 msgid "Doc type"
 msgstr "문서 유형"
@@ -8818,7 +8542,6 @@ msgstr "캔버스 옆에 고정됨"
 #: src/components/CommandPalette.jsx
 #: src/components/ListSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/onboardingTourWords.js
 msgid "Docs"
 msgstr "문서"
@@ -8880,10 +8603,6 @@ msgstr "어디서도 안 함"
 #: src/components/EntityHoverPopover.jsx
 msgid "Don't here"
 msgstr "여기서만 안 함"
-
-#: src/components/TagDetailView.jsx
-msgid "Don't suggest this again"
-msgstr "다시 제안하지 않기"
 
 #: src/auth/WaitlistConfirm.jsx
 msgid "Don't want to wait?"
@@ -9194,10 +8913,6 @@ msgstr "드리프트"
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Drive your clusters from your own software, or connect an AI assistant. A token acts as you — it can reach exactly what you can reach, and nothing more."
 msgstr "내 소프트웨어에서 클러스터를 조작하거나 AI 어시스턴트를 연결하세요. 토큰은 나로서 동작해요. 내가 접근할 수 있는 것에만, 딱 그만큼만 접근해요."
-
-#: src/components/CanvasSurface.jsx
-msgid "Drop a tag onto a card or cluster to apply it."
-msgstr "태그를 카드나 클러스터에 놓으면 적용돼요."
 
 #: src/lib/importGuide.js
 msgid "Drop all the parts anywhere in {target} at once."
@@ -9581,10 +9296,6 @@ msgstr "삽입"
 msgid "Embed cluster"
 msgstr "클러스터 삽입"
 
-#: src/components/SidebarTags.jsx
-msgid "Emerging"
-msgstr "새로 나타남"
-
 #: src/components/MessageComposer.jsx
 msgid "Emoji"
 msgstr "이모지"
@@ -9595,38 +9306,14 @@ msgstr "이모지"
 msgid "Empty"
 msgstr "비어 있음"
 
-#: src/components/TagDetailView.jsx
-msgid "empty {kind}"
-msgstr "빈 {kind}"
-
-#: src/components/TagDetailView.jsx
-msgid "empty card"
-msgstr "빈 카드"
-
 #: src/components/ListSurface.jsx
 msgid "Empty cluster"
 msgstr "빈 클러스터"
-
-#: src/components/TagDetailView.jsx
-msgid "empty doc"
-msgstr "빈 문서"
-
-#: src/components/TagDetailView.jsx
-msgid "empty link"
-msgstr "빈 링크"
-
-#: src/components/TagDetailView.jsx
-msgid "empty note"
-msgstr "빈 메모"
 
 #: src/components/cards.jsx
 #: src/lib/listItemWords.js
 msgid "Empty note"
 msgstr "빈 메모"
-
-#: src/components/TagDetailView.jsx
-msgid "empty schedule"
-msgstr "빈 일정"
 
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/playerKeys.js
@@ -9688,10 +9375,6 @@ msgstr "들어가는 중"
 #: src/components/EntityHoverPopover.jsx
 msgid "ENTITIES NAMED THIS"
 msgstr "이 이름의 항목"
-
-#: src/components/TagDetailView.jsx
-msgid "Entity type"
-msgstr "개체 유형"
 
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
@@ -9832,10 +9515,6 @@ msgstr "초대한 모든 사람이 내 한도 안에서 작업해요. 편집할 
 msgid "Everything below goes on any cluster. Paste or drag from wherever it already is; the canvas takes care of the rest."
 msgstr "아래 항목은 모든 클러스터에서 쓸 수 있어요. 어디에 있든 붙여넣거나 끌어다 놓으면 나머지는 캔버스가 알아서 해요."
 
-#: src/components/TagDetailView.jsx
-msgid "Everything connected"
-msgstr "연결된 모든 항목"
-
 #: src/components/ShortcutsOverlay.jsx
 msgid "Everything else is written up in the <0>documentation</0>."
 msgstr "나머지는 모두 <0>문서</0>에 정리되어 있어요."
@@ -9843,10 +9522,6 @@ msgstr "나머지는 모두 <0>문서</0>에 정리되어 있어요."
 #: src/lib/teamPricingCopyWords.js
 msgid "Everything in Creator, for each editor"
 msgstr "Creator의 모든 기능을 편집자마다"
-
-#: src/components/CommandPalette.jsx
-msgid "Everything tagged {tagTitle}"
-msgstr "{tagTitle} 태그가 달린 모든 항목"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Everything that can reach your clusters without being this browser."
@@ -10183,14 +9858,6 @@ msgstr "영화 및 동영상"
 msgid "Filmmaker"
 msgstr "영화 제작자"
 
-#: src/components/TagPicker.jsx
-msgid "Filter tags or type a new one…"
-msgstr "태그를 필터링하거나 새 태그를 입력하세요…"
-
-#: src/components/SidebarTags.jsx
-msgid "Filter tags…"
-msgstr "태그 필터…"
-
 #: src/lib/filesView.js
 msgid "Filtered"
 msgstr "필터링됨"
@@ -10240,10 +9907,6 @@ msgstr "이 문서에서 찾기"
 #: src/components/doc/DocBarA.jsx
 msgid "Find it again under Bookmarks"
 msgstr "북마크에서 다시 찾을 수 있어요"
-
-#: src/components/TagManyPicker.jsx
-msgid "Find or create a tag"
-msgstr "태그 찾기 또는 만들기"
 
 #: src/components/MessageThread.jsx
 #: src/components/NewConversationPicker.jsx
@@ -10884,7 +10547,6 @@ msgid "Grids in this family"
 msgstr "이 패밀리의 그리드"
 
 #: src/components/comments/CommentAbout.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
 msgid "Group"
@@ -11356,12 +11018,9 @@ msgstr "이미지"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/docExtensions/ImageUpload.js
 #: src/components/DocInsertMenu.jsx
-#: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
 #: src/components/shared/SharedPage.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagRangeHoverPopover.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
@@ -11393,7 +11052,6 @@ msgid "Image upload failed: {reason}"
 msgstr "이미지 업로드에 실패했어요: {reason}"
 
 #: src/components/ListSurface.jsx
-#: src/components/TagDetailView.jsx
 msgid "Images"
 msgstr "이미지"
 
@@ -11606,10 +11264,6 @@ msgstr "instagram.com/your-handle"
 #: src/lib/dropRules.js
 msgid "Into its files, not onto its board"
 msgstr "캔버스가 아니라 파일로"
-
-#: src/components/SidebarTags.jsx
-msgid "into…"
-msgstr "대상…"
 
 #: src/components/WorkspaceRecoveryModal.jsx
 msgid "Invalid timestamp"
@@ -11958,7 +11612,6 @@ msgid "Italic"
 msgstr "기울임"
 
 #: src/components/cards/ScheduleRundown.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/cardInfo.js
 #: src/lib/listItemWords.js
 msgid "Item"
@@ -12198,10 +11851,6 @@ msgstr "균등 행"
 msgid "Justify"
 msgstr "양쪽 정렬"
 
-#: src/components/CanvasSurface.jsx
-msgid "Keep {name}"
-msgstr "{name} 유지"
-
 #: src/lib/versionActions.js
 msgid "Keep as separate file"
 msgstr "별도 파일로 유지"
@@ -12279,8 +11928,8 @@ msgid "Keep this tab open until you’re back online"
 msgstr "다시 온라인이 될 때까지 이 탭을 열어 두세요"
 
 #: src/components/CommandPalette.jsx
-msgid "Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
-msgstr "계속 입력하세요. 단어 하나로 클러스터·그룹·태그 이름, 메모, 문서, 캡션, 파일 이름, 이미지 속 내용을 찾아요."
+msgid "Keep typing — a word finds cluster and group names, notes, docs, captions, file names and what’s in pictures."
+msgstr "계속 입력하세요. 단어 하나로 클러스터·그룹 이름, 메모, 문서, 캡션, 파일 이름, 이미지 속 내용을 찾아요."
 
 #: src/components/comments/CommentComposer.jsx
 msgid "Keep writing"
@@ -12683,10 +12332,6 @@ msgstr "기존 클러스터 연결"
 msgid "Link card"
 msgstr "링크 카드"
 
-#: src/components/TagDetailView.jsx
-msgid "Link cards"
-msgstr "링크 카드"
-
 #: src/components/comments/CanvasCommentCard.jsx
 #: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
@@ -12949,7 +12594,6 @@ msgstr "워크스페이스를 불러오는 중"
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/sidebar/ClusterShelves.jsx
-#: src/components/TagRangeHoverPopover.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/components/TrashModal.jsx
@@ -12996,7 +12640,6 @@ msgid "Looking back through what I've got"
 msgstr "가지고 있는 것들을 돌아봐요"
 
 #: src/components/EntityHoverPopover.jsx
-#: src/components/TagDetailView.jsx
 msgid "Looking up…"
 msgstr "찾는 중…"
 
@@ -13058,10 +12701,6 @@ msgstr "{host}에서 만듦"
 #: src/components/fileShare/FileSharePage.jsx
 msgid "Made with Clusters, one place for every file you make."
 msgstr "Clusters로 만들었어요. 만드는 모든 파일을 한곳에서."
-
-#: src/components/DocCandidateGutter.jsx
-msgid "Make “{name}” a tag"
-msgstr "태그로 만들기: “{name}”"
 
 #: src/components/team/TeamWorkspaces.jsx
 msgid "Make {name} private?"
@@ -13136,10 +12775,6 @@ msgstr "비공개로 전환"
 msgid "Make the board"
 msgstr "클러스터 만들기"
 
-#: src/components/CandidatePromptPopover.jsx
-msgid "Make this a…"
-msgstr "이것으로 만들기…"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "Make this board public & discoverable on Google. It’s reviewed before going live."
 msgstr "이 클러스터를 공개하고 Google에서 검색되게 해요. 공개 전에 검토를 거쳐요."
@@ -13184,7 +12819,6 @@ msgstr "이 브라우저에서 재생할 수 있는 버전을 만드는 중…"
 msgid "Making your link…"
 msgstr "링크 만드는 중…"
 
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamBilling.jsx
 msgid "Manage"
 msgstr "관리"
@@ -13206,30 +12840,17 @@ msgstr "공유 관리"
 msgid "Manage sharing…"
 msgstr "공유 관리…"
 
-#: src/components/DocTagGutter.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "manual"
-msgstr "수동"
-
-#: src/components/TagDetailView.jsx
-msgid "Manual"
 msgstr "수동"
 
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Manual link"
 msgstr "수동 링크"
 
-#: src/components/TagDetailView.jsx
-msgid "Manual only"
-msgstr "수동만"
-
 #: src/components/NotificationsPanel.jsx
 msgid "Mark all read"
 msgstr "모두 읽음으로 표시"
-
-#: src/components/TagDetailView.jsx
-msgid "Mark as {label}"
-msgstr "{label} 유형으로 표시"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Markdown"
@@ -13250,10 +12871,6 @@ msgstr "벽돌형 열"
 #: src/components/doc/DocFindTab.jsx
 msgid "Match case"
 msgstr "대소문자 구분"
-
-#: src/components/TagManyPicker.jsx
-msgid "Matching “{trim}”"
-msgstr "“{trim}”과(와) 일치"
 
 #: src/lib/menus/rows.js
 msgctxt "background"
@@ -13321,30 +12938,6 @@ msgstr "Menu"
 #: src/components/settings/AppearanceTab.jsx
 msgid "Menus, dates and the emails we send you"
 msgstr "메뉴, 날짜, 보내 드리는 이메일"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge"
-msgstr "병합"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge failed: {reason}"
-msgstr "병합하지 못했어요: {reason}"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge into…"
-msgstr "병합 대상…"
-
-#: src/components/SidebarTags.jsx
-msgid "MERGE TAG"
-msgstr "태그 병합"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge tags?"
-msgstr "태그를 병합할까요?"
-
-#: src/components/SidebarTags.jsx
-msgid "Merged into \"{intoName}\""
-msgstr "“{intoName}”에 병합했어요"
 
 #: src/components/EntityBacklinksPanel.jsx
 #: src/components/EntityHoverPopover.jsx
@@ -13535,7 +13128,6 @@ msgstr "화살표 옵션 더 보기"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13603,11 +13195,6 @@ msgid "Most new seats a month"
 msgstr "한 달에 추가되는 새 시트 최대 수"
 
 #: src/components/home/ClustersHome.jsx
-msgid "Move"
-msgstr "이동"
-
-#: src/components/TagManyPicker.jsx
-msgctxt "navigate"
 msgid "Move"
 msgstr "이동"
 
@@ -13838,7 +13425,6 @@ msgstr "N — 열 순서, 위→아래"
 #: src/components/ListSurface.jsx
 #: src/components/SaveTemplateDialog.jsx
 #: src/components/settings/WorkspaceTab.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamJoining.jsx
 #: src/lib/filesView.js
@@ -13944,17 +13530,9 @@ msgstr "만료 안 함"
 msgid "never expires"
 msgstr "만료되지 않음"
 
-#: src/components/CanvasSurface.jsx
-msgid "Never suggest {name} here"
-msgstr "여기서 {name} 추천 안 함"
-
 #: src/components/settings/ConnectionsTab.jsx
 msgid "never used"
 msgstr "사용한 적 없음"
-
-#: src/components/TagPicker.jsx
-msgid "new"
-msgstr "신규"
 
 #: src/components/MessageThread.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -14067,14 +13645,6 @@ msgstr "개까지 새 시트를 추가하고, 그 이후에는 먼저 물어요.
 msgid "New sub-page"
 msgstr "새 하위 페이지"
 
-#: src/components/SidebarTags.jsx
-msgid "New tag"
-msgstr "새 태그"
-
-#: src/components/SidebarTags.jsx
-msgid "New tag…"
-msgstr "새 태그…"
-
 #: src/components/settings/ConnectionsTab.jsx
 msgid "New to Scout? <0>See how it works</0>."
 msgstr "Scout가 처음이에요? <0>사용 방법 보기</0>"
@@ -14178,10 +13748,6 @@ msgstr "시작이 좋아요. 클러스터는 카드가 3장 이상일 때 빛나
 msgid "Nice start — boards get good at 3+. Paste or drag in a few more."
 msgstr "시작이 좋아요. 클러스터는 카드가 3장 이상일 때 빛나요. 몇 장 더 붙여넣거나 끌어다 놓으세요."
 
-#: src/components/TagDetailView.jsx
-msgid "No {lowerCase}s tagged."
-msgstr "태그된 {lowerCase}이(가) 없어요."
-
 #: src/components/cards.jsx
 #: src/components/R2Image.jsx
 msgid "No access"
@@ -14204,10 +13770,6 @@ msgstr "화살촉 없음"
 msgid "No audio track"
 msgstr "오디오 트랙 없음"
 
-#: src/components/TagDetailView.jsx
-msgid "No auto-applied items."
-msgstr "자동 적용된 항목이 없어요."
-
 #: src/components/toolbar/Colours.jsx
 msgid "No background"
 msgstr "배경 없음"
@@ -14223,10 +13785,6 @@ msgstr "아직 클러스터가 없어요"
 #: src/lib/billingCopyWords.js
 msgid "No card, no clock, no expiry."
 msgstr "결제 카드도, 카운트다운도, 만료도 없어요."
-
-#: src/components/TagDetailView.jsx
-msgid "No cards tagged."
-msgstr "태그된 카드가 없어요."
 
 #: src/components/WorkspaceRecoveryModal.jsx
 msgid "no change"
@@ -14290,10 +13848,6 @@ msgstr "신용카드는 필요 없어요. 설치할 것도 없어요."
 msgid "No days in that range."
 msgstr "그 범위에는 날이 없어요."
 
-#: src/components/TagDetailView.jsx
-msgid "No docs tagged."
-msgstr "태그된 문서가 없어요."
-
 #: src/App.jsx
 msgid "no edit access"
 msgstr "편집 권한 없음"
@@ -14323,10 +13877,6 @@ msgstr "일치하는 파일이 없어요."
 msgid "No fill"
 msgstr "채우기 없음"
 
-#: src/components/TagDetailView.jsx
-msgid "No images tagged."
-msgstr "태그된 이미지가 없어요."
-
 #: src/components/cards.jsx
 msgid "No items yet"
 msgstr "아직 항목이 없어요"
@@ -14338,10 +13888,6 @@ msgstr "제한 없음"
 #: src/components/ShareModal.jsx
 msgid "No link"
 msgstr "링크 없음"
-
-#: src/components/TagDetailView.jsx
-msgid "No link cards tagged."
-msgstr "태그된 링크 카드가 없어요."
 
 #: src/components/setup/InviteStep.jsx
 msgid "No link right now"
@@ -14362,10 +13908,6 @@ msgstr "더 이상 공유되지 않음"
 #: src/lib/importGuide.js
 msgid "No Mac? On **icloud.com**, open **Drive**, select what you want and choose **Download**. What it saves comes in the same way."
 msgstr "Mac이 없나요? **icloud.com**에서 **Drive**를 열고 원하는 항목을 선택해 **다운로드**를 선택하세요. 저장된 것은 같은 방식으로 가져와요."
-
-#: src/components/TagDetailView.jsx
-msgid "No manually applied items."
-msgstr "수동으로 적용한 항목이 없어요."
 
 #: src/components/ColorPicker.jsx
 #: src/components/ctxMenuParts.jsx
@@ -14396,10 +13938,6 @@ msgstr "기록된 이름이나 모양 변경이 없어요."
 msgid "No new addresses to invite."
 msgstr "초대할 새 주소가 없어요."
 
-#: src/components/TagDetailView.jsx
-msgid "No notes tagged."
-msgstr "태그된 메모가 없어요."
-
 #: src/components/SendSheet.jsx
 msgid "No one matches. Type a full email address to send it by email."
 msgstr "일치하는 사람이 없어요. 이메일로 보내려면 전체 이메일 주소를 입력해 주세요."
@@ -14413,15 +13951,6 @@ msgstr "아직 메시지를 보낼 사람이 없어요. 클러스터를 공유�
 msgid "No open comments"
 msgstr "열린 댓글이 없어요"
 
-#: src/components/EntityHoverPopover.jsx
-#: src/components/TagRangeHoverPopover.jsx
-msgid "No other items tagged."
-msgstr "태그가 달린 다른 항목이 없어요."
-
-#: src/components/SidebarTags.jsx
-msgid "No other tags found."
-msgstr "다른 태그가 없어요."
-
 #: src/components/DocCard.jsx
 msgid "no pages"
 msgstr "페이지 없음"
@@ -14429,10 +13958,6 @@ msgstr "페이지 없음"
 #: src/components/DocPageTree.jsx
 msgid "No pages yet"
 msgstr "아직 페이지가 없어요"
-
-#: src/components/TagDetailView.jsx
-msgid "No palettes tagged."
-msgstr "태그된 팔레트가 없어요."
 
 #: src/components/NewConversationPicker.jsx
 msgid "No people match."
@@ -14479,10 +14004,6 @@ msgstr "공간 없음"
 msgid "No scenes yet"
 msgstr "아직 장면이 없어요"
 
-#: src/components/TagDetailView.jsx
-msgid "No schedules tagged."
-msgstr "태그된 일정이 없어요."
-
 #: src/components/team/TeamJoining.jsx
 msgid "No seats free: sending adds {needs}"
 msgstr "남은 시트 없음. 보내면 시트가 추가돼요: {needs}"
@@ -14503,18 +14024,6 @@ msgstr "시작 시간 없음"
 #: src/components/clusterBrowser/FileStages.jsx
 msgid "No subject"
 msgstr "제목 없음"
-
-#: src/components/SidebarTags.jsx
-msgid "No tags match “{trim}”."
-msgstr "“{trim}” 검색 결과가 없어요."
-
-#: src/components/SidebarTags.jsx
-msgid "No tags yet — anything you tag will appear here."
-msgstr "아직 태그가 없어요. 태그를 달면 여기에 나타나요."
-
-#: src/components/TagPicker.jsx
-msgid "No tags yet — type a name above."
-msgstr "아직 태그가 없어요. 위에 이름을 입력하세요."
 
 #: src/components/GridTemplatePanel.jsx
 msgid "No templates match “{query}”."
@@ -14573,10 +14082,6 @@ msgstr "없음"
 msgid "None are free to give."
 msgstr "무료로 줄 수 있는 시트가 없어요."
 
-#: src/components/TagManyPicker.jsx
-msgid "None of these cards has a tag yet. Type to find one or make one."
-msgstr "이 카드들에는 아직 태그가 없어요. 입력해서 찾거나 새로 만드세요."
-
 #: src/lib/teamBillingLines.js
 msgid "None yet."
 msgstr "아직 없어요."
@@ -14592,18 +14097,6 @@ msgstr "아직 없어요. 만든 토큰이 할 수 있는 일과 마지막 사�
 #: src/components/film/FilmPlayer.jsx
 msgid "Normal"
 msgstr "보통"
-
-#: src/components/CandidatePromptPopover.jsx
-msgid "Not a name"
-msgstr "이름 아님"
-
-#: src/components/SidebarTags.jsx
-msgid "Not a name — stop suggesting"
-msgstr "이름 아님 — 제안 중단"
-
-#: src/components/DocCandidateGutter.jsx
-msgid "Not a tag — dismiss “{name}”"
-msgstr "태그 아님 — “{name}” 무시"
 
 #: src/components/fileShare/FileShareDialog.jsx
 msgid "Not an email address: it will be skipped"
@@ -14756,7 +14249,6 @@ msgstr "메모, 노트, 텍스트, 추가, 포스트잇"
 #: src/components/ScreenplayTitlePage.jsx
 #: src/components/settings/WorkspaceTab.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/sidebarShelves.js
 msgid "Notes"
 msgstr "메모"
@@ -14776,14 +14268,6 @@ msgstr "최근 추가한 항목이 없어요."
 #: src/components/home/ClustersHome.jsx
 msgid "Nothing called that."
 msgstr "그런 이름은 없어요."
-
-#: src/components/CommandPalette.jsx
-msgid "Nothing carries it yet"
-msgstr "아직 해당하는 항목이 없어요"
-
-#: src/components/TagDetailView.jsx
-msgid "Nothing connected to <0>{name}</0> yet."
-msgstr "아직 <0>{name}</0>에 연결된 항목이 없어요."
 
 #: src/lib/importCopy.js
 msgid "Nothing fits yet. It waits in this tab and comes in once {ownerName} has room."
@@ -14980,17 +14464,9 @@ msgstr "“{q}”와(과) 일치하는 공유 항목이 없어요"
 msgid "Nothing there could be downloaded."
 msgstr "다운로드할 수 있는 것이 없었어요."
 
-#: src/components/TagDetailView.jsx
-msgid "Nothing to confirm on this page."
-msgstr "이 페이지에서 확인할 것이 없어요."
-
 #: src/components/CanvasSurface.jsx
 msgid "Nothing to export."
 msgstr "내보낼 항목이 없어요."
-
-#: src/components/TagDetailView.jsx
-msgid "Nothing to manage."
-msgstr "관리할 항목이 없어요."
 
 #: src/components/CanvasSurface.jsx
 msgid "Nothing to undo — those cards are no longer on this board."
@@ -15015,10 +14491,6 @@ msgstr "아무것도 이동하지 않았어요. 이동이 끝나기 전에 이 �
 #: src/components/CanvasSurface.jsx
 msgid "Nothing was moved — this board changed since the copy."
 msgstr "아무것도 이동하지 않았어요. 복사한 뒤 이 클러스터가 바뀌었어요."
-
-#: src/components/TagDetailView.jsx
-msgid "Nothing was removed. Reload and try again."
-msgstr "제거된 것이 없어요. 새로고침하고 다시 시도해 주세요."
 
 #: src/components/NotificationsPanel.jsx
 msgid "Nothing yet. When someone shares a file with you or comments on one, it lands here."
@@ -15186,10 +14658,6 @@ msgstr "캔버스에"
 #: src/auth/WaitlistConfirm.jsx
 msgid "On the waitlist"
 msgstr "대기자 명단에 등록됨"
-
-#: src/components/TagManyPicker.jsx
-msgid "On these {total} cards"
-msgstr "선택한 카드 {total}장"
 
 #: src/components/NewConversationPicker.jsx
 msgid "ON THIS BOARD"
@@ -15497,7 +14965,6 @@ msgstr "파일을 추가하려면 {boardOrThis} 열기"
 #: src/components/MoreLikeThis.jsx
 #: src/components/setup/WorkspaceSetup.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/WorkspaceJoinCard.jsx
 #: src/lib/importCopy.js
 msgid "Open {name}"
@@ -15506,14 +14973,6 @@ msgstr "{name} 열기"
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Open {name} on the board"
 msgstr "캔버스에서 {name} 열기"
-
-#: src/components/CanvasSurface.jsx
-msgid "Open {name}'s page: everything carrying it, everywhere"
-msgstr "{name}의 페이지 열기: 어디에 있든 달려 있는 모든 항목"
-
-#: src/components/EntityHoverPopover.jsx
-msgid "Open {title}"
-msgstr "{title} 열기"
 
 #: src/components/EntityHoverPopover.jsx
 msgid "Open {value}"
@@ -15542,10 +15001,6 @@ msgstr "**Google Takeout**을 열고 **모두 선택 해제**를 선택한 뒤 *
 #: src/App.jsx
 msgid "Open a board in split view…"
 msgstr "분할 보기에서 클러스터 열기…"
-
-#: src/components/TagDetailView.jsx
-msgid "Open a card's menu and choose Tag…."
-msgstr "카드 메뉴를 열고 태그…를 선택하세요."
 
 #: src/App.jsx
 msgid "Open a cluster…"
@@ -15738,10 +15193,6 @@ msgstr "원본 열기"
 msgid "Open Outlook"
 msgstr "Outlook 열기"
 
-#: src/components/TagDetailView.jsx
-msgid "Open page"
-msgstr "페이지 열기"
-
 #: src/components/HomeGraphDetailDrawer.jsx
 msgid "Open palette"
 msgstr "팔레트 열기"
@@ -15786,28 +15237,9 @@ msgstr "스케치 열기"
 msgid "Open split view"
 msgstr "분할 보기 열기"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/DocPageTagChips.jsx
-#: src/components/EntityHoverPopover.jsx
-msgid "Open tag"
-msgstr "태그 열기"
-
-#. placeholder {0}: c.name
-#: src/components/DocPageTagChips.jsx
-msgid "Open tag \"{0}\""
-msgstr "“{0}” 태그 열기"
-
-#: src/components/TagRangeHoverPopover.jsx
-msgid "Open tag detail"
-msgstr "태그 상세 열기"
-
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the box: type in a text box, or its menu"
 msgstr "칸 열기: 텍스트 칸에는 입력하고, 그 밖에는 메뉴 열기"
-
-#: src/components/TagDetailView.jsx
-msgid "Open the cluster to view its cards"
-msgstr "클러스터를 열어 카드를 확인하세요"
 
 #: src/lib/activityTray.js
 msgid "Open the copy"
@@ -15816,10 +15248,6 @@ msgstr "사본 열기"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the focused cluster"
 msgstr "포커스된 클러스터 열기"
-
-#: src/components/TagDetailView.jsx
-msgid "Open the page to remove this tag."
-msgstr "페이지를 열어 이 태그를 제거하세요."
 
 #: src/components/team/TeamSetup.jsx
 msgid "Open the team page"
@@ -15978,14 +15406,6 @@ msgstr "또는 <0>Enter</0> 누르기"
 msgid "Or start from"
 msgstr "또는 이걸로 시작"
 
-#: src/lib/entityTypes.js
-msgid "Organization"
-msgstr "조직"
-
-#: src/lib/entityTypes.js
-msgid "Organizations"
-msgstr "조직"
-
 #: src/components/ImageEditModal.jsx
 msgid "Original"
 msgstr "원본"
@@ -16008,10 +15428,6 @@ msgstr "기타"
 msgctxt "files"
 msgid "Other"
 msgstr "기타"
-
-#: src/components/TagDetailView.jsx
-msgid "Other items"
-msgstr "다른 항목"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Other version"
@@ -16063,10 +15479,6 @@ msgstr "소유자 — 이름과 아이콘을 바꾸고 삭제할 수 있어요."
 #: src/components/comments/FileThreads.jsx
 msgid "p. {page}"
 msgstr "{page}쪽"
-
-#: src/components/DocTagGutter.jsx
-msgid "page"
-msgstr "페이지"
 
 #. placeholder {0}: script.scenes
 #: src/components/doc/DocFrameA.jsx
@@ -16133,10 +15545,7 @@ msgstr "팔레트"
 #: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/ColorPicker.jsx
-#: src/components/EntityHoverPopover.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagRangeHoverPopover.jsx
 #: src/lib/boardsApi.js
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
@@ -16159,7 +15568,6 @@ msgid "Palette, lensing, light and texture."
 msgstr "팔레트, 렌즈, 조명, 질감."
 
 #: src/components/ListSurface.jsx
-#: src/components/TagDetailView.jsx
 msgid "Palettes"
 msgstr "팔레트"
 
@@ -16199,10 +15607,6 @@ msgstr "화면 이동 도구"
 msgctxt "background"
 msgid "Paper"
 msgstr "종이"
-
-#: src/components/DocTagGutter.jsx
-msgid "paragraph"
-msgstr "문단"
 
 #: src/lib/screenplayFlowWords.js
 msgctxt "screenplay element"
@@ -16424,10 +15828,6 @@ msgstr "연필"
 #: src/components/ExplorePublishSection.jsx
 msgid "Pending review"
 msgstr "검토 대기 중"
-
-#: src/components/TagDetailView.jsx
-msgid "Pending suggestions"
-msgstr "대기 중인 제안"
 
 #: src/components/SendSheet.jsx
 #: src/components/team/TeamPage.jsx
@@ -16874,10 +16274,6 @@ msgstr "카드를 길게 눌러 집어 올린 뒤 옮기세요."
 msgid "Press and hold the canvas or any card for more actions."
 msgstr "캔버스나 카드를 길게 누르면 더 많은 작업이 나와요."
 
-#: src/components/TagPicker.jsx
-msgid "Press Enter to create this tag"
-msgstr "Enter를 눌러 이 태그 만들기"
-
 #: src/lib/helpHub.js
 msgid "Press N, or right-click the canvas. Bold, lists, and @-mentions of other cards."
 msgstr "N을 누르거나 캔버스를 우클릭하세요. 굵게, 목록, 다른 카드 @멘션을 쓸 수 있어요."
@@ -17262,14 +16658,6 @@ msgstr "최근 워크스페이스 되돌리기"
 msgid "Recently deleted ({count})"
 msgstr "최근 삭제됨 ({count})"
 
-#: src/components/SidebarTags.jsx
-msgid "Recolor failed: {reason}"
-msgstr "색상을 바꾸지 못했어요: {reason}"
-
-#: src/components/SidebarTags.jsx
-msgid "Recolor…"
-msgstr "색상 변경…"
-
 #: src/lib/docSaveStatus.js
 msgid "Reconnecting — changes kept on this device"
 msgstr "다시 연결 중 — 변경 사항이 이 기기에 보관됨"
@@ -17336,10 +16724,6 @@ msgstr "참조한 곳"
 msgid "Reframe"
 msgstr "리프레임"
 
-#: src/components/TagDetailView.jsx
-msgid "Related"
-msgstr "관련 항목"
-
 #: src/components/FilesDock.jsx
 msgid "Release for full-screen Files"
 msgstr "놓으면 전체 화면 파일이 돼요"
@@ -17385,10 +16769,6 @@ msgstr "리믹스"
 #: src/components/WaitlistModal.jsx
 msgid "Remove"
 msgstr "제거"
-
-#: src/components/DocPageEditor.jsx
-msgid "Remove \"{tagName}\""
-msgstr "“{tagName}” 제거"
 
 #: src/lib/billingCopyWords.js
 msgid "Remove {block}"
@@ -17460,11 +16840,6 @@ msgstr "커버 이미지 제거"
 msgid "Remove extra storage"
 msgstr "추가 저장 공간 제거"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/TagDetailView.jsx
-msgid "Remove failed: {reason}"
-msgstr "제거하지 못했어요: {reason}"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "Remove from Explore"
 msgstr "탐색에서 제거"
@@ -17514,18 +16889,6 @@ msgstr "멤버 제거"
 msgid "Remove preview"
 msgstr "미리보기 제거"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/DocPageEditor.jsx
-#: src/components/DocPageTagChips.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagRangeHoverPopover.jsx
-msgid "Remove tag"
-msgstr "태그 제거"
-
-#: src/components/DocPageEditor.jsx
-msgid "Remove tag failed: {reason}"
-msgstr "태그를 제거하지 못했어요: {reason}"
-
 #: src/components/team/TeamPeople.jsx
 msgid "Remove their access"
 msgstr "액세스 권한 제거"
@@ -17549,15 +16912,6 @@ msgstr "이 가져오기 제거"
 #: src/components/cards/gridCellShared.jsx
 msgid "REMOVED"
 msgstr "제거됨"
-
-#: src/components/CanvasSurface.jsx
-msgid "Removed “{name}”"
-msgstr "“{name}” 제거했어요"
-
-#. placeholder {0}: having.length
-#: src/components/TagManyPicker.jsx
-msgid "Removed “{shownName}” from {0, plural, one {# card} other {# cards}}"
-msgstr "카드 {0, plural, other {#장}}에서 “{shownName}” 태그를 제거했어요"
 
 #: src/components/ShareModal.jsx
 msgid "Removed {email}'s access"
@@ -17604,14 +16958,6 @@ msgstr "목록에서 제거했어요."
 msgid "Removed."
 msgstr "제거했어요."
 
-#: src/components/CanvasSurface.jsx
-msgid "Removes this tag and won't auto-apply it here again."
-msgstr "이 태그를 제거하고, 여기에는 다시 자동으로 적용하지 않아요."
-
-#: src/components/TagDetailView.jsx
-msgid "Removes this tag and won't auto-apply it here again. Drag it back to undo."
-msgstr "이 태그를 제거하고 여기에는 다시 자동으로 적용하지 않아요. 되돌리려면 다시 끌어다 놓으세요."
-
 #: src/components/ExplorePublishSection.jsx
 msgid "Removing…"
 msgstr "제거하는 중…"
@@ -17620,7 +16966,6 @@ msgstr "제거하는 중…"
 #: src/components/home/ClustersHome.jsx
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/SidebarTags.jsx
 msgid "Rename"
 msgstr "이름 바꾸기"
 
@@ -17631,10 +16976,6 @@ msgstr "{name} 이름 바꾸기"
 #: src/components/WorkspaceMenu.jsx
 msgid "Rename & icon…"
 msgstr "이름 및 아이콘…"
-
-#: src/components/SidebarTags.jsx
-msgid "Rename failed: {reason}"
-msgstr "이름을 바꾸지 못했어요: {reason}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Rename group"
@@ -17647,10 +16988,6 @@ msgstr "그룹 이름 바꾸기…"
 #: src/components/info/VersionsSection.jsx
 msgid "Rename label…"
 msgstr "라벨 이름 바꾸기…"
-
-#: src/components/SidebarTags.jsx
-msgid "Rename tag"
-msgstr "태그 이름 바꾸기"
 
 #: src/components/CanvasSurface.jsx
 msgid "Rename template"
@@ -17671,7 +17008,6 @@ msgstr "이름, 색상, 커버, 보기 변경 사항이에요. 각각 되돌릴 
 #: src/components/CanvasSurface.jsx
 #: src/components/DocPageTree.jsx
 #: src/components/MessageThread.jsx
-#: src/components/SidebarTags.jsx
 #: src/lib/menus/rows.js
 msgid "Rename…"
 msgstr "이름 바꾸기…"
@@ -17878,12 +17214,7 @@ msgstr "해결된 댓글"
 msgid "Restore"
 msgstr "복원"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
-#: src/components/DocPageEditor.jsx
-#: src/components/SidebarTags.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagManyPicker.jsx
 #: src/components/TrashModal.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "Restore failed: {reason}"
@@ -18043,10 +17374,6 @@ msgstr "이 워크스페이스의 모든 클러스터를 한꺼번에 되돌려�
 #: src/components/doc/DocBarA.jsx
 msgid "Right"
 msgstr "오른쪽"
-
-#: src/components/TagDetailView.jsx
-msgid "Right-click a card and choose Tag…, or drag this tag onto something."
-msgstr "카드를 우클릭해서 태그…를 선택하거나, 이 태그를 다른 항목으로 끌어다 놓으세요."
 
 #: src/components/comments/CanvasCommentsList.jsx
 msgid "Right-click a card or the canvas to add one."
@@ -18364,10 +17691,6 @@ msgstr "일정 변경됨"
 msgid "Schedule view"
 msgstr "일정 보기"
 
-#: src/components/TagDetailView.jsx
-msgid "Schedules"
-msgstr "일정"
-
 #: src/components/EntityPicker.jsx
 msgid "SCHEDULES"
 msgstr "일정"
@@ -18489,18 +17812,18 @@ msgstr "모든 팔레트 검색"
 msgid "Search and commands"
 msgstr "검색 및 명령"
 
+#: src/components/CommandPalette.jsx
+msgid "Search boards and cards — or run a command"
+msgstr "클러스터와 카드를 검색하거나 명령을 실행하세요"
+
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
 msgid "Search boards to link…"
 msgstr "연결할 클러스터 검색…"
 
 #: src/components/CommandPalette.jsx
-msgid "Search boards, cards, notes, docs and tags — or jump to an action."
-msgstr "클러스터, 카드, 메모, 문서, 태그를 검색하거나 작업으로 바로 이동하세요."
-
-#: src/components/CommandPalette.jsx
-msgid "Search boards, cards, tags — or run a command"
-msgstr "클러스터, 카드, 태그를 검색하거나 명령을 실행하세요"
+msgid "Search boards, cards, notes and docs — or jump to an action."
+msgstr "클러스터, 카드, 메모, 문서를 검색하거나 작업으로 바로 이동하세요."
 
 #: src/components/EntityPicker.jsx
 msgid "Search boards, docs, cards…"
@@ -18545,17 +17868,13 @@ msgid "search results"
 msgstr "검색 결과"
 
 #: src/components/CommandPalette.jsx
-msgid "Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
-msgstr "검색은 클러스터·그룹·태그 이름, 메모, 문서, 캡션, 파일 이름, 이미지 속 내용을 살펴봐요."
+msgid "Search sees cluster and group names, notes, docs, captions, file names and what’s in pictures."
+msgstr "검색은 클러스터·그룹 이름, 메모, 문서, 캡션, 파일 이름, 이미지 속 내용을 살펴봐요."
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 msgid "Search shared"
 msgstr "공유 항목 검색"
-
-#: src/components/SidebarTags.jsx
-msgid "Search tags…"
-msgstr "태그 검색…"
 
 #: src/components/GridTemplatePanel.jsx
 msgid "Search templates"
@@ -18730,10 +18049,6 @@ msgstr "강조된 파일 선택"
 #: src/components/CanvasSurface.jsx
 msgid "Select tool"
 msgstr "선택 도구"
-
-#: src/components/DocPageEditor.jsx
-msgid "Select words inside one paragraph to tag them."
-msgstr "태그를 달려면 한 문단 안에서 단어를 선택하세요."
 
 #: src/lib/menus/rows.js
 msgid "Select…"
@@ -18914,10 +18229,6 @@ msgstr "보냈지만 다시 열지 못했어요. 다시 시도해 주세요."
 msgid "Sent. Only an editor or the person who started this can reopen it."
 msgstr "보냈어요. 편집자나 이 대화를 시작한 사람만 다시 열 수 있어요."
 
-#: src/components/DocTagGutter.jsx
-msgid "sentence"
-msgstr "문장"
-
 #: src/App.jsx
 msgid "Sequence"
 msgstr "시퀀스"
@@ -18978,17 +18289,12 @@ msgstr "팀 설정"
 msgid "Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in boards/.env.local"
 msgstr "boards/.env.local에 VITE_SUPABASE_URL과 VITE_SUPABASE_PUBLISHABLE_KEY를 설정하세요"
 
-#: src/lib/entityTypes.js
-msgid "Setting"
-msgstr "배경"
-
 #: src/lib/feedbackContext.js
 msgid "settings"
 msgstr "설정"
 
 #: src/App.jsx
 #: src/components/SettingsPanel.jsx
-#: src/lib/entityTypes.js
 msgid "Settings"
 msgstr "설정"
 
@@ -19335,10 +18641,6 @@ msgstr "A 표시"
 msgid "Show all"
 msgstr "모두 표시"
 
-#: src/components/TagDetailView.jsx
-msgid "Show all {count}"
-msgstr "{count}개 모두 보기"
-
 #: src/components/ListSurface.jsx
 msgid "Show all {folderCount}"
 msgstr "{folderCount}개 모두 보기"
@@ -19351,10 +18653,6 @@ msgstr "모든 텍스트 표시 — 메모를 내용에 맞춰요"
 #: src/components/ListSurface.jsx
 msgid "Show and sort"
 msgstr "표시 및 정렬"
-
-#: src/components/TagDetailView.jsx
-msgid "Show auto-applied and manual items"
-msgstr "자동 적용 항목과 수동 적용 항목 표시"
 
 #: src/components/film/FilmDock.jsx
 msgid "Show B"
@@ -19504,10 +18802,6 @@ msgstr "쇼케이스 미리보기: 클러스터를 만들 수 없어요."
 #: src/App.jsx
 msgid "Showcase preview: no content returned (showcase disabled in config?)."
 msgstr "쇼케이스 미리보기: 반환된 콘텐츠가 없어요(설정에서 쇼케이스가 꺼져 있나요?)."
-
-#: src/components/CanvasSurface.jsx
-msgid "Showing"
-msgstr "표시 중"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Showing {lowerCase} · sorted by {lowerCase2} · grouped by {lowerCase3}"
@@ -19987,10 +19281,6 @@ msgstr "출처"
 #: src/components/BacklinksList.jsx
 msgid "SOURCE DOC"
 msgstr "원본 문서"
-
-#: src/components/TagDetailView.jsx
-msgid "Source filter and pending suggestions"
-msgstr "출처 필터와 대기 중인 제안"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Source timecode"
@@ -20501,18 +19791,6 @@ msgstr "구독을 해지했어요 — Creator 요금제는 <0>{value}</0>까지 
 msgid "Subtitles"
 msgstr "자막"
 
-#: src/components/CanvasSurface.jsx
-msgid "Suggested from the picture: {name}. ✓ keeps it, × never suggests it here."
-msgstr "이미지에서 추천: {name}. ✓는 유지, ×는 여기서 다시 추천하지 않아요."
-
-#: src/components/CanvasSurface.jsx
-msgid "Suggested from the text: {name}. ✓ keeps it, × never suggests it here."
-msgstr "텍스트에서 추천: {name}. ✓는 유지, ×는 여기서 다시 추천하지 않아요."
-
-#: src/components/settings/WorkspaceTab.jsx
-msgid "Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work."
-msgstr "여기에 쓴 내용을 바탕으로 태그를 제안하고, 문서에서 해당될 만한 태그에 밑줄을 긋고, 추가한 이미지를 설명해요. 텍스트와 각 이미지의 작은 사본은 Cloudflare Workers AI로 전송돼요. 끄면 Clusters는 아무것도 보내지 않고 이미지 설명은 삭제돼요. 직접 추가한 태그와 텍스트에 정확한 이름이 나오는 태그는 계속 작동해요."
-
 #: src/lib/menus/rows.js
 msgctxt "cover color"
 msgid "Sun"
@@ -20613,100 +19891,6 @@ msgstr "표"
 #: src/components/doc/DocTableBar.jsx
 msgid "Table deleted"
 msgstr "표를 삭제했어요"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/DocTagGutter.jsx
-#: src/components/TagManyPicker.jsx
-msgid "tag"
-msgstr "태그"
-
-#: src/components/entityPreviews/TagPreview.jsx
-#: src/components/MessageComposer.jsx
-#: src/components/TagRangeHoverPopover.jsx
-#: src/hooks/useAppliedTagRanges.js
-#: src/lib/entityKinds.js
-msgid "Tag"
-msgstr "태그"
-
-#: src/components/toolbar/SelectionBarA.jsx
-msgctxt "verb"
-msgid "Tag"
-msgstr "태그 달기"
-
-#: src/components/EntityHoverPopover.jsx
-msgid "TAG"
-msgstr "태그"
-
-#: src/components/DocTagGutter.jsx
-msgid "Tag · {source}"
-msgstr "태그 · {source}"
-
-#: src/components/SidebarTags.jsx
-msgid "Tag \"{name}\" deleted"
-msgstr "태그 “{name}” 삭제됨"
-
-#: src/lib/menus/rows.js
-msgid "Tag cluster…"
-msgstr "클러스터에 태그…"
-
-#: src/components/SidebarTags.jsx
-msgid "Tag create failed: {reason}"
-msgstr "태그를 만들지 못했어요: {reason}"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/DocPageEditor.jsx
-#: src/components/TagManyPicker.jsx
-msgid "Tag failed: {reason}"
-msgstr "태그를 달지 못했어요: {reason}"
-
-#: src/lib/menus/rows.js
-msgid "Tag group…"
-msgstr "그룹 태그…"
-
-#: src/lib/errorWords.js
-msgid "Tag name required"
-msgstr "태그 이름이 필요해요"
-
-#: src/lib/feedbackContext.js
-msgid "tag page"
-msgstr "태그 페이지"
-
-#: src/components/DocPageEditor.jsx
-#: src/components/DocPageTagChips.jsx
-#: src/components/TagDetailView.jsx
-msgid "Tag removed"
-msgstr "태그를 제거했어요"
-
-#: src/components/DocPageEditor.jsx
-msgid "Tag selection…"
-msgstr "선택 항목 태그…"
-
-#: src/lib/menus/rows.js
-msgid "Tag…"
-msgstr "태그…"
-
-#. placeholder {0}: missing.length
-#: src/components/TagManyPicker.jsx
-msgid "Tagged {0, plural, one {# card} other {# cards}} “{shownName}”"
-msgstr "카드 {0, plural, other {#장}}에 “{shownName}” 태그를 달았어요"
-
-#: src/components/CommandPalette.jsx
-msgid "Tagged {tagTitle}"
-msgstr "{tagTitle} 태그됨"
-
-#: src/components/TagDetailView.jsx
-msgid "Tagged: the things carrying this tag, as the sidebar counts them. Inside: what's in the tagged clusters and groups."
-msgstr "태그됨: 이 태그가 달린 항목으로, 사이드바가 세는 기준이에요. 내부: 태그된 클러스터와 그룹 안에 있는 항목이에요."
-
-#: src/components/CommandPalette.jsx
-#: src/components/SidebarTags.jsx
-msgid "Tags"
-msgstr "태그"
-
-#: src/components/EntityHoverPopover.jsx
-#: src/components/EntityPicker.jsx
-msgid "TAGS"
-msgstr "태그"
 
 #: src/components/capture/CaptureHud.jsx
 msgid "Take"
@@ -21219,10 +20403,6 @@ msgstr "그 패스키는 더 이상 내 계정에 없어요. 대신 이메일을
 msgid "That price is out of date. Check it and try again."
 msgstr "그 가격은 오래되었어요. 확인하고 다시 시도해 주세요."
 
-#: src/components/SidebarTags.jsx
-msgid "That tag already exists"
-msgstr "이미 있는 태그예요"
-
 #: src/lib/teamCopy.js
 msgid "That team invite has expired. Ask the team for a new one."
 msgstr "그 팀 초대는 만료되었어요. 팀에 새 초대를 요청하세요."
@@ -21692,10 +20872,6 @@ msgstr "이후 {price}"
 msgid "There is no undo and no grace period. To confirm, type <0>{email}</0> below."
 msgstr "실행 취소도, 유예 기간도 없어요. 확인하려면 아래에 다음 주소를 입력하세요: <0>{email}</0>"
 
-#: src/components/SidebarTags.jsx
-msgid "There's already a tag called “{name}”. Merge “{name2}” into it? Everything tagged “{name3}” moves over."
-msgstr "이름이 “{name}”인 태그가 이미 있어요. “{name2}” 태그를 거기에 병합할까요? “{name3}” 태그가 달린 항목이 모두 옮겨져요."
-
 #: src/pages/MakePage.jsx
 msgid "There’s no board in that"
 msgstr "그 안에 클러스터가 없어요"
@@ -21866,14 +21042,6 @@ msgstr "굵게"
 msgid "Thin"
 msgstr "얇게"
 
-#: src/lib/entityTypes.js
-msgid "Thing"
-msgstr "사물"
-
-#: src/lib/entityTypes.js
-msgid "Things"
-msgstr "사물"
-
 #: src/components/film/FilmPlayer.jsx
 msgid "Thirds"
 msgstr "삼등분"
@@ -21959,10 +21127,6 @@ msgstr "이 브라우저에는 사용할 수 있는 동영상 녹화 기능이 �
 #: src/lib/versionActions.js
 msgid "This card can’t have versions."
 msgstr "이 카드에는 버전을 만들 수 없어요."
-
-#: src/components/TagDetailView.jsx
-msgid "This card isn't tagged directly — it shows here because its board/group is."
-msgstr "이 카드에는 직접 태그가 없어요. 소속된 클러스터나 그룹에 태그가 있어서 여기에 표시돼요."
 
 #: src/auth/PricingSuccess.jsx
 msgid "This checkout belongs to a subscription that has since been canceled, so it can't activate your account. Start a fresh checkout from the pricing page."
@@ -22574,14 +21738,6 @@ msgstr "최상위"
 msgid "Topbar add menu"
 msgstr "상단 바 추가 메뉴"
 
-#: src/lib/entityTypes.js
-msgid "Topic"
-msgstr "주제"
-
-#: src/lib/entityTypes.js
-msgid "Topics"
-msgstr "주제"
-
 #: src/lib/importGuide.js
 msgid "Touch and hold the folder you want, then tap **Compress**."
 msgstr "원하는 폴더를 길게 누른 뒤 **압축**을 탭하세요."
@@ -22725,7 +21881,6 @@ msgstr "양방향"
 #: src/components/clusterBrowser/ClusterTable.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarTags.jsx
 #: src/lib/cardInfo.js
 msgid "Type"
 msgstr "유형"
@@ -22814,8 +21969,6 @@ msgid "Undo failed — the pre-move snapshots are still available for recovery. 
 msgstr "실행 취소에 실패했어요. 이동 전 스냅샷은 복구용으로 남아 있어요. {reason}"
 
 #: src/App.jsx
-#: src/components/SidebarTags.jsx
-#: src/components/TagManyPicker.jsx
 msgid "Undo failed: {reason}"
 msgstr "실행 취소에 실패했어요: {reason}"
 
@@ -22969,7 +22122,6 @@ msgstr "{b}까지"
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
 #: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/clusterSwitchList.js
 #: src/lib/dropRules.js
 #: src/lib/graphData.js
@@ -23063,10 +22215,6 @@ msgstr "제목 없는 템플릿"
 #: src/lib/starterDocs.js
 msgid "Untitled treatment"
 msgstr "제목 없는 트리트먼트"
-
-#: src/components/SidebarTags.jsx
-msgid "Untyped"
-msgstr "유형 없음"
 
 #: src/components/WorkspaceRecoveryModal.jsx
 msgid "Unusual deletion activity"
@@ -23343,10 +22491,6 @@ msgstr "다른 이메일 사용"
 msgid "Use cases"
 msgstr "활용 사례"
 
-#: src/components/SidebarTags.jsx
-msgid "use existing"
-msgstr "기존 태그 사용"
-
 #: src/pages/TemplateSharePage.jsx
 msgid "Use this template"
 msgstr "이 템플릿 사용"
@@ -23541,10 +22685,6 @@ msgstr "공개 페이지 보기 →"
 #: src/lib/versionFields.js
 msgid "View restored."
 msgstr "보기를 복원했어요."
-
-#: src/components/TagRangeHoverPopover.jsx
-msgid "View tag"
-msgstr "태그 보기"
 
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamPage.jsx
@@ -24150,10 +23290,6 @@ msgstr "철회하는 중…"
 #: src/lib/billingCopyWords.js
 msgid "Wondering how a team’s work is kept safe?"
 msgstr "팀의 작업이 어떻게 안전하게 지켜지는지 궁금하신가요?"
-
-#: src/components/DocTagGutter.jsx
-msgid "word"
-msgstr "단어"
 
 #: src/lib/cardInfo.js
 msgid "Words"

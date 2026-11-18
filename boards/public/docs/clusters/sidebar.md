@@ -2,7 +2,7 @@
 
 > The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\ hides Files, and F opens the full Files page.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/sidebar · Updated 2026-11-15_
+_Source: https://clusters.soleilpictures.com/docs/clusters/sidebar · Updated 2026-11-17_
 
 The sidebar is where everything in a workspace is reachable from: the places
 you go, the clusters you work in, and the files inside them. On a computer it
@@ -20,8 +20,8 @@ The top card:
 - **Home** and **Messages** — [Home](/docs/clusters/home-graph) is where your
   projects are; [Messages](/docs/collaborate/messages) opens over the cluster
   you are in and shows an unread count.
-- **Your clusters** — the cluster tree, with **Shared with you** and your
-  [tags](/docs/organize/tags) below it. Click a cluster to open it; the chevron
+- **Your clusters** — the cluster tree, with **Shared with you** below it.
+  Click a cluster to open it; the chevron
   shows the clusters inside it. Right-click a cluster for its menu: **Open**,
   **Send to…**, **Share…**, **Copy link**; **Rename…**, **New cluster
   inside**, **Move to…**, **Color and cover ›**; **Star** (or **Unstar**),
@@ -136,7 +136,7 @@ letting go will do before you do it.
 instead.** On Windows, Alt copies too. **Move to…** and **Copy to…** in a
 file's menu do the same with a list of clusters to pick from.
 
-- **A move** takes the file's name, tags, comments, star and share link with
+- **A move** takes the file's name, comments, star and share link with
   it. The toast that follows says where it went, offers **Put on board** for
   files that landed in Files, and **Undo** puts everything back where it was.
 - **A copy** is a new card showing the same stored file: nothing is uploaded

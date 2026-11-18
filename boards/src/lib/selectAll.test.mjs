@@ -3,10 +3,9 @@
 // PostgREST stops at its row cap without an error, so a single select of a
 // growing table becomes a sample of it and every figure built on it
 // undercounts, silently. These drive selectAll against a stand-in that caps
-// each response the way PostgREST does, and pin the admin Tagging tab to it.
+// each response the way PostgREST does.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { selectAll, SELECT_ALL_PAGE } from './selectAll.js';
 
 const CAP = 1000;
@@ -58,16 +57,4 @@ test('a failed page is the error, never the rows read before it', async () => {
   const r = await selectAll(build);
   assert.equal(r.data, null);
   assert.deepEqual(r.error, { message: 'boom' });
-});
-
-test('the Tagging tab reads every table through it, each in a stable order', () => {
-  const src = readFileSync(new URL('../pages/admin/AdminTaggingTab.jsx', import.meta.url), 'utf8');
-  assert.match(src, /import \{ selectAll \} from '\.\.\/\.\.\/lib\/selectAll\.js';/);
-  const reads = [...src.matchAll(/selectAll\(\(\) => supabase\.from\('([a-z_]+)'\)([\s\S]*?)\),\n/g)]
-    .map((m) => [m[1], m[2]]);
-  assert.deepEqual(reads.map(([t]) => t),
-    ['tags', 'workspaces', 'tag_centroids', 'card_embeddings', 'entity_links', 'tag_eval_labels']);
-  for (const [t, chain] of reads) assert.match(chain, /\.order\('/, `${t} is read in key order`);
-  assert.doesNotMatch(src.replace(/selectAll\(\(\) => supabase\.from/g, ''), /supabase\.from\('(tags|workspaces|tag_centroids|card_embeddings|tag_eval_labels)'\)/,
-    'no table is also read with one capped select');
 });

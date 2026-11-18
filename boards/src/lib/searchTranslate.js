@@ -4,7 +4,7 @@
 // are matched against the descriptions (searchPicturesByWords).
 //
 // Nothing here touches navigator or the DOM at import time. The Worker imports
-// M2M100_LANGS from this file, so tagsClient (which pulls in the browser
+// M2M100_LANGS from this file, so authedFetch (which pulls in the browser
 // Supabase client) is loaded only when a query is translated.
 
 import { minSearchLength, searchLength } from './textFold.js';
@@ -91,13 +91,13 @@ const CACHE_MAX = 100;
 
 // The English for a query, or null. Only an answer is kept: a failure (no
 // session yet, a slow model, the fetch helper's cooldown after a 5xx or a
-// spent budget) is asked again next time. tagsClient is loaded here, not at
+// spent budget) is asked again next time. authedFetch is loaded here, not at
 // the top, so the Worker, which imports M2M100_LANGS from this file, never
 // pulls in the browser's Supabase client.
 export async function translateQuery(q, lang, { workspaceId } = {}) {
   const key = lang + '\u0000' + q;
   if (_cache.has(key)) return _cache.get(key);
-  const { authedFetch } = await import('./tagsClient.js');
+  const { authedFetch } = await import('./authedFetch.js');
   const res = await authedFetch('/api/search/translate', { q, source_lang: lang, workspace_id: workspaceId });
   const english = typeof res?.english === 'string' && res.english.trim() ? res.english : null;
   if (!english) return null;

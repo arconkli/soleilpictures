@@ -105,7 +105,7 @@ test('cardMenu image, editor', () => {
   assert.deepEqual(ids(m.items), [
     'view-full', 'edit-photo', 'edit', '-',
     'send', 'copy-link', 'share-file', 'share-doc', 'download', '-',
-    'comment', 'tag', 'vote', 'move', 'copy-to', 'add-to-group', 'arrange', '-',
+    'comment', 'vote', 'move', 'copy-to', 'add-to-group', 'arrange', '-',
     'info', 'backlinks',
   ]);
   assert.deepEqual(ids(sub(m.items, 'edit')), ['rename', 'caption', 'hyperlink', 'replace-image', 'upload-version']);
@@ -152,7 +152,7 @@ test('cardMenu board (cluster card) with Color and cover', () => {
   assert.deepEqual(ids(m.items), [
     'open-cluster', 'color-cover', 'copy-to-workspace', '-',
     'send', 'share-cluster', 'copy-link', '-',
-    'rename', 'comment', 'tag', 'move', 'add-to-group', 'arrange', '-',
+    'rename', 'comment', 'move', 'add-to-group', 'arrange', '-',
     'star', 'info',
   ]);
   const cover = sub(m.items, 'color-cover');
@@ -187,9 +187,9 @@ test('cardMenu: rows hidden when acts are missing, nothing greyed', () => {
   const none = cardMenu({ kind: 'image' }, { canEdit: true }, {});
   assert.deepEqual(none.items, []);
   assert.equal(none.quick, undefined);
-  const some = cardMenu({ kind: 'note' }, { canEdit: true }, only('copy', 'info', 'tag'));
+  const some = cardMenu({ kind: 'note' }, { canEdit: true }, only('copy', 'info', 'comment'));
   assert.deepEqual(some.quick.map((q) => q.id), ['copy']);
-  assert.deepEqual(ids(some.items), ['tag', '-', 'info']);
+  assert.deepEqual(ids(some.items), ['comment', '-', 'info']);
   assert.ok(!ids(some.items).includes('copy'), 'quick rows are not repeated in the list');
 });
 
@@ -217,7 +217,7 @@ test('multiMenu: editor', () => {
   assert.deepEqual(m.quick.map((q) => q.id), ['cut', 'copy', 'duplicate', 'delete']);
   assert.deepEqual(ids(m.items), [
     'send', 'download', '-',
-    'tag', 'move', 'copy-to', 'group-these', 'add-to-group', 'remove-from-group', 'new-cluster-from', '-',
+    'move', 'copy-to', 'group-these', 'add-to-group', 'remove-from-group', 'new-cluster-from', '-',
     'align', 'arrange', 'tidy', '-',
     'info',
   ]);
@@ -229,7 +229,7 @@ test('multiMenu: editor', () => {
 });
 
 test('Keep in Files only stands alone where Move would sit when there is no Move row', () => {
-  const acts = only('keep-in-files', 'tag', 'info');
+  const acts = only('keep-in-files', 'comment', 'info');
   const one = cardMenu({ kind: 'image' }, { canEdit: true }, acts);
   assert.ok(ids(one.items).includes('keep-in-files'));
   const many = multiMenu(3, { canEdit: true }, acts);
@@ -260,7 +260,7 @@ test('groupMenu: editor, member card, viewer', () => {
   const m = groupMenu({ canEdit: true, name: 'Hero' }, acts);
   assert.equal(m.label, 'Group "Hero"');
   assert.deepEqual(ids(m.items), [
-    'rename-group', 'group-comment', 'tag-group', '-',
+    'rename-group', 'group-comment', '-',
     'outline', 'group-label', 'outline-shape', 'outline-color', '-',
     'turn-into-cluster', 'group-info', '-',
     'remove-from-group', 'ungroup',
@@ -313,7 +313,7 @@ test('canvasMenu: editor', () => {
     'add', 'paste', 'select-all', 'select-touch', '-',
     'tidy', 'fit', '-',
     'background', 'export', '-',
-    'share-cluster', 'copy-link', 'tag-cluster', 'cluster-info', '-',
+    'share-cluster', 'copy-link', 'cluster-info', '-',
     'clear-drawings',
   ]);
   assert.equal(m.items.find((i) => i.id === 'fit').shortcut, shift('1'));

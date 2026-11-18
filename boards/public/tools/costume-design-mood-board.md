@@ -1,8 +1,8 @@
 # Costume Design Mood Boards
 
-> Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.
+> Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and search finds every reference for that character across the project.
 
-_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-11-17_
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 
@@ -20,9 +20,9 @@ Costume is a story told across scenes, so one mood board for the whole film flat
 
 Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it. A supplier’s PDF, a pattern file or the sketch itself can sit beside the look too — any file lands on the board as a card, at any size.
 
-## One character tag, every reference
+## One search, every reference
 
-Tags in Clusters can be typed as characters. Tag a reference with the character once, and the tag’s view gathers every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the tag just finds it.
+Put a character’s name on a reference once, and search finds every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the search just finds it.
 
 ## Assistants, buyers and the director, live
 

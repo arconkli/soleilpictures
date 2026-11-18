@@ -26,7 +26,6 @@ function refKindLabel(kind) {
     case 'card': return tr`Card`;
     case 'doc': return tr`Document`;
     case 'docPos': return tr`Document section`;
-    case 'tag': return tr`Tag`;
     case 'url': return tr`Link`;
     case 'message': return tr`Message`;
     default: return undefined;

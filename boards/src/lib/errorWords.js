@@ -22,7 +22,6 @@ const TABLE = {
   'Not signed in': () => tr`Not signed in`,
   'Not connected.': () => tr`Not connected.`,
   'Sign-in is unavailable right now.': () => tr`Sign-in is unavailable right now.`,
-  'Tag name required': () => tr`Tag name required`,
   'This browser could not draw the board.': () => tr`This browser could not draw the board.`,
   'Too large to unpack here.': () => tr`Too large to unpack here.`,
   'Nothing to zip': () => tr`Nothing to zip`,

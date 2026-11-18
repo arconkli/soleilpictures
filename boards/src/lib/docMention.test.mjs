@@ -28,7 +28,6 @@ test('every kind of picked row carries its display title', () => {
     { kind: 'board', board_id: 'b1', title: 'Moodboard' },
     { kind: 'doc', card_id: 'd1', title: 'Treatment' },
     { kind: 'user', id: 'u1', title: 'Maya' },
-    { kind: 'tag', id: 't1', title: 'Night' },
     { kind: 'image', board_id: 'b1', card_id: 'c1', title: 'Diner still' },
   ];
   for (const row of rows) assert.equal(rowToTarget(row).title, row.title, row.kind);

@@ -2,6 +2,399 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-11-17": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Tags are gone",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tags are gone"
+    }
+   ],
+   "id": "2026-11-17-tags-are-gone"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "You can no longer tag a card, a group, a cluster or a passage in a document. The Tag button, the tag chips, the tag pages and the "
+     },
+     {
+      "t": "strong",
+      "v": "Tags",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tags"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " list in the sidebar are gone, and so are the underlines and margin dots that suggested names and tags in documents and notes."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Nothing you made was deleted. Your clusters, cards, groups and documents are as they were; only the tags on them stopped showing. An old @-mention of a tag stays in your writing as plain text, in the name it had."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Search no longer lists tags, and "
+     },
+     {
+      "t": "code",
+      "v": "#"
+     },
+     {
+      "t": "text",
+      "v": " followed by a name no longer finds anything. Everything else about "
+     },
+     {
+      "t": "link",
+      "v": "search",
+      "href": "/docs/organize/search",
+      "children": [
+       {
+        "t": "text",
+        "v": "search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is as it was, and finding a picture by what is in it still works, as does "
+     },
+     {
+      "t": "strong",
+      "v": "More like this",
+      "children": [
+       {
+        "t": "text",
+        "v": "More like this"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "@-mentions, "
+     },
+     {
+      "t": "strong",
+      "v": "Referenced by",
+      "children": [
+       {
+        "t": "text",
+        "v": "Referenced by"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and the underlines on names of clusters, cards and documents work as before. See "
+     },
+     {
+      "t": "link",
+      "v": "links and mentions",
+      "href": "/docs/organize/links-and-mentions",
+      "children": [
+       {
+        "t": "text",
+        "v": "links and mentions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "link",
+      "v": "comments and backlinks",
+      "href": "/docs/documents/comments-and-backlinks",
+      "children": [
+       {
+        "t": "text",
+        "v": "comments and backlinks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "AI suggestions",
+      "children": [
+       {
+        "t": "text",
+        "v": "AI suggestions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → General",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → General"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is now "
+     },
+     {
+      "t": "strong",
+      "v": "AI for pictures and search",
+      "children": [
+       {
+        "t": "text",
+        "v": "AI for pictures and search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". It still turns picture descriptions and searches typed in another language on or off. Notes and documents are no longer read by AI to suggest tags. See "
+     },
+     {
+      "t": "link",
+      "v": "pictures and AI",
+      "href": "/docs/account/data-and-privacy#pictures-and-ai",
+      "children": [
+       {
+        "t": "text",
+        "v": "pictures and AI"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "For developers",
+   "inline": [
+    {
+     "t": "text",
+     "v": "For developers"
+    }
+   ],
+   "id": "2026-11-17-for-developers"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The tag endpoints of the "
+     },
+     {
+      "t": "link",
+      "v": "API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " answer "
+     },
+     {
+      "t": "code",
+      "v": "410"
+     },
+     {
+      "t": "text",
+      "v": " with the code "
+     },
+     {
+      "t": "code",
+      "v": "gone"
+     },
+     {
+      "t": "text",
+      "v": " and the message \"Tags were removed from Clusters.\" See "
+     },
+     {
+      "t": "link",
+      "v": "errors",
+      "href": "/docs/api/errors",
+      "children": [
+       {
+        "t": "text",
+        "v": "errors"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The AI connector's "
+     },
+     {
+      "t": "code",
+      "v": "list_tags"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "tag_cards"
+     },
+     {
+      "t": "text",
+      "v": " tools answer that tags were removed from Clusters. See "
+     },
+     {
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The webhook events "
+     },
+     {
+      "t": "code",
+      "v": "tag.applied"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "tag.removed"
+     },
+     {
+      "t": "text",
+      "v": " are gone. A webhook that listed them keeps working for its other events. See "
+     },
+     {
+      "t": "link",
+      "v": "webhooks",
+      "href": "/docs/api/webhooks",
+      "children": [
+       {
+        "t": "text",
+        "v": "webhooks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The old pages on tags now lead to "
+     },
+     {
+      "t": "link",
+      "v": "search",
+      "href": "/docs/organize/search",
+      "children": [
+       {
+        "t": "text",
+        "v": "search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", the "
+     },
+     {
+      "t": "link",
+      "v": "API",
+      "href": "/docs/api",
+      "children": [
+       {
+        "t": "text",
+        "v": "API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "link",
+      "v": "comments and backlinks",
+      "href": "/docs/documents/comments-and-backlinks",
+      "children": [
+       {
+        "t": "text",
+        "v": "comments and backlinks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-11-10": [
   {
    "type": "heading",

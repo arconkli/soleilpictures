@@ -5,11 +5,9 @@
 // ask Supabase. `/auth/v1/user` answers that and returns the user in the same
 // round trip.
 //
-// This existed twice — worker-tags.js and worker-ai.js, the latter carrying a
-// comment saying it mirrored the former — and was about to exist a third time
-// for /api/scout/claim. Three hand-copied implementations of "who is calling"
-// is how one of them quietly stops matching the others, so it lives here now
-// and the callers import it.
+// It once existed in several hand-copied versions, one per Worker route family.
+// Copies of "who is calling" are how one quietly stops matching the others, so
+// it lives here and the callers import it.
 //
 // Requires SUPABASE_URL + SUPABASE_ANON_KEY. Both are public by design (the
 // anon key is gated by RLS, not by secrecy) and are already [vars] in

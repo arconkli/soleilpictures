@@ -2,7 +2,7 @@
 
 > Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.
 
-_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-11-17_
 
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
@@ -338,7 +338,6 @@ quietly failing.
 | `view_board` | `board_id`, `limit?` (default 12, up to 24), `cursor?`, `card_ids?` (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
 | `show_board` | `board_id` — show the person the board as it is laid out: [drawn in the chat](#the-board-in-the-chat) where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each (a section with more says `+N more`), and ends with a line giving its link to pass on |
 | `list_comments` | `board_id`, `status?` (`open`\|`resolved`\|`all`), `limit?` (up to 200), `cursor?` — the board's [comment](/docs/api/comments) threads, those inside its docs and notes with the text they are on |
-| `list_tags` | `workspace_id?`, `board_id?`, `tag?` (a name or an id), `limit?` (up to 500) — a workspace's [tags](/docs/api/tags), the tags on one board, or with `tag` everything carrying it |
 | `list_audit` | `since?`, `cursor?` — recent writes and image fetches |
 
 **Writing**
@@ -363,7 +362,6 @@ quietly failing.
 | `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to 50), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `order?` (card ids to put first, in order; those in no section come first, at the top-left), `dry_run?` — lay a board out or tidy it: `auto` unless another layout is named — columns, the pictures leading, or blocks, whichever [suits the board](/docs/api/arrange#the-layouts) — which also brings notes made earlier up to date |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
-| `tag_cards` | `board_id`, `card_ids[]` (up to 200), `add[]?`, `remove[]?` (tag names or ids, up to 10 each) — put [tags](/docs/api/tags) on cards or take them off, as the Tag menu does; a new name makes the tag |
 | `resolve_comments` | `board_id`, `comment_ids[]` (up to 50), `resolved?` — resolve threads, or reopen them with `false`; lists any refused, with why |
 | `restore_board` | `board_id` |
 | `share_board` | `board_id`, `include_subboards?` — the board's [view-only link](/docs/collaborate/sharing), made only when it has none; call it only when the person asks to share |
@@ -375,6 +373,10 @@ quietly failing.
 |---|---|
 | `delete_cards` | `board_id`, `card_ids[]` — one, or up to 1000 |
 | `delete_board` | `board_id` |
+
+`list_tags` and `tag_cards` are gone. Calling either answers that the tool is
+gone and that tags were removed from Clusters, for example "list_tags is gone:
+Tags were removed from Clusters."
 
 Card `kind` is `audio`, `doc`, `file`, `image`, `link`, `note`, `palette`, `pdf`, `video`, defaulting to `note`.
 
@@ -390,12 +392,12 @@ reads when deciding whether a call needs confirming. They are structured, so
 unlike a warning in a description they actually participate in that decision.
 
 - **Read-only:** `whoami`, `search`, `fetch`, `list_boards`, `resolve_identifier`,
-  `read_board`, `view_board`, `show_board`, `list_comments`, `list_tags` and
+  `read_board`, `view_board`, `show_board`, `list_comments` and
   `list_audit`. They change nothing and can be repeated freely.
 - **Destructive:** `update_boards`, `update_cards`, `edit_doc_page`,
-  `arrange_board`, `move_cards`, `tag_cards`, `resolve_comments`,
+  `arrange_board`, `move_cards`, `resolve_comments`,
   `unshare_board`, `delete_cards` and `delete_board`, since each can take
-  something away or write over it (words, positions, tags, a thread's state,
+  something away or write over it (words, positions, a thread's state,
   a link, cards, a cluster). Only a write that purely adds is marked
   non-destructive, even where the same call could put things back.
 - **Open-world:** `import_urls`, which fetches addresses on the web, and

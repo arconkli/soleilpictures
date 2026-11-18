@@ -5,7 +5,7 @@ h1: Core concepts
 navLabel: Core concepts
 section: start
 order: 2
-updated: 2026-10-21
+updated: 2026-11-17
 answer: Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.
 faq:
   - q: What is the difference between a cluster and a board?
@@ -82,12 +82,8 @@ cluster as also being a drive.
 
 ## What is not a container
 
-Two things look like containers and are not:
+One thing looks like a container and is not:
 
 **Groups** are a selection on a canvas given a name and an outline. They travel
-together and can be commented on and tagged as a unit, but they do not have
+together and can be commented on as a unit, but they do not have
 their own inside — the cards remain cards on the same board.
-
-**Tags** cut across everything. A tag is not a location; the same card can carry
-several, and a tag's detail view gathers every board, group and card that
-carries it from anywhere in the workspace.

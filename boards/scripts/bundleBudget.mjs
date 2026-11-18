@@ -194,7 +194,14 @@ export const CEILINGS = {
   // old tag, group and toolbar menus. CI-style builds read 98,215 B on main
   // ae51f319 and 98,603 B with it; the ceiling moves by the difference, 388 B,
   // rounded up.
-  entryCss: 98_700,
+  // 2026-11-17: −6.9 KB, banked, from tags leaving: the rules of the tag page
+  // (.tag-detail-*, .tag-profile-*), the sidebar's Tags (.sb-tag-*), the chips,
+  // pickers and suggestions on cards (.card-tag-chip, .tag-pop*, .tag-many-*),
+  // the spotlight, and a document's tag marks and suggested names (.doc-cand-*,
+  // .cand-pop-*) left styles.css. CI-style builds read 98,603 B on main
+  // 0b2d33f9 and 91,686 B with it; the ceiling moves by the difference,
+  // 6,917 B, rounded up.
+  entryCss: 91_800,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -539,7 +546,17 @@ export const CEILINGS = {
   // about 31 KB of them out of it. CI-style builds read 822,027 B on main
   // ae51f319 and 833,820 B with it; the ceiling moves by the difference,
   // 11,793 B, rounded up.
-  appJs: 833_900,
+  // 2026-11-17: −30.1 KB, banked, from tags leaving. App.jsx loaded the
+  // sidebar's Tags (SidebarTags.jsx), the workspace's tag list
+  // (hooks/useWorkspaceTags.js) and the AI tagger (hooks/useAiTagger.js,
+  // useAutotagWorker.js) with the app, and CanvasSurface the tag picker,
+  // suggestions and colors (TagPicker.jsx, hooks/useTagSuggestions.js,
+  // lib/tagColor.js); all of them left, with the tag chips, the spotlight and
+  // the menus' tag rows. The tag page and the several-cards picker, which
+  // loaded on demand, leave LAZY_IN_APP. CI-style builds read 833,820 B on main
+  // 0b2d33f9 and 803,767 B with it; the ceiling moves by the difference,
+  // 30,053 B, rounded up.
+  appJs: 803_900,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
@@ -560,7 +577,10 @@ export const CEILINGS = {
   // 2026-11-17: +0.1 KB for the grid cell, film and Messages card menus in the
   // menus' look (cards/gridCard.css, film/film.css, messagesCard.css).
   // 24,520 B on main ae51f319, 24,608 B with it.
-  appCss: 24_700,
+  // 2026-11-17: −0.1 KB, banked, from tags leaving: the sidebar's Tags rows
+  // left sidebar/clusterSidebar.css. 24,608 B on main 0b2d33f9, 24,468 B with
+  // it.
+  appCss: 24_600,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
@@ -576,7 +596,7 @@ export const NEVER_IN_APP = [
 // into a closure chunk instead, so its own chunk disappearing fails too.
 export const LAZY_IN_APP = [
   // App.jsx
-  'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
+  'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette',
   'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive', 'NewWorkspaceDialog',
   // App.jsx: the first-board test, for accounts from its epoch on
   'BoardMoreNudge',
@@ -591,7 +611,7 @@ export const LAZY_IN_APP = [
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx
-  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel', 'TagManyPicker',
+  'FilmPlayer', 'ScheduleCard', 'SketchPadOverlay', 'GridTemplatePanel', 'SaveTemplateDialog', 'DetailPanel',
   // FileCard.jsx: a text file's page; QuickLook.jsx: the page, read on, and
   // a zip to walk through
   'FamilyFace', 'FileStages', 'ZipStage',

@@ -627,9 +627,8 @@ export const EV = Object.freeze({
   PASSKEY_SAVE_FAILED:     'passkey_save_failed',         // saving one didn't finish {via,reason}
   PASSKEY_REMOVED:         'passkey_removed',             // a passkey was removed in Settings (after its undo ran out)
 
-  // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
-  //    Zero tag events existed before; this is how we finally measure whether
-  //    tagging pays off. ──
+  // ── Tags. The app has not sent these since tags were removed on 2026-11-17;
+  //    they stay so older analytics_events rows still read correctly. ──
   TAG_COLLECTION_OPEN:     'tag_collection_open',         // opened a tag's cross-board collection {tag_id,via:'card_chip'|'board_chip'|'hover'|'sidebar'|'doc'}
   TAG_HOVER_OPEN:          'tag_hover_open',              // a rich tag hover popover opened {tag_id,surface:'doc'|'entity_popover'}
   // tag_search, tag_dismiss and tag_auto_promote were REMOVED: the first two

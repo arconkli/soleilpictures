@@ -4,10 +4,6 @@
 // /api/og?url=…       — fetches the URL server-side, parses Open Graph
 //                       and favicon metadata, returns JSON. Used by link
 //                       cards to render previews without hitting CORS.
-// /api/tags/*         — AI tagging pipeline (embed, apply verdicts, name
-//                       emergent clusters). See worker-tags.js for the
-//                       per-route contracts. All routes auth-checked
-//                       against the user's Supabase JWT.
 // /api/clusters/*     — the sidebar's writes to clusters that aren't open:
 //                       move, copy, append, patch, remove (worker-clusters.js).
 //                       The user's Supabase JWT, and can_write_board as them.
@@ -27,7 +23,6 @@
 //                       tab (worker-showcase.js). Gated by an HMAC in the URL
 //                       (showcase_library, 0820), showcase/ prefix only.
 
-import { handleTagsRoute } from './worker-tags.js';
 import { handleSearchRoute } from './worker-search.js';
 import { pickOgImage } from './lib/ogImagePick.js';
 import { isUnlistedBoard, postBoardRobots } from './lib/postBoardRobots.js';
@@ -37,7 +32,6 @@ import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { runDraftReap } from './worker-drafts.js';
 import { runImageDescribe, runImageEmbedLane } from './worker-vision.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
-import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
 import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-playCopy.js';
 import { mediaKindOfKey } from './lib/playCopy.js';
@@ -166,6 +160,11 @@ const RETIRED_PAGES = new Map([
   // them; each lands on the page that covers what is left.
   ['/docs/canvas/schedule', '/docs/canvas/cards'],
   ['/docs/clusters/production-schedule', '/docs/clusters'],
+  // Tags were removed (2026-11); their three docs pages land on what covers
+  // the rest.
+  ['/docs/organize/tags', '/docs/organize/search'],
+  ['/docs/api/tags', '/docs/api'],
+  ['/docs/documents/comments-and-tags', '/docs/documents/comments-and-backlinks'],
   // Not retired: a short address for the security page, given out in
   // directory listings' trust-center field and to Team buyers (2026-11-05).
   ['/security', '/docs/security'],
@@ -816,12 +815,10 @@ const worker = {
       // Authenticated as that user; the address change itself is handed to
       // Supabase's confirmation flow rather than written here.
       if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
-      if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
       if (url.pathname.startsWith('/api/search/')) return await handleSearchRoute(url, request, env);
       if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
       if (url.pathname.startsWith('/api/team/')) return await handleTeamRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);
-      if (url.pathname.startsWith('/api/ai/')) return await handleAiRoute(url, request, env);
       // A copy of a video or audio file that every browser can play: asked for
       // by members, made by the converter on Fly (worker-playCopy.js).
       if (url.pathname.startsWith('/api/media/copy/')) return await handlePlayCopyRoute(url, request, env, ctx);

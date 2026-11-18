@@ -22,7 +22,7 @@ const SUFFIX = 'Soleil Clusters';
 // fall back to it rather than to an empty tab.
 const served = (typeof document !== 'undefined') ? document.title : null;
 
-let base = null;   // current cluster / tag name, or null for "no name here"
+let base = null;   // current cluster name, or null for "no name here"
 let badge = '';    // '(3) ' / '(@2) ' / ''
 let activity = ''; // '(6/12) ' while uploads are moving / ''
 

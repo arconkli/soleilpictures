@@ -16,7 +16,6 @@
 //   • Talk to us — the pricing page's Talk-to-us requests (new / handled / spam)
 //   • Errors    — first-party client-side error logs (client_errors)
 //   • API       — /api/v1 + MCP traffic: tools, routes, callers, failures
-//   • Tagging   — embeddings tagger quality audit
 //
 // Opens on Analytics (fast) and remembers the active tab in the URL
 // (?tab=) + localStorage, so a reload / back / shared link returns to the
@@ -79,7 +78,6 @@ const TAB_LOADERS = {
   grants:    () => import('./admin/AdminGrantsTab.jsx'),
   campaign:  () => import('./admin/AdminCampaignTab.jsx'),
   waitlist:  () => import('./admin/AdminWaitlistTab.jsx'),
-  tagging:   () => import('./admin/AdminTaggingTab.jsx'),
 };
 const lazyTab = (id, name) => lazyWithReload(() => TAB_LOADERS[id]().then((m) => ({ default: m[name] })));
 const AdminUsersTab     = lazyTab('users', 'AdminUsersTab');
@@ -100,7 +98,6 @@ const AdminDiscountsTab = lazyTab('discounts', 'AdminDiscountsTab');
 const AdminGrantsTab    = lazyTab('grants', 'AdminGrantsTab');
 const AdminCampaignTab  = lazyTab('campaign', 'AdminCampaignTab');
 const AdminWaitlistTab  = lazyTab('waitlist', 'AdminWaitlistTab');
-const AdminTaggingTab   = lazyTab('tagging', 'AdminTaggingTab');
 
 // What a tab shows while its first read is out, for the moment its code is
 // still arriving. Boards, Outlines and Posts keep the blank they always had.
@@ -132,7 +129,6 @@ const TABS = [
   { id: 'api',       label: 'API' },
   { id: 'scout',     label: 'Scout' },
   { id: 'emails',    label: 'Emails' },
-  { id: 'tagging',   label: 'Tagging' },
   { id: 'universe',  label: 'Universe' },
 ];
 const TAB_IDS = TABS.map((t) => t.id);
@@ -145,7 +141,7 @@ const PRIMARY_IDS = ['overview', 'users', 'posts', 'approvals', 'boards', 'outli
 // Overflow order is triage-first, then rare/config, split by a single divider.
 // The waitlist has been switched off since 2026-06-15, so Waitlist sits with
 // Campaign among the rarely opened rather than in the pills.
-const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'talk', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'waitlist', 'tagging', 'universe'];
+const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'talk', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'waitlist', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
@@ -438,7 +434,6 @@ export function AdminPage() {
           {tab === 'audit'     && <AdminAuditTab />}
           {tab === 'api'       && <AdminApiTab />}
           {tab === 'emails'    && <AdminEmailsTab />}
-          {tab === 'tagging'   && <AdminTaggingTab />}
         </Suspense>
       </main>
     </div>

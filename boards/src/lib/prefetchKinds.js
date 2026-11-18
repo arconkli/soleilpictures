@@ -96,7 +96,7 @@ export function prefetchEntity(ref, { lane = 'normal' } = {}) {
     case 'group':
       if (ref.boardId) return prefetchBoard(ref.boardId, { lane });
       return Promise.resolve(null);
-    // message / user / url / tag → no expensive fetch on hover today.
+    // message / user / url → no expensive fetch on hover today.
     default:
       return Promise.resolve(null);
   }

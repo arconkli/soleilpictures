@@ -5,7 +5,7 @@ h1: Notes
 navLabel: Notes
 section: canvas
 order: 3
-updated: 2026-11-09
+updated: 2026-11-17
 answer: A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 faq:
   - q: Can two people edit the same note at once?
@@ -89,7 +89,7 @@ box next to it.
 
 ## Mentions
 
-Type `@` to mention another cluster, document, card, tag or person. The mention
+Type `@` to mention another cluster, document, card or person. The mention
 becomes a real link with a hover preview, and it registers as a backlink on the
 thing you mentioned — so that item's panel can show everywhere it is referenced.
 
@@ -102,9 +102,9 @@ hover. You do not have to do anything to make this happen. Words pasted with a
 link — from a web page, an email or a document — keep their address, so they
 stay clickable.
 
-Names that match an existing tag or entity are also detected and quietly
-underlined, so a note that says "Diner" connects itself to the Diner entity you
-already created elsewhere.
+Names that match an existing cluster, card or document are also detected and
+quietly underlined, so a note that says "Diner" connects itself to the Diner
+cluster you already created elsewhere.
 
 ## Working together
 

@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a Google Drive alternative for a creative team’s working files: drop a folder and it becomes nested boards, every file kept under its own name and laid out where the whole team can see it, comment and decide. Keep Drive for backup, sync and offline copies; use Clusters for the work.
 
-_Source: https://clusters.soleilpictures.com/vs/google-drive · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/google-drive · Updated 2026-11-17_
 
 Drive stores your files. Clusters shows them — every reference on one canvas your team builds on together, organised the way your folders were.
 
@@ -87,7 +87,7 @@ No. Nothing syncs in either direction: Clusters keeps its own copy of what you d
 
 ### Can I find a file by its name in Clusters?
 
-Yes. Search finds photos and videos by the name their file had, along with cluster names, card text and tags, and list view sorts and filters a cluster like a folder.
+Yes. Search finds photos and videos by the name their file had, along with cluster names and card text, and list view sorts and filters a cluster like a folder.
 
 ### Is there a Clusters app for my phone?
 

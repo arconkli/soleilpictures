@@ -206,37 +206,6 @@ const lifespan = {
   ],
 };
 
-// ── tagging (small but enough for overview + a drill-down histogram) ──
-const vec = (a) => `[${a.join(',')}]`;
-const tagWorkspaces = [{ id: 'ws1', name: 'Acme Studio' }];
-const tags = [
-  { id: 't1', name: 'Hero shots',   slug: 'hero',  color: '#ffa500', description: 'Key art / hero images',  workspace_id: 'ws1' },
-  { id: 't2', name: 'Storyboards',  slug: 'story', color: '#7da0dc', description: 'Sequence sketches',       workspace_id: 'ws1' },
-  { id: 't3', name: 'Lighting refs',slug: 'light', color: '#50c878', description: 'No centroid yet',          workspace_id: 'ws1' },
-];
-const tagCentroids = [{ tag_id: 't1', centroid: vec([1, 0, 0, 0]) }, { tag_id: 't2', centroid: vec([0, 1, 0, 0]) }];
-const cardEmbeddings = [];
-const cardIndexRows = [];
-const appliedLinks = [];
-for (let i = 0; i < 16; i++) {
-  const id = `c${i}`;
-  // alternate clusters near t1, near t2, and ambiguous/far
-  const mode = i % 4;
-  const v = mode === 0 ? [0.96, 0.12, 0.05, 0] : mode === 1 ? [0.1, 0.95, 0.03, 0]
-    : mode === 2 ? [0.62, 0.6, 0.1, 0.1] : [0.2, 0.2, 0.7, 0.5];
-  cardEmbeddings.push({ card_id: id, workspace_id: 'ws1', board_id: 'b1', embedding: vec(v) });
-  cardIndexRows.push({ card_id: id, board_id: 'b1', kind: i % 3 ? 'image' : 'note',
-    title: `Card ${i}`, body: ['storyboard frame', 'hero composite', 'lighting test', 'mood ref'][i % 4] });
-  if (mode === 0 && i < 12) appliedLinks.push({ target_id: 't1', source_kind: 'card', source_id: id });
-  if (mode === 1 && i < 12) appliedLinks.push({ target_id: 't2', source_kind: 'card', source_id: id });
-  if (mode === 3 && i < 8)  appliedLinks.push({ target_id: 't1', source_kind: 'card', source_id: id }); // a high-distance member (suspect)
-}
-const tagEvalLabels = [
-  { tag_id: 't1', source_kind: 'card', source_id: 'c4',  label: 'should_apply',     workspace_id: 'ws1', created_at: tsISO(120) },
-  { tag_id: 't1', source_kind: 'card', source_id: 'c12', label: 'should_not_apply', workspace_id: 'ws1', created_at: tsISO(90) },
-  { tag_id: 't2', source_kind: 'card', source_id: 'c5',  label: 'should_apply',     workspace_id: 'ws1', created_at: tsISO(60) },
-];
-
 // ── RPC fixtures ────────────────────────────────────────────────────
 const RPCS = {
   admin_capture_metrics_now: null,
@@ -670,7 +639,7 @@ RPCS.admin_universe_stats = {
   total_clusters_made: 1170, total_studios: 640,
   total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 4_812_000,
   last_24h: { users: 7, workspaces: 4, boards: 13, clusters_made: 9, cards: 72 },
-  today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
+  today: { users: 7, workspaces: 4, boards: 12, cards: 138, links: 0 },
 };
 
 // admin_activity_heatmap -> 168 zero-filled buckets. Shaped like a real
@@ -1425,9 +1394,6 @@ const ALERT_MARKERS = [
 
 const TABLES = {
   waitlist_entries: waitlistEntries,
-  tags, workspaces: tagWorkspaces, tag_centroids: tagCentroids,
-  card_embeddings: cardEmbeddings, entity_links: appliedLinks,
-  card_index: cardIndexRows, tag_eval_labels: tagEvalLabels,
 };
 
 function zeroRevenue() {

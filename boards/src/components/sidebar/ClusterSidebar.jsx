@@ -161,7 +161,6 @@ export function ClusterSidebar({
   listRef,                // App's .sb-list ref (scroll edges)
   boardsSectionProps,     // everything SidebarBoardsSection already took from App
   sharedSection,          // <SidebarSharedBoards/>
-  tagsSection,            // <SidebarTags/>
   meterProps,             // { isPaid, cardsUsed, cardLimit, storage }
   onOpenPlan,
   onUpload,               // (files) => void
@@ -1042,7 +1041,6 @@ export function ClusterSidebar({
       <div className="sb-list sbf-nav" ref={navRef} onKeyDown={onListKeyDown}>
         <SidebarBoardsSection {...boardsSectionProps} filesView={filesView} starStore={{ isStarred: files.isStarred, toggleStar: files.toggleStar }} />
         {sharedSection}
-        {tagsSection}
       </div>
       </div>
 

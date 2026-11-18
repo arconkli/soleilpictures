@@ -1,6 +1,6 @@
 // A doc card's scope knows the cluster it sits on. Comment @-mention
-// notifications (notifyCommentMentions returns early with no boardId), doc
-// tagging and the save footer are all keyed by that HOST board; the doc card's
+// notifications (notifyCommentMentions returns early with no boardId), the
+// add-comment flow and the save footer are all keyed by that HOST board; the doc card's
 // own id is not a board. Wiring only — Playwright is not in CI.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ test('the canvas and the docked pane pass the board they render', () => {
 
 test('the comment flows read the board from that scope', () => {
   const ed = read('../components/DocPageEditor.jsx');
-  assert.ok((ed.match(/boardId: scope\?\.boardId \|\| null/g) || []).length >= 2, 'tagging + add-comment');
+  assert.ok((ed.match(/boardId: scope\?\.boardId \|\| null/g) || []).length >= 1, 'add-comment');
   assert.match(ed, /<CommentGutter[\s\S]*?boardId=\{scope\?\.boardId \|\| null\}/, 'the margin dots (what is unread)');
 });
 

@@ -73,8 +73,15 @@ export const WEBHOOK_EVENTS = [
   'image.created',
   'comment.created', 'comment.updated', 'comment.resolved', 'comment.reopened',
   'comment.deleted', 'comment.restored',
-  'tag.applied', 'tag.removed',
 ];
+
+// Events that were once offered and are gone. A request that still names one
+// succeeds with the name dropped, a stored subscription never shows it, and a
+// queued one is never delivered: the triggers that wrote them fire until a
+// later migration stops them.
+const REMOVED_EVENTS = ['tag.applied', 'tag.removed'];
+export const isRemovedEvent = (name) => REMOVED_EVENTS.includes(name);
+export const withoutRemovedEvents = (names) => (Array.isArray(names) ? names.filter((n) => !isRemovedEvent(n)) : names);
 
 // 1m, 5m, 25m, 2h, 10h — bounded exponential, so a receiver that is down for a
 // working day still gets its events when it comes back.
@@ -166,6 +173,7 @@ export async function fanOutEvents(env, { limit = 500, db = REAL_DB } = {}) {
 
   const deliveries = [];
   for (const e of events) {
+    if (isRemovedEvent(e.event)) continue;
     for (const h of byWorkspace.get(e.workspace_id) || []) {
       // `*` subscribes to everything, including events added later — which is
       // what a general-purpose sync wants, and what a narrow integration should
@@ -262,6 +270,14 @@ async function deliverRows(env, due, { fetchImpl = fetch, db = REAL_DB } = {}) {
   let delivered = 0;
   let failed = 0;
   for (const d of due) {
+    if (isRemovedEvent(d.event)) {
+      const note = 'not sent: that event was removed';
+      await db.patch(env, 'webhook_deliveries', `id=eq.${d.id}`, {
+        delivered_at: new Date().toISOString(), error: note,
+      });
+      outcomes.push({ id: d.id, delivered: false, status: null, attempt: d.attempt || 0, error: note });
+      continue;
+    }
     const hook = byId.get(d.webhook_id);
     if (!hook || !hook.active) {
       await db.patch(env, 'webhook_deliveries', `id=eq.${d.id}`, {

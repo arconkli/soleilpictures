@@ -2,7 +2,7 @@
 
 > Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.
 
-_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-11-17_
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
@@ -68,7 +68,7 @@ The honest limits: Clusters runs in the browser only — no offline desktop app,
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
-- Tags on cards, groups and boards; a relationship graph connects the project
+- A relationship graph connects the project
 - Boards hold images, video, audio, PDFs, notes, palettes, grids, and docs with screenplay mode
 - Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad
 

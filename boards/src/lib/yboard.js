@@ -69,7 +69,7 @@ const PREVIEW_LS_THROTTLE_MS = 2000;
 const _lastPreviewLsWrite = new Map(); // boardId -> Date.now() of last write
 
 // requestIdleCallback wrapper — Round 14 introduced the same pattern in
-// the entity-trie / autotag hooks. We re-use the idea here: schedule
+// the entity-trie hook. We re-use the idea here: schedule
 // the localStorage preview write in idle time so it never competes with
 // active interaction (pan/zoom/typing). Safari falls back to setTimeout.
 const _scheduleIdle = (typeof window !== 'undefined' && window.requestIdleCallback)

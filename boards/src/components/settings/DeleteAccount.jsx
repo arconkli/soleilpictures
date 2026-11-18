@@ -53,7 +53,7 @@ function Impact({ data }) {
         <li><Trans>Your subscription is <b>canceled</b> — no further charges.</Trans></li>
       )}
       <li>
-        <Trans>Comments, tags and votes you left on other people's clusters stay where
+        <Trans>Comments and votes you left on other people's clusters stay where
         they are, with your name removed.</Trans>
       </li>
     </ul>

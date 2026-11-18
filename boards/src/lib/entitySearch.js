@@ -33,6 +33,8 @@ export async function searchEntities({ workspaceId, query, kinds, limit = 30 }) 
   let { data, error } = await run(true);
   if (error && q && isMissingColumn(error)) ({ data, error } = await run(false));
   if (error) { console.warn('entity search failed', error); return null; }
+  // The view still returns tag rows until its migration ships; tags are gone.
+  data = data.filter((r) => r.kind !== 'tag');
   if (q) {
     const lq = searchKey(q);
     return [...data].sort((a, b) => entitySearchRank(a, lq) - entitySearchRank(b, lq));

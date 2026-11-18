@@ -5,7 +5,7 @@ h1: Comments
 navLabel: Comments
 section: collaborate
 order: 3
-updated: 2026-11-15
+updated: 2026-11-17
 answer: A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.
 faq:
   - q: Can I comment on empty canvas?
@@ -17,7 +17,7 @@ faq:
   - q: What happens to a comment I started typing and did not send?
     a: It is kept. Click away and the words wait where you left them, in this browser, and Esc asks before discarding anything you typed.
 related:
-  - /docs/documents/comments-and-tags
+  - /docs/documents/comments-and-backlinks
   - /docs/api/comments
   - /docs/collaborate/notifications
   - /docs/canvas/vote-cards
@@ -35,7 +35,7 @@ referred to within a day.
 | A **[group](/docs/canvas/groups)** | "this sequence" |
 | An **empty point** | "something should go here" |
 | The **board** | "the whole thing" |
-| A **text range** in a [document](/docs/documents/comments-and-tags) or a note | "this sentence" |
+| A **text range** in a [document](/docs/documents/comments-and-backlinks) or a note | "this sentence" |
 
 Right-click a card, a group or the empty canvas and choose the comment item
 (on a phone, touch and hold), or use the rail's **+** → *Annotate* →
@@ -160,7 +160,7 @@ to open their conversation.
 A note with comments has a row in its right-click menu that reads like **3 comments**:
 it lists the note's conversations, **Open** and **Resolved**. A document lists
 its own in its side panel; see [comments in
-documents](/docs/documents/comments-and-tags).
+documents](/docs/documents/comments-and-backlinks).
 
 ## Who can comment
 

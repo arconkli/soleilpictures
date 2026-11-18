@@ -2,7 +2,7 @@
 
 > Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/home-graph · Updated 2026-11-15_
+_Source: https://clusters.soleilpictures.com/docs/clusters/home-graph · Updated 2026-11-17_
 
 **Home** is where your projects are. Open it from **Home** in the sidebar or the
 **Clusters** logo in the top bar.
@@ -103,4 +103,3 @@ phone, Home is the panel alone, and the graph is never loaded.
 
 - Looking for one specific thing you can name — [`⌘K`](/docs/organize/search)
 - Browsing the contents of one cluster — [Files](/docs/clusters/list-view)
-- Finding everything on a theme — [tags](/docs/organize/tags)

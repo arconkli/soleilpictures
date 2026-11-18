@@ -1,12 +1,13 @@
 // The server's embedder: card_embeddings rows the Worker writes. Pictures are
 // embedded here with their descriptions (worker-vision.js), since the browser
 // no longer embeds image or video cards (embedText.js clientEmbedsKind), and
-// the API embeds what it writes through the same function, cards and doc
-// pages alike. One module and one budget path for every server-side embedding.
+// the API embeds the cards it writes through the same function (a doc page
+// is also a row kind it can embed). One module and one budget path for every
+// server-side embedding.
 //
-// The text and its hash come from embedText.js and aiWarmup.js's page rule,
-// the same ones the browser's writers use, so content_hash agrees and no
-// writer re-embeds over another. A row whose hash is unchanged only has its
+// The text and its hash come from embedText.js, the same text rule the
+// browser's writers use, so content_hash agrees and no writer re-embeds over
+// another. A row whose hash is unchanged only has its
 // embedded_at touched. Every model call is paid for first from the owner's
 // 'embed' budget (0593 _ai_budget_take), and a card in a workspace with AI off
 // is never embedded. Texts never leave this module in a log: ids and counts.
@@ -16,7 +17,7 @@ import { embedTextForCard, embedHash } from './embedText.js';
 export const EMBED_BATCH = 16;
 const EMBED_DIM = 1024;  // pgvector columns are vector(1024) since 0418
 
-// The text a doc page is embedded from (aiWarmup.js): its title, then its text.
+// The text a doc page is embedded from: its title, then its text.
 export const docPageText = (title, text) => [title || '', text || ''].filter((s) => s && s.trim()).join('\n');
 
 // An item as the row it becomes: { entity_kind, card_id, workspace_id,
@@ -53,7 +54,7 @@ const unitLength = (v) => {
   return n > 0 ? v.map((x) => x / n) : v;
 };
 
-// bge-m3 vectors for texts, unit length (as worker-tags.js stores them), or a
+// bge-m3 vectors for texts, unit length (as card_embeddings stores them), or a
 // thrown error. The caller has already paid for them.
 export async function embedTexts(env, texts) {
   const result = await env.AI.run('@cf/baai/bge-m3', { text: texts });
@@ -87,7 +88,7 @@ async function restJson(env, path, init, timeoutMs) {
 
 // Embeds what changed among `items` and stores it. Returns counts, plus the
 // rows now current ({ entity_kind, card_id, board_id, workspace_id }) so a
-// caller can follow up (worker-vision.js asks for tag suggestions).
+// caller can follow up.
 export async function embedCards(env, items, { timeoutMs = 15_000 } = {}) {
   const stats = { embedded: 0, unchanged: 0, refused: 0, failed: 0, skipped: 0, current: [] };
   if (!env?.AI || !env?.SUPABASE_URL || !env?.SUPABASE_SERVICE_ROLE_KEY) {

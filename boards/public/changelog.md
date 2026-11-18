@@ -4,6 +4,44 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-11-17 — Tags are gone
+
+Tags are removed from cards, groups, clusters and documents, along with the tag pages and the sidebar list. Nothing anyone made was deleted, and search still finds pictures by what is in them.
+
+### Tags are gone
+
+- You can no longer tag a card, a group, a cluster or a passage in a document.
+  The Tag button, the tag chips, the tag pages and the **Tags** list in the
+  sidebar are gone, and so are the underlines and margin dots that suggested
+  names and tags in documents and notes.
+- Nothing you made was deleted. Your clusters, cards, groups and documents are
+  as they were; only the tags on them stopped showing. An old @-mention of a tag
+  stays in your writing as plain text, in the name it had.
+- Search no longer lists tags, and `#` followed by a name no longer finds
+  anything. Everything else about [search](/docs/organize/search) is as it was,
+  and finding a picture by what is in it still works, as does **More like this**.
+- @-mentions, **Referenced by** and the underlines on names of clusters, cards
+  and documents work as before. See
+  [links and mentions](/docs/organize/links-and-mentions) and
+  [comments and backlinks](/docs/documents/comments-and-backlinks).
+- **AI suggestions** in **Settings → General** is now **AI for pictures and
+  search**. It still turns picture descriptions and searches typed in another
+  language on or off. Notes and documents are no longer read by AI to suggest
+  tags. See [pictures and AI](/docs/account/data-and-privacy#pictures-and-ai).
+
+### For developers
+
+- The tag endpoints of the [API](/docs/api) answer `410` with the code `gone`
+  and the message "Tags were removed from Clusters." See
+  [errors](/docs/api/errors).
+- The AI connector's `list_tags` and `tag_cards` tools answer that tags were
+  removed from Clusters. See [MCP](/docs/mcp).
+- The webhook events `tag.applied` and `tag.removed` are gone. A webhook that
+  listed them keeps working for its other events. See
+  [webhooks](/docs/api/webhooks).
+- The old pages on tags now lead to [search](/docs/organize/search), the
+  [API](/docs/api) and [comments and backlinks](/docs/documents/comments-and-backlinks).
+
 ## 2026-11-10 — Help improve Clusters
 
 Clusters may ask whether it can keep plain outlines of how your clusters are laid out. Just the boxes, never what is in them, and only if you say yes.

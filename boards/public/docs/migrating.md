@@ -2,7 +2,7 @@
 
 > There is no connector to another app. Moving to Soleil Clusters means downloading your files and dragging them in, which is usually one drag: drop the folder, or the zip a cloud drive gives you, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 
-_Source: https://clusters.soleilpictures.com/docs/migrating · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/migrating · Updated 2026-11-17_
 
 There is no connector to another app. That is less of a problem than it
 sounds — [dropping a folder or a zip](/docs/clusters#importing-folders-and-zips)
@@ -30,7 +30,6 @@ What is worth knowing is how the concepts map.
 | Folder | A nested cluster — [nesting is unlimited](/docs/clusters) |
 | Frame / panel | A [grid](/docs/canvas/grids) cell |
 | Sticky note | A [note](/docs/canvas/notes) |
-| Tag / label | A [tag](/docs/organize/tags), which can also be a typed entity |
 | Comment | A [comment](/docs/collaborate/comments), anchored to a card, group, point or text range |
 | Share link | A [public link](/docs/collaborate/sharing), always view-only |
 

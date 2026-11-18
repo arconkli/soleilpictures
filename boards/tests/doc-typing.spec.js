@@ -48,7 +48,7 @@ const caretAt = async (page, text, at = 1) => {
 
 // What re-rendered, keeping only the doc's own chrome.
 const CHROME = ['RichDocCard', 'DocCardOverlay', 'DocSurface', 'DocPageTree', 'DocHeadA', 'DocBarA', 'DocSidePanel',
-  'DocFindReplace', 'DocPageEditor', 'DocEditorContextMenu', 'DocTagGutter', 'DocCandidateGutter', 'CommentGutter',
+  'DocFindReplace', 'DocPageEditor', 'DocEditorContextMenu', 'CommentGutter',
   'ScreenplaySceneNav'];
 const chromeRenders = async (page) => {
   const all = await renders(page);

@@ -36,9 +36,8 @@
 // there, even when the same call can put it back: OpenAI's plugin directory
 // allows false only for writes that purely add ("Being able to undo an action
 // does not, by itself, justify setting destructiveHint to false"). So
-// arranging (positions), moving (off the source), tagging (a tag taken off)
-// and resolving (a thread put away) are destructive, with the overwrites and
-// the deletes.
+// arranging (positions), moving (off the source) and resolving (a thread put
+// away) are destructive, with the overwrites and the deletes.
 const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const WRITES = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 const EDITS = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -1042,49 +1041,6 @@ export const TOOLS = [
       + ` here (the board has ${o.counts?.open ?? 0} open, ${o.counts?.resolved ?? 0} resolved)${more(o)}${at(o.url)}`,
   },
   {
-    name: 'list_tags',
-    title: 'List tags',
-    description: 'Lists tags, the labels on cards, groups, boards and doc pages in a workspace. With tag (name or id): '
-      + 'everything carrying it, newest first. With board_id alone: that board\'s tags and what carries each. '
-      + 'Otherwise the workspace\'s tags with counts.',
-    annotations: READS,
-    peoplesText: true,
-    inputSchema: schema({
-      workspace_id: uuid('The workspace; left out, your only one (or the board\'s)'),
-      board_id: uuid('A board: its tags (with tag, where to look the name up)'),
-      tag: str('A tag\'s name or id: everything carrying it'),
-      // TAGS.maxItems (lib/apiTags.js); a test keeps the two equal.
-      limit: int('Default 100, max 500', { minimum: 1, maximum: 500 }),
-    }),
-    outputSchema: looseObject({
-      workspace_id: { type: 'string' },
-      board_id: { type: 'string' },
-      tag: looseObject({ id: { type: 'string' }, name: { type: 'string' } }),
-      tags: { type: 'array', items: looseObject({ id: { type: 'string' }, name: { type: 'string' } }) },
-      items: { type: 'array', items: looseObject({ kind: { type: 'string' }, url: { type: 'string' } }) },
-      has_more: { type: 'boolean' },
-    }),
-    call: async (a, { api }) => {
-      const { limit } = a;
-      if (a.board_id && !a.tag) return api(`/boards/${a.board_id}/tags`);
-      if (a.tag && UUID_RE.test(a.tag.trim())) return api(`/tags/${a.tag.trim().toLowerCase()}${qs({ limit })}`);
-      const workspaceId = a.workspace_id
-        || (a.board_id ? (await api(`/boards/${a.board_id}`)).board?.workspace_id : await onlyWorkspace(api));
-      if (!a.tag) return api(`/workspaces/${workspaceId}/tags${qs({ limit })}`);
-      const { tags } = await api(`/workspaces/${workspaceId}/tags${qs({ name: a.tag })}`);
-      if (!tags?.length) {
-        throw new ApiError(`no tag named "${a.tag}" in that workspace: list_tags without tag lists them`,
-          { status: 404, code: 'not_found' });
-      }
-      return api(`/tags/${tags[0].id}${qs({ limit })}`);
-    },
-    summary: (o) => {
-      if (o.tag) return `Tag ${named(o.tag.name, 60)} · ${plural(o.items?.length || 0, 'thing')} carrying it${more(o)}`;
-      if (o.board_id) return `${plural(o.tags?.length || 0, 'tag')} on this board${at(o.url)}`;
-      return `${plural(o.tags?.length || 0, 'tag')} in the workspace${more(o)}`;
-    },
-  },
-  {
     name: 'list_audit',
     title: 'Audit log',
     description: 'Recent API writes and image-byte fetches: who, what, when, with which token. Covers this account and, '
@@ -1675,53 +1631,6 @@ export const TOOLS = [
     summary: (o) => `Moved ${plural(o.moved ?? o.cards?.length ?? 0, 'card')}`,
   },
   {
-    name: 'tag_cards',
-    title: 'Tag cards',
-    description: 'Puts tags on cards of one board and takes them off. A tag is a name or an id from list_tags; a name '
-      + 'with no tag in the workspace makes a new one. A tag taken off stays off: automatic tagging never puts '
-      + 'it back. Tag only what the person asked for.',
-    // Destructive: taking a tag off removes it, and "remove" keeps it off
-    // against automatic tagging. OpenAI's directory counts any removal or
-    // overwrite as destructive even when the same call can put it back.
-    annotations: OVERWRITES,
-    inputSchema: schema({
-      board_id: uuid('The board the cards are on'),
-      card_ids: {
-        type: 'array',
-        description: 'Card ids (from read_board)',
-        minItems: 1,
-        // TAGS.maxCards (lib/apiTags.js); a test keeps the two equal.
-        maxItems: 200,
-        items: { type: 'string' },
-      },
-      // TAGS.maxNames (lib/apiTags.js); a test keeps the two equal.
-      add: { type: 'array', description: 'Tags to put on: names or tag ids', maxItems: 10, items: { type: 'string' } },
-      remove: { type: 'array', description: 'Tags to take off: names or tag ids', maxItems: 10, items: { type: 'string' } },
-    }, ['board_id', 'card_ids']),
-    outputSchema: looseObject({
-      board_id: { type: 'string' },
-      added: { type: 'array', items: looseObject({ name: { type: 'string' }, card_ids: { type: 'array', items: { type: 'string' } } }) },
-      removed: { type: 'array', items: looseObject({ name: { type: 'string' }, card_ids: { type: 'array', items: { type: 'string' } } }) },
-      not_found: looseObject({
-        card_ids: { type: 'array', items: { type: 'string' } },
-        tags: { type: 'array', items: { type: 'string' } },
-      }),
-      url: { type: 'string' },
-    }),
-    call: (a, { api }) => api(`/boards/${a.board_id}/tags`, {
-      method: 'POST', body: { card_ids: a.card_ids, add: a.add, remove: a.remove },
-    }),
-    summary: (o) => {
-      const part = (list, verb) => (list?.length
-        ? `${verb} ${list.slice(0, 3).map((t) => `${named(t.name, 40)} (${plural(t.card_ids?.length || 0, 'card')})`).join(', ')}`
-          + `${list.length > 3 ? ` and ${list.length - 3} more` : ''}`
-        : '');
-      const done = [part(o.added, 'Tagged'), part(o.removed, 'Took off')].filter(Boolean).join('; ') || 'Nothing changed';
-      const missing = (o.not_found?.card_ids?.length || 0) + (o.not_found?.tags?.length || 0);
-      return `${done}${missing ? `; ${missing} not found (see not_found)` : ''}`;
-    },
-  },
-  {
     name: 'resolve_comments',
     title: 'Resolve comments',
     description: 'CHANGES whether comment threads on a board are resolved: resolved true (default) puts them away, false '
@@ -1903,6 +1812,9 @@ export const RENAMED = {
   delete_card: { to: 'delete_cards', how: 'delete_cards with one id in card_ids' },
 };
 
+// Tools that were removed outright: mcpServer.js answers a call to one with the reason.
+export const REMOVED = { list_tags: 'Tags were removed from Clusters.', tag_cards: 'Tags were removed from Clusters.' };
+
 // Prompts: recipes a person picks from a menu (slash commands in Claude Code),
 // each a short plan in the tools' own words, not a place to hide instructions
 // the tools should carry themselves.
@@ -1994,7 +1906,7 @@ export const RENAMED_PROMPTS = { describe_board: 'review_board' };
 export const SERVER_INFO = {
   name: 'soleil-clusters',
   title: 'Soleil Clusters',
-  version: '3.2.0',
+  version: '3.3.0',
   websiteUrl: 'https://clusters.soleilpictures.com/docs/mcp',
   icons: [
     { src: 'https://clusters.soleilpictures.com/icons/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] },

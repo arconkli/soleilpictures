@@ -134,7 +134,7 @@ const PAGES = [
       ]
     },
     "published": "2026-08-04",
-    "updated": "2026-10-05",
+    "updated": "2026-11-17",
     "thesis": {
       "heading": "The Reference Wall",
       "paras": [
@@ -185,14 +185,14 @@ const PAGES = [
         "verdict": "The reference wall that follows the project — in the browser, shared with one link, edited live by the whole team.",
         "paras": [
           "Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.",
-          "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
+          "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. A relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
           "A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.",
           `It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat $25 a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. Both plans take any file at any size. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.`
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
           "One-link sharing — viewers need no account; free editors can collaborate",
-          "Tags on cards, groups and boards; a relationship graph connects boards across a project",
+          "A relationship graph connects boards across a project",
           "Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, and vote cards",
           "Non-destructive photo adjustments; nested boards with live thumbnails",
           "Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live"
@@ -864,7 +864,7 @@ const PAGES = [
     "answer": `Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, where Milanote stops at 10 file uploads ever, plus a flat ${PRICING.monthly.billedLabel} where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.`,
     "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
-    "updated": "2026-11-14",
+    "updated": "2026-11-17",
     "thesis": {
       "heading": "From mood board to shot list",
       "paras": [
@@ -918,7 +918,7 @@ const PAGES = [
         "features": [
           "Real-time multiplayer canvas with live cursors, presence, and pinned comments",
           "Boards hold images, video, audio, PDFs, links, notes, docs, palettes, grids, and vote cards",
-          "Tags on cards, groups and boards; a relationship graph connects the project",
+          "A relationship graph connects the project",
           "Screenplay mode in docs; non-destructive photo adjustments",
           "One-link sharing — viewers need no account; free editors can collaborate",
           "Nested boards with live thumbnails; published template boards open live"
@@ -1648,7 +1648,7 @@ const PAGES = [
     "answer": "Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.",
     "disclosure": "Soleil Clusters is our app — we are Soleil Pictures, the film studio that builds it and uses it on our own productions. We rank it first for exactly one job: production mood boards a crew and a client must act on. For solo planning, polished deliverables, and offline reference walls, other tools here beat us, and we say so in each review.",
     "published": "2026-08-04",
-    "updated": "2026-11-14",
+    "updated": "2026-11-17",
     "thesis": {
       "heading": "A mood board is a decision document",
       "paras": [
@@ -1706,7 +1706,7 @@ const PAGES = [
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
           "One-link sharing — viewers need no account; free editors can collaborate",
-          "Tags on cards, groups and boards; a relationship graph connects the project",
+          "A relationship graph connects the project",
           "Boards hold images, video, audio, PDFs, notes, palettes, grids, and docs with screenplay mode",
           "Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad"
         ],

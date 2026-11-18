@@ -5,7 +5,7 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-11-15
+updated: 2026-11-17
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
   - q: How do I delete my account?
@@ -55,8 +55,8 @@ Cloudflare doesn't keep the picture after answering and doesn't use it to
 train models ([Cloudflare's policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/)).
 
 The description is stored beside the picture, and Clusters doesn't show it on
-screen: it suggests tags, finds the picture in search and in **More like
-this**, and screen readers read it. Only people who can see the picture can
+screen: it finds the picture in search and in **More like this**, and
+screen readers read it. Only people who can see the picture can
 reach it, and an app you connect through the API or MCP reads them as you
 would. On a [published cluster](/docs/publish/explore) a picture's
 description is its alt text, the words search engines and screen readers
@@ -65,8 +65,8 @@ browser also shows alt text when a picture fails to load. A description is
 never written into the cluster itself and never sent with errors or usage
 events.
 
-The owner or a co-owner can turn this off with **AI suggestions** in
-**Settings → Workspace**. Off, Clusters sends no picture or text to a model,
+The owner or a co-owner can turn this off with **AI for pictures and search** in
+**Settings → General**. Off, Clusters sends no picture or search words to a model,
 and the workspace's picture descriptions are deleted. An AI app you connect
 yourself, through the API or MCP, still reads what you ask it to.
 
@@ -103,7 +103,7 @@ tells you what will actually happen to *your* account — how many clusters go,
 and what becomes of anything you share:
 
 - **Workspaces only you are in** are deleted, with every cluster, card,
-  comment, tag and uploaded file in them — and so is a workspace where everyone
+  comment and uploaded file in them — and so is a workspace where everyone
   else can only view.
 - **Workspaces you created where someone else can edit** are *not* deleted.
   Ownership passes to a co-owner if there is one, and otherwise to the
@@ -111,7 +111,7 @@ and what becomes of anything you share:
   confirmation screen and becomes its owner. A viewer never
   inherits a workspace. Their work is never destroyed by your leaving.
 - **Workspaces you were only a member of** simply lose you.
-- **Comments, tags and votes you left on other people's clusters** stay where
+- **Comments and votes you left on other people's clusters** stay where
   they are, with your name removed — deleting them would take away context that
   belongs to someone else.
 - Any **subscription is canceled** as part of the deletion, so nothing bills a

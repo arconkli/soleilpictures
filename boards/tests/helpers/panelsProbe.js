@@ -1,5 +1,5 @@
-// panelsProbe — mounts single panels from the visual sweep (tag profile,
-// Settings, Version history, Trash, Notifications) in a real browser, for
+// panelsProbe — mounts single panels from the visual sweep (Settings,
+// Version history, Trash, Notifications) in a real browser, for
 // tests/panels-visual.spec.js.
 //
 // Served by the Vite dev server by path (page.evaluate → import('/tests/…')),
@@ -13,7 +13,6 @@ import { I18nProvider } from '@lingui/react';
 import { i18n } from '../../src/lib/i18n.js';
 
 import { FeedbackProvider, useFeedback } from '../../src/components/AppFeedback.jsx';
-import { TagDetailView } from '../../src/components/TagDetailView.jsx';
 import { SettingsPanel } from '../../src/components/SettingsPanel.jsx';
 import { VersionHistoryModal } from '../../src/components/VersionHistoryModal.jsx';
 import { TrashModal } from '../../src/components/TrashModal.jsx';
@@ -41,18 +40,6 @@ function mountInto(el, hostStyle = null) {
   const root = ReactDOM.createRoot(host);
   root.render(h(I18nProvider, { i18n }, h(FeedbackProvider, null, h(ToastHook), el)));
   return host;
-}
-
-export function mountTagDetail() {
-  // A full-viewport column standing in for .main, above the local shell.
-  mountInto(h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
-    h(TagDetailView, {
-      tag: { id: '00000000-0000-4000-8000-0000000000aa', name: 'Neon noir lighting', slug: 'neon noir lighting', color: '#e5484d', entity_type: null },
-      workspaceId: 'ws-probe', userId: 'u-probe',
-      onClose: () => { window.__probeClosed = true; },
-      onOpenItem: () => {},
-    })),
-  { position: 'fixed', inset: '0', zIndex: '50', display: 'flex', flexDirection: 'column', background: 'var(--bg-0)' });
 }
 
 // Settings behind a trigger button, so focus restore on close is checkable.

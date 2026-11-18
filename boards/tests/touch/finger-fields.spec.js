@@ -109,18 +109,6 @@ test.describe('fields', () => {
     expect(await field.evaluate((el) => el.offsetHeight)).toBeGreaterThanOrEqual(40);   // not its box: the dialog scales in
     await expectFinger(page, ['.feedback-dialog .btn-primary', '.feedback-dialog .btn-secondary']);
   });
-
-  test('the tag picker\'s field is 16px and fits its words', async ({ page }) => {
-    shellOnly(page);
-    await bootLocal(page);
-    await page.locator('.canvas-wrap .card[data-card-id="home-note"]').tap();
-    await page.locator('.sel-menu .card-menu-btn').tap();
-    await page.locator('.ctx-menu').getByText('Tag…', { exact: true }).tap();
-    const field = page.locator('.tag-picker-input');
-    await expect(field).toBeVisible();
-    expect(await fontPx(field)).toBeGreaterThanOrEqual(16);
-    expect(await clips(field)).toBe(false);
-  });
 });
 
 test.describe('the board', () => {
@@ -213,13 +201,13 @@ test.describe('the board', () => {
 });
 
 test.describe('the menu', () => {
-  test('New cluster, New tag and a workspace\'s ⋯ take 40px', async ({ page }) => {
+  test('New cluster and a workspace\'s ⋯ take 40px', async ({ page }) => {
     shellOnly(page);
     await bootSigned(page);
     await page.getByLabel('Open menu').first().tap();
     const drawer = page.locator('.sidebar.is-mobile-open');
     await expect(drawer).toBeVisible();
-    await expectFinger(page, ['.sb-boards-add', '.sb-tags-add'], { scope: drawer });
+    await expectFinger(page, ['.sb-boards-add'], { scope: drawer });
     await drawer.locator('.sb-ws-trigger').first().tap();
     await expect(page.locator('.ws-menu-row-more').first()).toBeVisible();
     await expectFinger(page, ['.ws-menu-row-more']);

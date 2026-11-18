@@ -57,10 +57,6 @@ import { addCommentThread, addCommentReply, resolveComment, deleteCommentThread 
 import { commentReplyKey } from './lib/commentKeys.js';
 import { isDefaultName } from './lib/defaultNames.js';
 import { findQuote, markQuote, unmarkThread } from './lib/docCommentAnchor.js';
-import {
-  TAGS, TAG_FIELDS, readTagRequest, matchTags, isDeadTag, publicTag, boardTags, taggedItem,
-  cleanTagName, tagSlug,
-} from './lib/apiTags.js';
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
@@ -82,9 +78,6 @@ import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
 import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
-import { embedCards } from './lib/serverEmbed.js';
-import { clientEmbedsKind } from './lib/embedText.js';
-import { buildCardIndexRow } from './lib/cardIndexRow.js';
 import { foldForSearch, minSearchLength, searchLength } from './lib/textFold.js';
 import { isMissingColumn } from './lib/entitySearchFilter.js';
 import { boardToOmc } from './lib/omcExport.js';
@@ -97,6 +90,7 @@ import { wellFormed, cutToLimits } from './lib/safeFileName.js';
 import { imageSecret, signImageKey, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './lib/signedImage.js';
 import {
   webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
+  isRemovedEvent, withoutRemovedEvents,
   AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
@@ -811,30 +805,6 @@ async function decorateCards(env, token, boardId, cards, include) {
   return out;
 }
 
-// What the API writes can be found by meaning before anyone opens the board:
-// the cards it made or changed are embedded through the server's one embedder
-// (lib/serverEmbed.js), off the response path, from the same card_index
-// projection the browser embeds from (embedText.js), so the hashes agree and
-// neither writer re-embeds over the other. embedCards reads each card's
-// workspace switch itself: with AI off, nothing is embedded, and every model
-// call is paid from the owner's budget first. Pictures and videos are left to
-// the describe job, which embeds them with what they show.
-function embedAfterWrite(env, ctx, workspaceId, boardId, cards) {
-  if (!ctx?.waitUntil || !workspaceId) return;
-  const items = [];
-  for (const c of cards || []) {
-    if (!c?.id || !clientEmbedsKind(c.kind || 'note')) continue;
-    const row = buildCardIndexRow({ workspaceId, boardId, cardId: c.id, get: (k) => c[k] });
-    if (row) {
-      items.push({ workspace_id: workspaceId, board_id: boardId, card_id: String(c.id),
-        title: row.title, body: row.body, description: null, content_hash: null });
-    }
-  }
-  if (!items.length) return;
-  ctx.waitUntil(embedCards(env, items)
-    .catch((e) => console.warn('[api-embed] failed', items.length, e?.message || e)));
-}
-
 const UNDESCRIBED_WINDOW_MS = 2 * 60 * 60 * 1000;
 const UNDESCRIBED_CAP = 50;
 
@@ -862,11 +832,15 @@ function metaFromBody(body) {
 }
 
 // An unknown event name is refused rather than accepted and never fired —
-// "subscribed and silent" is the hardest webhook failure to diagnose.
+// "subscribed and silent" is the hardest webhook failure to diagnose. A name
+// that was offered once and removed is dropped instead, so an old script keeps
+// working; a request left with nothing is refused for the same reason.
 function normalizeEvents(input) {
   const asked = Array.isArray(input) ? input : [];
   if (!asked.length) throw fail(400, 'bad_request', 'events is required');
-  const clean = [...new Set(asked.map((e) => String(e).trim()))];
+  const named = [...new Set(asked.map((e) => String(e).trim()))];
+  const clean = named.filter((e) => !isRemovedEvent(e));
+  if (!clean.length) throw fail(400, 'bad_request', 'those events were removed from Clusters — name at least one other event');
   const bad = clean.filter((e) => e !== '*' && !WEBHOOK_EVENTS.includes(e));
   if (bad.length) {
     throw fail(400, 'bad_request',
@@ -876,6 +850,9 @@ function normalizeEvents(input) {
 }
 
 // ── Service accounts ─────────────────────────────────────────────────────────
+
+// A stored subscription as it reads back: never with an event that was removed.
+const shownWebhook = (w) => (w && Array.isArray(w.events) ? { ...w, events: withoutRemovedEvents(w.events) } : w);
 
 function publicServiceAccount(s) {
   return {
@@ -1071,11 +1048,8 @@ const pictureFrom = (images) => (src) => {
 // saves a board, and a doc written here may wait a long time for that. Written
 // as the user, row for row as the app writes it (lib/boardsApi.js
 // syncDocPageIndex): a page with no words has no row. Best-effort: the doc is
-// already written, and the app's next save writes the same rows. The pages
-// written are then embedded off the response path (embedCards, gated on the
-// workspace's AI switch) from those same rows, as the browser embeds a page
-// from its doc_page_index row (aiWarmup.js), so the hashes agree.
-async function indexDocPages(env, token, workspaceId, cardId, pages, { ctx, boardId } = {}) {
+// already written, and the app's next save writes the same rows.
+async function indexDocPages(env, token, workspaceId, cardId, pages) {
   const rows = [];
   const empty = [];
   for (const p of pages) {
@@ -1093,12 +1067,6 @@ async function indexDocPages(env, token, workspaceId, cardId, pages, { ctx, boar
   try {
     if (rows.length) {
       await userInsert(env, token, 'doc_page_index', rows, { returning: 'minimal', onConflict: 'doc_card_id,page_id' });
-      if (ctx?.waitUntil) {
-        ctx.waitUntil(embedCards(env, rows.map((r) => ({
-          entity_kind: 'doc-page', page_id: r.page_id, doc_card_id: cardId, board_id: boardId || null,
-          workspace_id: workspaceId, page_title: r.page_title, page_text: r.page_text, content_hash: null,
-        }))).catch((e) => console.warn('[api-embed] pages failed', rows.length, e?.message || e)));
-      }
     }
     if (empty.length) {
       await userDelete(env, token, 'doc_page_index',
@@ -1133,20 +1101,6 @@ async function commentAuthor(env, token, userId) {
   return docAuthor({ profile: profiles?.[0] || null, email: users?.[0]?.email || null, userId });
 }
 
-// ── Tags ─────────────────────────────────────────────────────────────────────
-
-// What is on a board now, by id: its cards and its groups, from its document,
-// which is the truth (a card past its owner's cap has no card_index row, and a
-// deleted card keeps its tag links so that undoing the delete brings them
-// back). `loaded: false` when the document couldn't be read.
-async function boardContents(env, token, boardId) {
-  return withBoardCards(env, boardId, token, ({ cards, doc, loaded }) => ({
-    loaded,
-    cards: new Set(cards.map((c) => String(c.id))),
-    groups: new Set(doc.getMap('groups').keys()),
-  }));
-}
-
 // Every row a select matches, a page at a time: the database answers one
 // request with at most a thousand rows, and says nothing when it stops there.
 // `query` names an order, so the pages don't overlap.
@@ -1163,42 +1117,6 @@ async function selectAll(env, token, table, query, { page = 1000, max = 20_000 }
 // A write refused because the row is already there (unique_violation). The
 // curated error keeps the database's own answer in its detail.
 const isDuplicate = (e) => /"code":"23505"/.test(String(e?.detail || ''));
-
-const TAG_ROW = `${TAG_FIELDS},slug,status,deleted_at`;
-
-// The workspace's tags that `asked` names, by id or by name, deleted ones
-// included: a deleted tag's name brings it back rather than making another
-// (lib/tagsApi.js ensureTag).
-async function findWorkspaceTags(env, token, workspaceId, asked) {
-  const ids = asked.filter((t) => t.id).map((t) => t.id);
-  const slugs = asked.filter((t) => t.slug).map((t) => t.slug);
-  const [byId, bySlug] = await Promise.all([
-    ids.length ? userSelect(env, token, 'tags',
-      `workspace_id=eq.${workspaceId}&id=in.(${ids.join(',')})&select=${TAG_ROW}`) : [],
-    slugs.length ? userSelect(env, token, 'tags',
-      `workspace_id=eq.${workspaceId}&slug=in.${encodeURIComponent(pgInList(slugs))}&select=${TAG_ROW}`) : [],
-  ]);
-  return [...byId, ...bySlug];
-}
-
-// A new tag, as the app's Tag… picker makes one (ensureTag): the name as
-// given, kind 'user', no colour (the app gives it one from its name). One made
-// meanwhile by someone else is found instead.
-async function makeTag(env, token, workspaceId, userId, tag) {
-  try {
-    const [row] = await userInsert(env, token, 'tags', [{
-      workspace_id: workspaceId, name: tag.name, color: null, kind: 'user', created_by: userId,
-    }]);
-    return { row, created: true };
-  } catch (e) {
-    if (!isDuplicate(e)) throw e;
-    const [row] = await findWorkspaceTags(env, token, workspaceId, [tag]);
-    if (!row) {
-      throw fail(409, 'conflict', `a tag named "${tag.name}" was being made at the same moment: try again`);
-    }
-    return { row, created: false };
-  }
-}
 
 function pageParams(url) {
   const rawLimit = Number(url.searchParams.get('limit'));
@@ -1946,6 +1864,12 @@ async function dispatch(url, request, env, ctx) {
     throw fail(403, 'forbidden', 'a draft can make and change its own clusters, and no more until it is kept in Clusters');
   }
 
+  // Tags were removed from Clusters. Every path that served them says so, for
+  // whatever method an old script still sends.
+  if (head === 'tags' || (sub === 'tags' && (head === 'workspaces' || head === 'boards'))) {
+    throw fail(410, 'gone', 'Tags were removed from Clusters.');
+  }
+
   // The single-shot upload carries RAW BYTES, so its body must not be parsed as
   // JSON. Its multipart siblings underneath /uploads/* are ordinary JSON, and
   // treating them as raw too is what made every field arrive undefined.
@@ -1975,8 +1899,6 @@ async function dispatch(url, request, env, ctx) {
       endpoints: [
         'GET    /me',
         'GET    /workspaces',
-        'GET    /workspaces/:id/tags?name=&limit=&offset=  — its tags, each with how many things carry it',
-        'GET    /tags/:id?limit=            — everything carrying a tag, across the workspace',
         'GET    /service-accounts?workspace=',
         'POST   /service-accounts',
         'DELETE /service-accounts/:id',
@@ -2019,8 +1941,6 @@ async function dispatch(url, request, env, ctx) {
         'PATCH  /boards/:id/comments/:commentId  {"resolved":true|false}',
         'DELETE /boards/:id/comments/:commentId  — your own; restorable, except a thread inside a doc',
         'POST   /boards/:id/comments/:commentId/restore',
-        'GET    /boards/:id/tags            — the tags on this board, and what carries each',
-        'POST   /boards/:id/tags            {"card_ids":[…],"add":[…],"remove":[…]}  — tags on cards, by name or id',
         'PATCH  /boards/:id',
         'DELETE /boards/:id',
         'POST   /boards/:id/restore',
@@ -2067,40 +1987,6 @@ async function dispatch(url, request, env, ctx) {
         remaining: auth.rate ? Math.max(0, auth.rate.limit - auth.rate.used) : null,
         reset: auth.rate?.reset ?? null,
       },
-    });
-  }
-
-  // ── Tags ───────────────────────────────────────────────────────────────────
-  //
-  // The app's tags (lib/apiTags.js): a workspace's tags, everything one tag is
-  // on, and, under /boards/:id/tags, a board's tags and tagging its cards. All
-  // as the person, so the tables' own policies decide; as in the app, a
-  // workspace's tags are its members'.
-
-  // GET /workspaces/:id/tags?name=&limit=&offset= — the workspace's tags, each
-  // with how many things carry it (tag_item_counts, 0592); name finds one.
-  if (head === 'workspaces' && id && sub === 'tags' && !subId) {
-    trace.route = '/workspaces/:id/tags';
-    if (method !== 'GET') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
-    if (!isUuid(id)) throw fail(400, 'bad_request', 'workspace id must be a uuid');
-    trace.target = id;
-    const named = url.searchParams.has('name') ? cleanTagName(url.searchParams.get('name')) : undefined;
-    if (named === null) throw fail(400, 'bad_request', 'name must be a tag\'s name');
-    const member = await userRpc(env, token, 'is_workspace_member', { ws: id }).catch(() => false);
-    if (member !== true) throw fail(404, 'not_found', 'no workspace of yours has that id');
-    const { limit, offset } = pageParams(url);
-    const [rows, counts] = await Promise.all([
-      userSelect(env, token, 'tags', `workspace_id=eq.${id}&status=neq.deleted&deleted_at=is.null`
-        + (named ? `&slug=in.${encodeURIComponent(pgInList([tagSlug(named)]))}` : '')
-        + `&select=${TAG_FIELDS}&order=name.asc,id.asc&limit=${limit + 1}&offset=${offset}`),
-      userRpc(env, token, 'tag_item_counts', { p_workspace_id: id }).catch(() => null),
-    ]);
-    const items = new Map((counts || []).map((c) => [c.tag_id, c.items]));
-    const page = paginate(rows || [], limit, offset);
-    return json({
-      workspace_id: id,
-      tags: page.items.map((t) => publicTag(t, counts ? items.get(t.id) ?? 0 : null)),
-      limit, offset, has_more: page.has_more,
     });
   }
 
@@ -2229,7 +2115,7 @@ async function dispatch(url, request, env, ctx) {
       const ws = url.searchParams.get('workspace');
       if (ws && !isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
       const rows = await userRpc(env, token, 'webhook_list', { p_workspace_id: ws || null });
-      return json({ webhooks: rows || [] });
+      return json({ webhooks: (rows || []).map(shownWebhook) });
     }
 
     if (!id && method === 'POST') {
@@ -2270,7 +2156,8 @@ async function dispatch(url, request, env, ctx) {
       });
       if (!ok) throw fail(404, 'not_found', 'no such webhook');
       const rows = await userRpc(env, token, 'webhook_list', { p_workspace_id: null });
-      return json({ webhook: (rows || []).find((w) => w.id === id) || null });
+      const found = (rows || []).find((w) => w.id === id);
+      return json({ webhook: found ? shownWebhook(found) : null });
     }
 
     if (id && !sub && method === 'DELETE') {
@@ -3045,33 +2932,6 @@ async function dispatch(url, request, env, ctx) {
           ? { 'content-disposition': contentDisposition(row.original_name) }
           : {}),
       },
-    });
-  }
-
-  // GET /tags/:id?limit= — a tag, and everything carrying it across its
-  // workspace's clusters, the most recently tagged first (get_things_tagged,
-  // 0590, the tag page's own read). The tag is the workspace's: someone
-  // outside it gets a 404, as the tags table answers them nothing.
-  if (head === 'tags') {
-    trace.route = '/tags/:id';
-    if (!id || sub) throw fail(404, 'not_found', 'unknown endpoint');
-    if (method !== 'GET') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
-    if (!isUuid(id)) throw fail(400, 'bad_request', 'tag id must be a uuid');
-    trace.target = id;
-    const [tag] = await userSelect(env, token, 'tags',
-      `id=eq.${id}&status=neq.deleted&deleted_at=is.null&select=${TAG_FIELDS},workspace_id`);
-    if (!tag) throw fail(404, 'not_found', 'no tag in a workspace of yours has that id');
-    const raw = Number(url.searchParams.get('limit'));
-    const limit = Math.max(1, Math.min(Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : TAGS.defaultItems,
-      TAGS.maxItems));
-    // The function stops after p_limit applications and then drops any whose
-    // thing is gone (a deleted card keeps its link), so it is asked for twice
-    // the page: "more" is then wrong only where most of a tag's things are gone.
-    const rows = (await userRpc(env, token, 'get_things_tagged', { p_tag_id: id, p_limit: limit * 2 + 1 })) || [];
-    return json({
-      tag: { ...publicTag(tag), workspace_id: tag.workspace_id },
-      items: rows.slice(0, limit).map((r) => taggedItem(r, url.origin)),
-      has_more: rows.length > limit,
     });
   }
 
@@ -4363,7 +4223,7 @@ async function dispatch(url, request, env, ctx) {
     }));
     const placed = result.cards[0];
     if (!placed) throw fail(409, 'conflict', 'the doc could not be placed on that board; nothing was added');
-    await indexDocPages(env, token, target.workspace_id, String(placed.id), made, { ctx, boardId: id });
+    await indexDocPages(env, token, target.workspace_id, String(placed.id), made);
     return json({
       board_id: id,
       card: publicCard(placed),
@@ -4764,144 +4624,6 @@ async function dispatch(url, request, env, ctx) {
     throw fail(405, 'method_not_allowed', `${method} is not supported here`);
   }
 
-  // /boards/:id/tags — the tags on this board's cards, groups and doc pages
-  // (GET), and putting tags on its cards or taking them off (POST), each as
-  // the app's Tag… picker does it (lib/apiTags.js): a name the workspace lacks
-  // becomes a tag, which then applies itself wherever its name appears
-  // (backfill_tag_applications, as ensureTag runs it); a deleted tag's name
-  // brings that tag back; taking a tag off a card keeps it off for good
-  // (autotag_ignored, the 0590 guard), and putting it on again lifts that.
-  if (sub === 'tags') {
-    trace.route = '/boards/:id/tags';
-    if (parts.length > 3) throw fail(404, 'not_found', 'unknown endpoint');
-    if (method === 'GET') {
-      const board = await boardForUser(env, token, id);
-      if (!board) throw fail(404, 'not_found', 'board not found');
-      const [links, onBoard] = await Promise.all([
-        selectAll(env, token, 'entity_links', `source_board_id=eq.${id}&target_kind=eq.tag&link_kind=eq.applied`
-          + '&select=source_kind,source_id,source_page_id,target_id&order=created_at.asc,id.asc'),
-        boardContents(env, token, id),
-      ]);
-      const tagIds = [...new Set(links.map((l) => l.target_id))];
-      const tags = [];
-      for (let i = 0; i < tagIds.length; i += 100) {
-        tags.push(...await userSelect(env, token, 'tags', `id=in.(${tagIds.slice(i, i + 100).join(',')})`
-          + `&status=neq.deleted&deleted_at=is.null&select=${TAG_FIELDS}`));
-      }
-      return json({
-        board_id: id,
-        tags: boardTags(links, tags, id, onBoard.loaded ? onBoard : null),
-        ...(onBoard.loaded ? {} : { note: 'the board could not be read just now, so cards deleted since may be listed' }),
-        url: boardUrl(url.origin, id),
-      });
-    }
-    if (method !== 'POST') throw fail(405, 'method_not_allowed', `${method} is not supported here`);
-
-    const asked = readTagRequest(body);
-    if (asked.problem) throw fail(400, 'bad_request', asked.problem);
-    const board = await boardForUser(env, token, id);
-    if (!board) throw fail(404, 'not_found', 'board not found');
-    const ws = board.workspace_id;
-    const [canTag, onBoard, rows] = await Promise.all([
-      userRpc(env, token, 'can_write_workspace', { ws }).catch(() => false),
-      boardContents(env, token, id),
-      findWorkspaceTags(env, token, ws, [...asked.add, ...asked.remove]),
-    ]);
-    if (canTag !== true) {
-      throw fail(403, 'forbidden', 'only someone who can edit this board\'s workspace tags things in it, as in the app');
-    }
-    if (!onBoard.loaded) {
-      throw fail(503, 'room_unavailable', 'the board could not be read to find the cards; nothing was written — try again');
-    }
-    const cardIds = asked.cardIds.filter((c) => onBoard.cards.has(c));
-    if (!cardIds.length) throw fail(404, 'not_found', 'none of those cards is on this board');
-    const live = (t) => t.row && !isDeadTag(t.row);
-    // One entry per tag: a tag named once and also given by its id is one tag.
-    const once = (list) => list.filter((t, i) => !t.row || list.findIndex((u) => u.row?.id === t.row.id) === i);
-    const askedAdd = matchTags(asked.add, rows);
-    const add = once(askedAdd.filter((t) => t.row || !t.id));
-    const remove = matchTags(asked.remove, rows);
-    const notFoundTags = [
-      ...askedAdd.filter((t) => t.id && !t.row),
-      ...remove.filter((t) => !live(t)),
-    ].map((t) => t.name);
-    const both = add.find((t) => t.row && remove.some((r) => live(r) && r.row.id === t.row.id));
-    if (both) throw fail(400, 'bad_request', `${both.name} is both added and removed: leave it out of one`);
-    const takeOff = once(remove.filter(live));
-
-    // The tags to add: made where the workspace has none of the name, brought
-    // back where it has a deleted one.
-    await Promise.all(add.map(async (t) => {
-      if (!t.row) Object.assign(t, await makeTag(env, token, ws, auth.userId, t));
-      else if (isDeadTag(t.row)) {
-        await userRpc(env, token, 'restore_tag', { p_tag_id: t.row.id });
-        t.row = { ...t.row, status: 'active', deleted_at: null };
-        t.revived = true;
-      }
-    }));
-
-    // Which of the cards carry which of the tags now.
-    const tagIds = [...add, ...takeOff].map((t) => t.row.id);
-    const cardList = encodeURIComponent(pgInList(cardIds));
-    const carried = new Set(tagIds.length ? (await selectAll(env, token, 'entity_links',
-      `source_kind=eq.card&source_board_id=eq.${id}&target_kind=eq.tag&link_kind=eq.applied`
-      + `&target_id=in.(${tagIds.join(',')})&source_id=in.${cardList}&select=source_id,target_id&order=id.asc`))
-      .map((l) => `${l.target_id}|${l.source_id}`) : []);
-
-    // Off: the applications go, whoever made them, and each pair is kept off.
-    const removed = takeOff.map((t) => ({ tag: t, cards: cardIds.filter((c) => carried.has(`${t.row.id}|${c}`)) }));
-    if (removed.some((r) => r.cards.length)) {
-      await userDelete(env, token, 'entity_links', `source_kind=eq.card&source_board_id=eq.${id}`
-        + `&target_kind=eq.tag&link_kind=eq.applied&target_id=in.(${takeOff.map((t) => t.row.id).join(',')})`
-        + `&source_id=in.${cardList}`);
-      await userInsert(env, token, 'autotag_ignored', removed.flatMap((r) => r.cards.map((c) => ({
-        workspace_id: ws, target_kind: 'card', target_id: c, tag_id: r.tag.row.id, ignored_by: auth.userId,
-      }))), { returning: 'minimal', onConflict: 'workspace_id,target_kind,target_id,tag_id' });
-    }
-
-    // On: an application for each pair not already there, as the person's
-    // own (source 'user'), and any earlier "keep it off" lifted.
-    const added = add.map((t) => ({ tag: t, cards: cardIds.filter((c) => !carried.has(`${t.row.id}|${c}`)) }));
-    const links = added.flatMap((a) => a.cards.map((c) => ({
-      source_kind: 'card', source_id: c, source_workspace: ws, source_board_id: id,
-      target_kind: 'tag', target_id: a.tag.row.id, link_kind: 'applied', source: 'user',
-    })));
-    if (links.length) {
-      try {
-        await userInsert(env, token, 'entity_links', links, { returning: 'minimal' });
-      } catch (e) {
-        // Someone put one of them on meanwhile: the rest, one at a time.
-        if (!isDuplicate(e)) throw e;
-        await mapWithConcurrency(links, 8, (l) => userInsert(env, token, 'entity_links', [l], { returning: 'minimal' })
-          .catch((err) => { if (!isDuplicate(err)) throw err; }));
-      }
-    }
-    if (add.length) {
-      await userDelete(env, token, 'autotag_ignored', `workspace_id=eq.${ws}&target_kind=eq.card`
-        + `&tag_id=in.(${add.map((t) => t.row.id).join(',')})&target_id=in.${cardList}`);
-    }
-
-    // A new tag then finds the rest of what it names across the workspace, as
-    // one made in the app does (ensureTag), once this call's own are written.
-    for (const t of add.filter((x) => x.created)) {
-      const spread = userRpc(env, token, 'backfill_tag_applications', { p_tag_id: t.row.id, p_workspace_id: ws })
-        .catch(() => {});
-      if (ctx.waitUntil) ctx.waitUntil(spread);
-      else await spread;
-    }
-
-    return json({
-      board_id: id,
-      added: added.map((a) => ({
-        ...publicTag(a.tag.row), created: Boolean(a.tag.created), ...(a.tag.revived ? { revived: true } : {}),
-        card_ids: a.cards,
-      })),
-      removed: removed.map((r) => ({ ...publicTag(r.tag.row), card_ids: r.cards })),
-      not_found: { card_ids: asked.cardIds.filter((c) => !onBoard.cards.has(c)), tags: notFoundTags },
-      url: boardUrl(url.origin, id),
-    });
-  }
-
   if (sub !== 'cards') throw fail(404, 'not_found', 'unknown endpoint');
 
   // ── /boards/:id/cards ──────────────────────────────────────────────────────
@@ -5107,7 +4829,7 @@ async function dispatch(url, request, env, ctx) {
         }),
       }));
       if (out.missing) throw fail(404, 'not_found', 'card not found');
-      await indexDocPages(env, token, board.workspace_id, subId, out.result, { ctx, boardId: id });
+      await indexDocPages(env, token, board.workspace_id, subId, out.result);
       return json({ board_id: id, card_id: subId, url: docUrl, pages: out.result.map(publicDocPage) }, 201);
     }
 
@@ -5158,7 +4880,7 @@ async function dispatch(url, request, env, ctx) {
     }));
     if (out.missing) throw fail(404, 'not_found', 'card not found');
     if (out.unchanged) return json({ board_id: id, card_id: subId, url: docUrl, ...same, changed: false });
-    await indexDocPages(env, token, board.workspace_id, subId, [out.result.page], { ctx, boardId: id });
+    await indexDocPages(env, token, board.workspace_id, subId, [out.result.page]);
     return json({
       board_id: id,
       card_id: subId,
@@ -5330,8 +5052,6 @@ async function dispatch(url, request, env, ctx) {
       // caller can pair its input with what happened to it.
       const createdById = new Map(createdCards.map((c, n) => [createIdx[n], c]));
       const finalCards = incoming.map((_, i) => createdById.get(i) || updatedById.get(i)).filter(Boolean);
-      embedAfterWrite(env, ctx, board.workspace_id, id, finalCards);
-
       const metaEntries = (list) => incoming.map((_, i) => {
         const card = createdById.get(i) || updatedById.get(i);
         return card
@@ -5408,8 +5128,6 @@ async function dispatch(url, request, env, ctx) {
         existing, layoutOpts, { order: prepared?.order },
       ),
     });
-
-    embedAfterWrite(env, ctx, board.workspace_id, id, result.cards);
 
     // Metadata is keyed on the card id the server assigned, so it can only be
     // written once the cards exist.
@@ -5501,8 +5219,6 @@ async function dispatch(url, request, env, ctx) {
         },
       })),
     });
-
-    embedAfterWrite(env, ctx, board.workspace_id, id, out.filter(Boolean));
 
     await saveMetaBulk(env, token, {
       workspaceId: board.workspace_id, boardId: id, objectType: 'card', userId: auth.userId,
@@ -5659,8 +5375,6 @@ async function dispatch(url, request, env, ctx) {
       },
     });
     if (!updated) throw fail(404, 'not_found', 'card not found');
-    embedAfterWrite(env, ctx, board.workspace_id, id, [updated]);
-
     const meta = metaFromBody(body);
     await saveMeta(env, token, {
       workspaceId: board.workspace_id, boardId: id, objectType: 'card', objectId: subId,

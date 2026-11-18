@@ -654,20 +654,18 @@ test('the Scout waitlist needs a hashed connection, a bot check once configured,
   assert.match(fn, /return query select 'full'::text, false, null::int;/);
 });
 
-// ── 0381: the embedding route spends against a budget ───────────────────────
+// ── 0381: a Workers AI call from a signed-in caller spends against a budget ──
 
-test('every embedding call asks the daily budget first, and spends only on a yes', () => {
-  const src = read('../worker-tags.js');
-  const handler = src.slice(src.indexOf('async function handleEmbed'), src.indexOf('// ───', src.indexOf('async function handleEmbed')));
-  const ask = handler.indexOf('const budget = await takeEmbedBudget(env, request, chars);');
-  // Since 0418 the model is Workers AI (env.AI.run); beyond the free daily
-  // allowance it is still spend.
-  const call = handler.indexOf('await env.AI.run(EMBEDDING_MODEL');
+test('the translation route asks the daily budget first, and spends only on a yes', () => {
+  const shared = read('../worker-aiShared.js');
+  const src = read('../worker-search.js');
+  const ask = src.indexOf('const budget = await takeEmbedBudget(env, request, q.length + 200);');
+  const call = src.indexOf('env.AI.run(MODEL');
   assert.ok(ask > 0 && call > ask, 'the budget is asked before the model is called');
   // Anything but an explicit yes is a no: 'over' (429) or, when the check
   // itself failed, 'error' (503, retried in a minute). Only 'ok' spends.
-  assert.match(src, /if \(!r\.ok\) return 'error';\s+const yes = await r\.json\(\)\.catch\(\(\) => null\);\s+if \(yes === true\) return 'ok';/, 'anything but a yes is a no');
-  assert.equal((src.match(/if \(budget !== 'ok'\) return budgetRefusal\(/g) || []).length, 2, '/embed and /apply both refuse on anything but ok');
+  assert.match(shared, /if \(!r\.ok\) return 'error';\s+const yes = await r\.json\(\)\.catch\(\(\) => null\);\s+if \(yes === true\) return 'ok';/, 'anything but a yes is a no');
+  assert.match(src, /if \(budget !== 'ok'\) return budgetRefusal\(/);
 
   const fn = latestDefinition('tags_embed_budget_take').body;
   assert.match(fn, /c_user_day\s+constant bigint := \d+;/);
@@ -677,7 +675,6 @@ test('every embedding call asks the daily budget first, and spends only on a yes
   assert.match(fn, /ops_alert_raise\('embed_budget',/);
   assert.ok(latestMatch(/revoke execute on function public\.tags_embed_budget_take\(integer\) from public, anon;/));
   assert.ok(latestMatch(/revoke all on table public\.embed_usage from public, anon, authenticated;/));
-  assert.match(read('../../content/docs/organize/tags.md'), /\{\{fact:embedCharsPerDay\}\}/);
 });
 
 // ── 0382: a co-member sees a name, a colour and a picture ───────────────────

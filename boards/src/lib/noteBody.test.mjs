@@ -76,7 +76,7 @@ test('noteFragmentIsBlank: empty and empty-paragraph fragments are blank; text a
   assert.equal(noteFragmentIsBlank(seededCard().frag), true);
   assert.equal(noteFragmentIsBlank(seededCard({ type: 'doc', content: [p('')] }).frag), true);
   assert.equal(noteFragmentIsBlank(seededCard({ type: 'doc', content: [p('hi')] }).frag), false);
-  const mention = { type: 'paragraph', content: [{ type: 'noteMention', attrs: { entityRef: { kind: 'tag', id: 't1' }, label: 'Ana' } }] };
+  const mention = { type: 'paragraph', content: [{ type: 'noteMention', attrs: { entityRef: { kind: 'board', id: 'b1' }, label: 'Ana' } }] };
   assert.equal(noteFragmentIsBlank(seededCard({ type: 'doc', content: [mention] }).frag), false);
   assert.equal(noteFragmentIsBlank(seededCard({ type: 'doc', content: [{ type: 'noteChecklist', content: [item('')] }] }).frag), false);
 });

@@ -294,13 +294,11 @@ test('noise is dropped, a real failure is kept', () => {
 test('a channel is named by its leading words, never its ids', () => {
   const cases = [
     [`comments:${ID}:k3j2h1`, 'comments'],
-    [`autotag-tags-${ID}-x9y8z7`, 'autotag-tags'],
     // A uuid whose first group is all letters is an id all the same.
-    ['autotag-tags-deadbeef-aaaa-4bbb-8ccc-123456789abc-x9y8z7', 'autotag-tags'],
+    ['profiles-cache-deadbeef-aaaa-4bbb-8ccc-123456789abc-x9y8z7', 'profiles-cache'],
     [`user:${ID}`, 'user'],
     [`y:${ID}`, 'y'],
     ['admin:activity', 'admin'],
-    ['doc-page-tags:doc-123:page-1:abc', 'doc-page-tags'],
     ['profiles-cache:qwerty1', 'profiles-cache'],
     [ID, 'other'],
     ['', 'other'],

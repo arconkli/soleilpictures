@@ -21,6 +21,8 @@ export function makeLinkRendererPlugin({ getYdoc }) {
         const id = m.attrs.linkId;
         const link = id ? getLink(ydoc, id) : null;
         const targets = link?.targets || [];
+        // An old @-mention of a tag (tags are gone) reads as plain text.
+        if (targets.length && targets.every((t) => t?.kind === 'tag')) continue;
         // Universal hairline visual: `tt-link tt-link-manual` is the
         // single class for explicitly-inserted links. `tt-link-broken`
         // overrides for dead targets so they read as muted. Multi-

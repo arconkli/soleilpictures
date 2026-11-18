@@ -309,7 +309,7 @@ export function AdminDiscoverTab() {
     { label: '≥ 3 images on the board', ok: !audit || audit.image_count >= 3, required: true, pending: !audit },
     { label: '≥ 60% of images have alt text', ok: !audit || audit.alt_pct == null || audit.alt_pct >= 60, required: true, pending: !audit },
     { label: 'Body not a near-duplicate of another board', ok: !audit || (audit.body_max_similarity ?? 0) < 0.7, required: true, pending: !audit },
-    { label: 'Has related boards (shared tags)', ok: !!audit && audit.related_board_count > 0, required: false, pending: !audit },
+    { label: 'Has related boards', ok: !!audit && audit.related_board_count > 0, required: false, pending: !audit },
   ];
   const requiredFailing = checks.filter((c) => c.required && !c.ok);
   const publishable = requiredFailing.length === 0;

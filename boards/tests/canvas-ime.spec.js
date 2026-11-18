@@ -1,5 +1,5 @@
 // Korean typing on the canvas. The Enter that picks a syllable belongs to the
-// IME: a field that acts on it posts, names or tags with the word cut short,
+// IME: a field that acts on it posts or names with the word cut short,
 // and the syllable then lands again where the field has gone (the doc's title
 // page once read 봄날날). Each field here leaves a syllable still being
 // composed alone, and acts on the next Enter. tests/imeHelpers.js drives
@@ -60,17 +60,4 @@ test('a project\'s name: Enter mid-syllable keeps the field; the next Enter name
   await expect(name).not.toBeFocused();
   await expect(name).toHaveValue('봄 광고');
   await expect(page.locator('.crumbs .crumb').last()).toHaveText('봄 광고');
-});
-
-test('the tag picker: Enter mid-syllable keeps it open with the whole word', async ({ page }) => {
-  await page.goto('/?local=1&reset=1');
-  await page.waitForSelector('.canvas-wrap .card', { timeout: 30000 });
-  await page.locator('.canvas-wrap .card[data-card-id="home-note"]').click({ button: 'right', position: { x: 12, y: 12 } });
-  await page.locator('.ctx-menu').first().getByRole('menuitem', { name: 'Tag…', exact: true }).click();
-  const input = page.locator('.tag-picker-input');
-  await expect(input).toBeFocused();
-  const ko = await korean(page);
-  await ko.typeThenEnterMidSyllable('색감');
-  await expect(input).toBeVisible();
-  await expect(input).toHaveValue('색감');
 });

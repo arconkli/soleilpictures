@@ -394,20 +394,16 @@ body.sbf-sizing .app,
 [data-theme='light'] .sbf-quickbtn.is-pressed { background: rgba(10, 10, 12, .07); box-shadow: none; }
 
 /* What you're in: a raised chip with a gold bar inside its left end. The
-   tree's rows, Shared's, a tag's, Home's and Messages' all mark it so. */
+   tree's rows, Shared's, Home's and Messages' all mark it so. */
 .app.sb-files .sb-mid .sb-row.active,
-.app.sb-files .sb-tag-row.active,
 .sbf-quickbtn.is-on { background: var(--sbf-chip); box-shadow: var(--sbf-chip-shadow); color: var(--ink-0); }
 [data-theme='light'] .app.sb-files .sb-mid .sb-row.active,
-[data-theme='light'] .app.sb-files .sb-tag-row.active,
 [data-theme='light'] .sbf-quickbtn.is-on { background: rgba(10, 10, 12, .07); box-shadow: none; }
 .app.sb-files .sb-mid .sb-row.active::before,
-.app.sb-files .sb-tag-row.active::before,
 .sbf-quickbtn.is-on::before {
   content: ''; position: absolute; left: 3px; top: 8px; bottom: 8px; width: 3px;
   border-radius: 2px; background: var(--soleil);
 }
-.app.sb-files .sb-tag-row { position: relative; }
 
 /* Full Files shrinks back into the sidebar with this: shown at rest, not only
    on hover, since it is the way back. */
@@ -435,31 +431,23 @@ body.sbf-sizing .app,
 .app.sb-files .sb-mid .sb-eyebrow span { text-transform: uppercase; letter-spacing: .08em; }
 .app.sb-files .sb-mid .sb-eyebrow { font: 600 10.5px/1.4 var(--font-sans); color: var(--sbf-quiet); }
 .app.sb-files .sb-mid .sb-boards-head,
-.app.sb-files .sb-mid .sb-tags-head,
 .app.sb-files .sb-mid .sb-shared-head { min-height: 32px; padding: 10px 8px 4px; gap: 6px; }
 .app.sb-files .sb-mid .sb-boards-head:hover,
-.app.sb-files .sb-mid .sb-tags-head:hover,
 .app.sb-files .sb-mid .sb-shared-head:hover { color: var(--ink-1); }
 .app.sb-files .sb-boards-chev,
-.app.sb-files .sb-tags-chev,
 .app.sb-files .sb-shared-chev { order: 1; transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease); }
 .app.sb-files .sb-boards-chev.is-open,
-.app.sb-files .sb-tags-chev.is-open,
 .app.sb-files .sb-shared-chev.is-open { opacity: 0; }
-.app.sb-files .sb-boards-add,
-.app.sb-files .sb-tags-add {
+.app.sb-files .sb-boards-add {
   order: 2; width: 22px; height: 22px; border-radius: 6px; opacity: 0;
   transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
 .app.sb-files .sb-boards-head:hover .sb-boards-chev,
-.app.sb-files .sb-tags-head:hover .sb-tags-chev,
 .app.sb-files .sb-shared-head:hover .sb-shared-chev,
 .app.sb-files .sb-boards-head:focus-visible .sb-boards-chev,
 .app.sb-files .sb-boards-head:hover .sb-boards-add,
-.app.sb-files .sb-tags-head:hover .sb-tags-add,
-.app.sb-files .sb-boards-add:focus-visible,
-.app.sb-files .sb-tags-add:focus-visible { opacity: 1; }
-.app.sb-files .sb-boards-count, .app.sb-files .sb-tags-head-count { display: none; }
+.app.sb-files .sb-boards-add:focus-visible { opacity: 1; }
+.app.sb-files .sb-boards-count { display: none; }
 
 /* Cluster rows: the name alone (and an upload's ↑ 3), the chevron where the
    text starts, a level 16px in. */
@@ -478,14 +466,6 @@ body.sbf-sizing .app,
    (!important: Icon sets display:block inline). */
 .app.sb-files .sb-row-all { padding-left: 24px; gap: 6px; color: var(--ink-2); }
 .app.sb-files .sb-row-all svg { display: none !important; }
-
-/* Tags: the tag's colour where the chevrons are, its name with the clusters'. */
-.app.sb-files .sb-tag-row {
-  height: 30px; padding: 0 8px 0 10px; gap: 10px; border-left: 0; border-radius: 6px;
-  color: var(--ink-1); font: 500 13px/1 var(--font-sans);
-}
-.app.sb-files .sb-tag-row-count { font: 400 12px/1 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.app.sb-files .sb-tags-empty { padding: 4px 8px 8px; font: 400 12px/1.45 var(--font-sans); }
 
 /* ── The files ───────────────────────────────────────────────────────────── */
 .sbf-files {
@@ -883,9 +863,8 @@ body.sbf-sizing .app,
   /* A finger-sized chevron that still draws where the text starts, names
      where they are with a mouse. */
   .app.sb-files .sb-tree-row.is-files .sb-tree-chev { width: 32px; height: 40px; margin: 0 -10px 0 -10px; }
-  .app.sb-files .sb-boards-add, .app.sb-files .sb-tags-add { opacity: 1; width: 40px; height: 40px; margin-right: -2px; }
+  .app.sb-files .sb-boards-add { opacity: 1; width: 40px; height: 40px; margin-right: -2px; }
   .sbf-quickbtn { height: 44px; font-size: 15px; }
-  .app.sb-files .sb-tag-row { height: 44px; font-size: 15px; }
   .sb-mid-search, .app.sb-files .sb-top .sb-mid-collapse { width: 40px; height: 40px; }
   /* A finger gets the whole 44px: the shown source's chip fills the track. */
   .sbf-tabs { padding: 0; border-radius: 10px; }
@@ -918,7 +897,6 @@ body.sbf-sizing .app,
   /* The rest a finger met under 40px (tests/touch/touch-targets.spec.js). */
   .app.sb-files .sb-top .sb-ws-trigger { height: 40px; }
   .app.sb-files .sb-mid .sb-boards-head,
-  .app.sb-files .sb-mid .sb-tags-head,
   .app.sb-files .sb-mid .sb-shared-head { min-height: 40px; }
   .sbf-more-btn { min-height: 44px; }
   .sbf-meter-text { align-self: stretch; }

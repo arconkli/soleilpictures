@@ -506,15 +506,15 @@ export function AdminCommandCenter({ dataSource = null, statsOverride = null }) 
                      title={`Clusters people made, not counting trashed ones. Plus ${formatCount(uni?.total_studios ?? 0)} Studios, the top-level cluster every workspace is born with. +N: made in the last 24 hours.`} />
             <UniCell label="Cards"      value={uni?.total_cards}      delta={uni?.last_24h?.cards}
                      title="Cards on clusters that are not trashed. +N: created in the last 24 hours." />
-            {/* Not a count of rows. entity_links are overwhelmingly tag
-                attachments, which the graph draws as nothing — so this cell
+            {/* Not a count of rows. entity_links are rows the graph
+                draws as nothing — so this cell
                 used to read "Links" over a universe containing no link edges
                 at all. These two come from the renderer, so the strip can only
                 claim what you can see. */}
             <UniCell label="Nodes"       value={graph?.nodes}
                      title="Nodes the renderer drew: everyone in a workspace, workspaces, every live cluster (Studios included) and its cards." />
             <UniCell label="Connections" value={graph?.edges}
-                     title="Edges the renderer drew — hierarchy, board→card, workspace membership and shares. Tag attachments are not drawn." />
+                     title="Edges the renderer drew — hierarchy, board→card, workspace membership and shares. Link rows are not drawn." />
           </div>
 
           <div className="cc-ticker">

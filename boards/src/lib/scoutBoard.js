@@ -888,11 +888,11 @@ export async function moveCardsBetweenBoards(env, {
       // consuming cap, without double-counting and without emitting a false
       // "first card" signal (0209's header explains why that matters).
       //
-      // 0209 said EVERY trigger on this table was INSERT/DELETE-only. That is no
-      // longer true — autotag_card_index now fires `AFTER INSERT OR UPDATE OF
-      // title, body`. It stays dormant here only because this patch touches
-      // neither column, which is load-bearing rather than incidental: adding
-      // title to the SET list would re-run tag matching for every moved card.
+      // 0209 said EVERY trigger on this table was INSERT/DELETE-only. That was
+      // true again once 0905 dropped autotag_card_index, the one that fired on
+      // UPDATE OF title, body. Keep the patch to the move columns anyway: a
+      // trigger that fires on an UPDATE of other columns would run for every
+      // moved card.
       const patch = crossWorkspace
         ? { board_id: toBoardId, workspace_id: toWorkspaceId }
         : { board_id: toBoardId };
@@ -916,9 +916,8 @@ export async function moveCardsBetweenBoards(env, {
       // 2b. Auto-applied tag links are derived from the SOURCE workspace's tags,
       //     and tags are workspace-scoped. Carried across a workspace boundary
       //     they would claim a card is tagged with something that does not exist
-      //     where the card now lives. Drop them; the card is genuinely untagged
-      //     in its new workspace until autotag_card_index re-runs on the next
-      //     content edit. Only `auto` links — a human-applied link is a judgement,
+      //     where the card now lives. Drop them; tags are off (0905 dropped the
+      //     autotag triggers), so nothing re-applies them. Only `auto` links — a human-applied link is a judgement,
       //     not derived state, so it is re-pointed rather than discarded.
       if (crossWorkspace) {
         // Keyed on the ORIGINAL ids: a card re-named for a destination collision

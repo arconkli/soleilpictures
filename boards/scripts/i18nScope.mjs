@@ -129,7 +129,7 @@ const isCode = (p) => /\.(jsx?|mjs|tsx?)$/.test(p);
 // never wrapped. Playwright runs its specs and helpers under plain node, so
 // anything they import from src/ is shared too. The exception is a test helper
 // whose graph holds a .jsx file: plain node cannot load JSX, so the Vite dev
-// server serves it (tests/helpers/panelsProbe.js and tagsProbe.js say so in
+// server serves it (tests/helpers/panelsProbe.js and feedbackProbe.js say so in
 // their headers) and the macro transform applies.
 let servedCache = null;
 export function viteServedTests() {

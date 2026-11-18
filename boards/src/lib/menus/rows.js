@@ -67,7 +67,6 @@ export const ROWS = {
   // ── organize group ──
   comment: R('ChatCircle', () => t`Add comment`),
   'note-comments': R('ChatsCircle', (a) => { const count = a.count ?? 0; return plural(count, { one: '# comment', other: '# comments' }); }),
-  tag: R('Tag', () => t`Tag…`),
   vote: R('ListChecks', () => t`Add vote`),
   move: R('Folder', () => t`Move to cluster`, { search: () => ({ placeholder: t`Find a cluster` }) }),
   'copy-to': R('CopySimple', () => t`Copy to cluster`, { search: () => ({ placeholder: t`Find a cluster` }) }),
@@ -129,7 +128,6 @@ export const ROWS = {
   // ── group menu ──
   'rename-group': R('PencilSimple', () => t`Rename group…`),
   'group-comment': R('ChatCircle', () => t`Add comment`),
-  'tag-group': R('Tag', () => t`Tag group…`),
   outline: R('BoundingBox', () => t`Outline`),
   'group-label': R('TextT', () => t({ message: 'Label', context: 'group label' })),
   'outline-shape': R('Selection', () => t`Outline shape`),
@@ -163,7 +161,6 @@ export const ROWS = {
   export: R('Export', () => t`Export`),
   'export-png': R('Image', () => t`PNG image`),
   'export-pdf': R('FilePdf', () => t`PDF (Save from Print)`),
-  'tag-cluster': R('Tag', () => t`Tag cluster…`),
   'cluster-info': R('Info', () => t`Cluster info`, { shortcut: () => mod('I') }),
   'clear-drawings': R('Eraser', () => t`Clear all drawings`, { danger: true }),
   // ── Add › (and the canvas menu's quick-add row) ──

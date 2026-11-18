@@ -1,12 +1,12 @@
 ---
 title: Search and the Command Palette — Soleil Clusters
-metaDescription: Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.
+metaDescription: Cmd-K in Soleil Clusters searches clusters, cards, notes and docs, and runs commands — share, invite, trash, theme, settings — from the keyboard.
 h1: Search and the command palette
 navLabel: Search
 section: organize
 order: 2
-updated: 2026-11-09
-answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+updated: 2026-11-17
+answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents and files by name, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 faq:
   - q: Does search look inside my notes and documents?
     a: Yes. Documents are searched by the words on their pages, and a result opens the document at the page it came from. Cards and notes are searched by their title and the first {{fact:searchBodyChars}} characters of their text. A document written before search learned to read it is picked up the next time it, or anything in its cluster, is edited.
@@ -16,7 +16,6 @@ faq:
     a: Forward slash opens it too, when you are not typing into something.
 related:
   - /docs/keyboard-shortcuts
-  - /docs/organize/tags
   - /docs/clusters/list-view
 ---
 
@@ -36,11 +35,8 @@ related:
   [described by an AI model](/docs/account/data-and-privacy#pictures-and-ai) a
   few minutes after it lands, so `red car` or `night exterior` finds the photo
   even when nobody named or captioned it. A picture found this way shows a
-  small preview and says *In the picture*. Not in a workspace whose AI
-  suggestions are off
-- **Tags** — by name. Type `#` and a tag's name, as in `#diner`, to list
-  everything carrying it instead: cards, groups, clusters and document pages,
-  each opened in place
+  small preview and says *In the picture*. Not in a workspace whose
+  **AI for pictures and search** is off
 - **Docs** — by title, and by the words on every page: a match shows the line
   it came from, under **Inside docs**, and opens the document at that page
 
@@ -48,7 +44,7 @@ Search ignores accents, so `cafe` finds `Café` and `strasse` finds `Straße`, a
 one character is enough to search Chinese, Japanese and Korean.
 Search a picture in your own language too, say `바다`: the words are put into
 English to match the descriptions. They go to an AI model for that, so it is off
-in a workspace whose AI suggestions are off.
+in a workspace whose **AI for pictures and search** is off.
 
 A document written before search learned to read it is indexed the next time it,
 or anything else in its cluster, is edited. Inside one long document, `⌘F` finds
@@ -87,6 +83,5 @@ use `⌘K`, you already know how to use those.
 ## When to use something else
 
 - Browsing one cluster's contents by type, size or date — [Files](/docs/clusters/list-view)
-- Everything on a theme, across the workspace — [tags](/docs/organize/tags)
 - Seeing how things relate rather than finding one — [Home graph](/docs/clusters/home-graph)
 - Inside one long document — `⌘F` [find and replace](/docs/documents)

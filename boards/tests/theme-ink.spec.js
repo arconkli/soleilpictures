@@ -60,10 +60,6 @@ test('resting icons and labels are not gold', async ({ page }) => {
     ['<button class="ac-play" aria-label="Play"></button>', '.ac-play', 'backgroundColor'],
     ['<span class="entity-picker-url">https://x</span>', '.entity-picker-url', 'color'],
     ['<span class="ent-backlinks-row-tag">tag</span>', '.ent-backlinks-row-tag', 'color'],
-    ['<span class="tag-picker-kind tag-picker-kind-auto">auto</span>', '.tag-picker-kind-auto', 'color'],
-    ['<span class="tag-picker-kind tag-picker-kind-new">new</span>', '.tag-picker-kind-new', 'color'],
-    ['<span class="tag-detail-row-attr is-auto">auto</span>', '.is-auto', 'color'],
-    ['<span class="tag-detail-block-attr is-auto">auto</span>', '.is-auto', 'color'],
     ['<span class="picker-dot list"></span>', '.picker-dot', 'backgroundColor'],
     // SHARE-17: the doc margin's comment dots.
     ['<div class="comment-gutter"><button class="comment-gutter-dot"></button></div>', '.comment-gutter-dot', 'backgroundColor'],

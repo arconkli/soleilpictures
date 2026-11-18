@@ -95,8 +95,6 @@ const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then
 // which gets the count instead, never fetches it.
 const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
-// Opened only by a multi-selection's Tag, so it loads then (LAZY_IN_APP).
-const TagManyPicker = lazyPanel(() => import('./TagManyPicker.jsx').then(m => ({ default: m.TagManyPicker })));
 
 // Reuse ShapeCard as our drag-preview renderer.
 const ShapePreview = ShapeCard;
@@ -114,7 +112,7 @@ import {
   MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
-  Calendar as CalendarPh, X, Minus, Eye, Check, Sparkle,
+  Calendar as CalendarPh, X, Minus,
 } from '../lib/icons.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { keyCaps, tlTip } from '../lib/looks.js';
@@ -251,14 +249,8 @@ import { CanvasVoteLayer } from './CanvasVoteCard.jsx';
 import { useVoteCards } from '../hooks/useVoteCards.js';
 import { addVoteCard } from '../lib/voteCardsApi.js';
 import * as userProfiles from '../lib/userProfiles.js';
-import { TagPicker } from './TagPicker.jsx';
-import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
-import { useTagSuggestions, acceptCardSuggestion, dismissCardSuggestion } from '../hooks/useTagSuggestions.js';
 import { primeImageSeen } from '../lib/imageSeen.js';
-import { resolveTagColor } from '../lib/tagColor.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
-import { embedTextForLiveCard } from '../lib/embedText.js';
-import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
 import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent, planPutOnBoard, freeAddPos } from '../lib/placement.js';
@@ -827,8 +819,6 @@ export function CanvasSurface({
   isPaidPlan = false,      // current user on a paid/admin plan (best-effort client gate)
   planTier = null,         // the same plan as a tier, or null while it loads (held drops)
   ownsWorkspace = false,   // current user owns the active workspace (created_by)
-  autotagSuggest,          // (content, target) => Promise<[{tagId,score,reason}]>
-  autotagReady = false,    // worker hydration finished
   sessionId = null,        // per-tab session id for board_versions grouping
   defaults,                // useResolvedDefaults() output — drives initial
                            // tool options so a workspace's shape stroke/fill
@@ -975,8 +965,8 @@ export function CanvasSurface({
   // refreshes the page may sit on a stale snapshot indefinitely.
   // syncCardIndex is throttled + idempotent — calling it here is
   // free if it already ran recently, and ensures rich-note text
-  // (c.html) gets html-stripped into card_index.body so the tag
-  // detail view + suggestion engine see real content.
+  // (c.html) gets html-stripped into card_index.body so search
+  // sees real content.
   useEffect(() => {
     if (isPublic) return; // public viewer is signed out — no Supabase writes
     if (!board?.id || !ydoc) return;
@@ -7237,11 +7227,11 @@ export function CanvasSurface({
       // follows is still the pin's own. A hold is also how a point comment's
       // pin starts to be dragged.
       if (e.target.closest?.(COMMENT_SURFACE_SELECTOR)) return false;   // and no buzz: nothing opened
-      // What keeps its own menu on a right-click: a group's label, an arrow,
-      // a tag chip. A hold there is that right-click. Android raises the
+      // What keeps its own menu on a right-click: a group's label, an arrow.
+      // A hold there is that right-click. Android raises the
       // contextmenu itself on a hold; iOS never does, so there the canvas
       // menu used to open instead. Letting go then must not also click it.
-      const own = e.target.closest?.('.group-label, .card-tag-chip, [data-arrow-idx] path');
+      const own = e.target.closest?.('.group-label, [data-arrow-idx] path');
       if (own) {
         touchPressRef.current?.abort();
         swallowNextClick({ held: true });
@@ -10245,10 +10235,6 @@ export function CanvasSurface({
       if (name == null) return;
       mutators.renameGroup?.(g.id, name);
     };
-    acts['tag-group'] = () => {
-      const r = { left: at?.x ?? 0, top: at?.y ?? 0, bottom: (at?.y ?? 0) + 4, right: (at?.x ?? 0) + 4 };
-      setTagPicker({ kind: 'group', id: g.id, anchorRect: r });
-    };
     acts.outline = { checked: !!g.outline, run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) };
     acts['group-label'] = { checked: !g.options?.hideLabel,
       run: () => mutators.setGroupOutline?.(g.id, { options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel } }) };
@@ -10363,7 +10349,7 @@ export function CanvasSurface({
     }
 
     // View-only board: strip every mutating action (Edit/Replace/Cover/
-    // Shape/Stroke/Fit/Tag — all RLS-blocked). Keep navigation, Info, and the
+    // Shape/Stroke/Fit — all RLS-blocked). Keep navigation, Info, and the
     // "Linked from N places" backlink. (The demo-tier upgrade CTA died with
     // 0188 — editor collaboration is free, 'tier-demoted' no longer exists.)
     if (!canEdit) {
@@ -10756,13 +10742,6 @@ export function CanvasSurface({
       }
       acts.comment = () => promptComment({ kind: 'card', id: c.id });
       acts.vote = () => addVoteCardAt({ kind: 'card', id: c.id });
-      // Open the picker anchored near the right-click coord. The ctx state
-      // holds the click position from onCardContextMenu.
-      acts.tag = () => openTagPicker(c.id, anchor);
-    } else if (!isPublic) {
-      // The selection bar's Tag runs this with its own rect; the menu, with
-      // the right-click point.
-      acts.tag = (rect) => openTagMany(rect || anchor);
     }
 
     // Arrange (z-order): mutators are singular, so for multi-select we
@@ -10916,7 +10895,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .ctx-sheet-root, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .cmt-pin, .cmt-canvas-card, .cmt-list, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .ctx-sheet-root, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .cmt-pin, .cmt-canvas-card, .cmt-list, .cnv-comments-eye, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -11906,9 +11885,6 @@ export function CanvasSurface({
     }
     acts.fit = fitToContent;
     if (!isPublic) {
-      acts['tag-cluster'] = () => {
-        setTagPicker({ kind: 'board', id: board.id, anchorRect: { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 } });
-      };
       if (clusterAct?.share) acts['share-cluster'] = () => clusterAct.share(board.id, 'canvas_menu');
     }
     acts.background = {
@@ -11983,430 +11959,8 @@ export function CanvasSurface({
     });
   };
 
-  // ── Tags ──────────────────────────────────────────────────────────────
-  const { tags: wsTags, byCard: tagsByCard, byBoard: tagsByBoard, byGroup: tagsByGroup, refresh: refreshTags } =
-    useWorkspaceTags({ workspaceId, boardId: board?.id });
-  // Stable fingerprint of the workspace's tag definitions — used as
-  // a dep + as a per-card hash component so creating / renaming /
-  // deleting a tag triggers a fresh round of scoring against every
-  // visible card. Without this, a brand-new tag never re-scores
-  // existing cards (the per-card hash dedupe would skip them).
-  const wsTagsFingerprint = useMemo(
-    () => (wsTags || []).map(t => `${t.id}:${t.slug || t.name || ''}`).sort().join('|'),
-    [wsTags],
-  );
-  const [tagPicker, setTagPicker] = useState(null); // { cardId, anchorRect } | { kind: 'group'|'board', id, anchorRect }
-  const openTagPicker = (cardId, anchorRect) => setTagPicker({ cardId, anchorRect });
-  const closeTagPicker = () => setTagPicker(null);
-  // Right-click menu for an applied tag chip (a card's, or the cluster's own):
-  // open the tag, confirm an automatic one (source 'auto' → 'user'), or remove
-  // it, which also keeps it from being applied there again (undo lifts both).
-  const [tagChipMenu, setTagChipMenu] = useState(null); // { x, y, kind, targetId, tag }
-  const closeTagChipMenu = () => setTagChipMenu(null);
-  const confirmChipTag = async ({ kind, targetId, tag }) => {
-    try {
-      await confirmAppliedTag({
-        sourceKind: kind, sourceId: targetId,
-        sourceBoardId: kind === 'card' ? board.id : null,
-        tagId: tag.id,
-      });
-      refreshTags?.();
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_confirm_failed', message: tr`Confirm failed: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-  const removeChipTag = async ({ kind, targetId, tag }) => {
-    try {
-      if (kind === 'card') {
-        await untagCard({ boardId: board.id, cardId: targetId, tagId: tag.id });
-      } else if (kind === 'board') {
-        await untagBoard({ boardId: targetId, tagId: tag.id });
-      }
-      // Always dismiss too. Without this, the autotag triggers re-apply on the
-      // next card_index UPDATE and "Remove tag" feels broken.
-      await dismissAutotagSuggestion({
-        workspaceId, targetKind: kind, targetId,
-        tagId: tag.id, userId,
-      });
-      refreshTags?.();
-      // No confirm, a hard delete PLUS a permanent "never suggest again" row:
-      // the undo re-applies AND lifts the suppression.
-      undoToast(feedback, {
-        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
-        onUndo: async () => {
-          try {
-            if (kind === 'card') {
-              await tagCard({ workspaceId, boardId: board.id, cardId: targetId, tagId: tag.id });
-            } else if (kind === 'board') {
-              await tagBoard({ workspaceId, boardId: targetId, tagId: tag.id });
-            }
-            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
-            refreshTags?.();
-          } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
-          }
-        },
-      });
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tr`Remove failed: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-  const tagChipMenuItems = (m) => {
-    const auto = !!m.tag.source && m.tag.source !== 'user';
-    return [
-      { id: 'open-tag', label: tr`Open tag`, icon: 'Tag', run: () => openTagPage(m.tag.id, 'chip_menu') },
-      auto && { id: 'confirm-tag', label: tr`Confirm tag`, icon: 'CheckCircle', run: () => confirmChipTag(m) },
-      {
-        id: 'remove-tag', label: tr`Remove tag`, icon: 'X',
-        hint: auto ? tr`Removes this tag and won't auto-apply it here again.` : undefined,
-        run: () => removeChipTag(m),
-      },
-    ].filter(Boolean);
-  };
-  const toggleTagOnCard = async (cardId, tag) => {
-    if (!workspaceId || !board?.id || !cardId || !tag) return;
-    const applied = (tagsByCard.get(cardId) || []).some(t => t.id === tag.id);
-    try {
-      if (!applied) {
-        await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
-        refreshTags?.();
-        return;
-      }
-      // Removing from the picker is the same act as the chip menu's "Remove
-      // tag": refresh explicitly (a realtime DELETE can't say which tag it
-      // was, so the chip and the ✓ used to stay), suppress re-auto-tagging,
-      // and offer an undo that lifts both.
-      await untagCard({ boardId: board.id, cardId, tagId: tag.id });
-      await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
-      refreshTags?.();
-      undoToast(feedback, {
-        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
-        onUndo: async () => {
-          try {
-            await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
-            await undismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id });
-            refreshTags?.();
-          } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
-          }
-        },
-      });
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-  const createAndApplyTag = async (cardId, name) => {
-    if (!workspaceId || !cardId) return;
-    try {
-      const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
-      await tagCard({ workspaceId, boardId: board.id, cardId, tagId: t.id });
-      refreshTags?.();
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-
-  // A group and the cluster itself take the card's path with their own
-  // helpers: apply, or remove with the same "keep it off" and undo that a
-  // card's removal has.
-  const tagTargets = {
-    group: {
-      applied: (id) => tagsByGroup?.get(id) || [],
-      add: (id, tagId) => tagGroup({ workspaceId, boardId: board.id, groupId: id, tagId }),
-      remove: (id, tagId) => untagGroup({ boardId: board.id, groupId: id, tagId }),
-    },
-    board: {
-      applied: () => tagsByBoard.get(board.id) || [],
-      add: (_id, tagId) => tagBoard({ workspaceId, boardId: board.id, tagId }),
-      remove: (_id, tagId) => untagBoard({ boardId: board.id, tagId }),
-    },
-  };
-  const toggleTagOn = async (kind, id, tag) => {
-    const t = tagTargets[kind];
-    if (!t || !workspaceId || !board?.id || !tag) return;
-    const targetId = kind === 'board' ? board.id : id;
-    const applied = t.applied(id).some(x => x.id === tag.id);
-    try {
-      if (!applied) {
-        await t.add(id, tag.id);
-        refreshTags?.();
-        return;
-      }
-      await t.remove(id, tag.id);
-      await dismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id, userId });
-      refreshTags?.();
-      undoToast(feedback, {
-        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
-        onUndo: async () => {
-          try {
-            await t.add(id, tag.id);
-            await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
-            refreshTags?.();
-          } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
-          }
-        },
-      });
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-  const createAndApplyTagOn = async (kind, id, name) => {
-    const t = tagTargets[kind];
-    if (!t || !workspaceId || !board?.id) return;
-    try {
-      const tag = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
-      await t.add(id, tag.id);
-      refreshTags?.();
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-
-  // Several cards at once (direction A): the tri-state picker over the
-  // selection. ✓ on every selected card takes the tag off all of them; –
-  // (some) or empty puts it on all of them. One write and one undo each.
-  const [tagMany, setTagMany] = useState(null); // { anchorRect, cardIds }
-  const openTagMany = (anchorRect) => {
-    const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
-    // The bar's Tag opens and closes it (the picker leaves that press to it).
-    if (ids.length) setTagMany(prev => (prev ? null : { anchorRect, cardIds: ids }));
-  };
-  const tagManyCounts = useMemo(() => {
-    const m = new Map();
-    for (const id of tagMany?.cardIds || []) {
-      for (const t of tagsByCard.get(id) || []) m.set(t.id, (m.get(t.id) || 0) + 1);
-    }
-    return m;
-  }, [tagMany, tagsByCard]);
-  // The writes live with the picker (TagManyPicker.jsx, loaded on demand),
-  // so the canvas's own bundle carries neither.
-  const tagManyCtx = () => ({ workspaceId, boardId: board.id, userId, tagsByCard, refreshTags, feedback });
-  const tagManyCards = (cardIds, tag, mode, via) => import('./TagManyPicker.jsx')
-    .then(m => m.applyTagToCards({ cardIds, tag, mode, via, ctx: tagManyCtx() }));
-  const createTagForMany = (name) => {
-    const ids = tagMany?.cardIds || [];
-    setTagMany(null);
-    return import('./TagManyPicker.jsx')
-      .then(m => m.createTagOnCards({ name, cardIds: ids, ctx: tagManyCtx() }));
-  };
-
-  // Spotlight (the owner's direction A): a tag chip lights that tag's cards
-  // on this cluster and dims the rest, and a pill says what is showing. It
-  // hides nothing and moves nothing; Esc or × ends it, and the tag in the
-  // pill opens its page. A card counts when it, or its group, carries the
-  // tag (the tag page counts a tagged group's cards the same way).
-  const [spotlightTagId, setSpotlightTagId] = useState(null);
-  useEffect(() => { setSpotlightTagId(null); }, [board?.id]);
-  const wsTagById = useMemo(() => new Map((wsTags || []).map(t => [t.id, t])), [wsTags]);
-  const spotlightTag = spotlightTagId ? wsTagById.get(spotlightTagId) || null : null;
-  const spotMatched = useMemo(() => {
-    if (!spotlightTagId) return null;
-    const out = new Set();
-    for (const c of cards || []) {
-      const own = (tagsByCard.get(c.id) || []).some(t => t.id === spotlightTagId);
-      const viaGroup = !!c.groupId && (tagsByGroup?.get(c.groupId) || []).some(t => t.id === spotlightTagId);
-      if (own || viaGroup) out.add(c.id);
-    }
-    return out;
-  }, [spotlightTagId, cards, tagsByCard, tagsByGroup]);
-  const toggleSpotlight = (tagId, via) => {
-    const next = spotlightTagId === tagId ? null : tagId;
-    setSpotlightTagId(next);
-    if (next) { try { logEvent(EV.TAG_SPOTLIGHT, { tag_id: next, via }); } catch (_) {} }
-  };
-  const openTagPage = (tagId, via) => {
-    try { logEvent(EV.TAG_COLLECTION_OPEN, { tag_id: tagId, via }); } catch (_) {}
-    document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
-  };
-  // Esc ends the spotlight before the canvas's own Escape, unless a field,
-  // a menu or a dialog has it.
-  useEffect(() => {
-    if (!spotlightTagId) return undefined;
-    const onKey = (e) => {
-      if (isComposingKey(e)) return;
-      if (e.key !== 'Escape' || e.defaultPrevented || isEditableTarget(e.target)) return;
-      if (document.querySelector('.ctx-menu, .ctx-sheet-root, .tag-picker, .modal-bg, [role="dialog"]')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      setSpotlightTagId(null);
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [spotlightTagId]);
-
-  // Suggested tags, on the card they were suggested for: the closest one
-  // shows as a hollow chip; ✓ keeps it, × never suggests it there again.
-  const tagSuggest = useTagSuggestions({ boardId: board?.id, enabled: !!canEdit && !isPublic });
   // What each described picture shows, for screen readers only (lib/imageSeen.js).
   useEffect(() => { if (!isPublic && board?.id) primeImageSeen(board.id); }, [isPublic, board?.id]);
-  const acceptSuggestion = async (cardId, tag) => {
-    try {
-      await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
-      await acceptCardSuggestion({ tagId: tag.id, cardId });
-      try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'suggested_chip', tag_id: tag.id }); } catch (_) {}
-      refreshTags?.();
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: tr`Could not keep it: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-  const dismissSuggestion = async (cardId, tag) => {
-    try {
-      await dismissCardSuggestion({ tagId: tag.id, cardId });
-      await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
-      try { logEvent(EV.TAG_SUGGESTION_DISMISS, { tag_id: tag.id, via: 'card' }); } catch (_) {}
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: tr`Could not dismiss it: ${ph({ reason: String(shownError(err)) })}` });
-    }
-  };
-
-  // Auto-tag cards + the board itself.
-  //
-  // Two halves: a per-render "wake" call that flags pending work,
-  // and a stable debounced scoring loop that reads live state via
-  // refs. We can't put a setTimeout inside a useEffect that depends
-  // on `cards` — `cards` is a fresh array on every App render
-  // (filter() in App.jsx), so the timer would reset before it ever
-  // fires. The ref-based pattern below is immune to render churn.
-  const autoTaggedHashRef = useRef(new Map()); // key -> last hash
-  const autotagPendingRef = useRef(false);
-  const autotagInFlightRef = useRef(false);
-  const autotagTimerRef = useRef(0);
-  const autotagStateRef = useRef({});
-  // Only live tags may be auto-applied: a deleted or merged-away tag
-  // otherwise kept collecting hidden applications that came back on
-  // restore/undo. wsTags already excludes status='deleted'.
-  const liveTagIds = useMemo(() => new Set((wsTags || []).map(t => t.id)), [wsTags]);
-  // Mirror the latest props/state into a ref that the timer reads.
-  autotagStateRef.current = {
-    workspaceId, board, cards, groups, autotagSuggest, autotagReady,
-    tagsByCard, tagsByBoard, groupById, wsTagsFingerprint,
-    liveTagIds,
-  };
-
-  const runAutotagScoring = useCallback(async () => {
-    autotagPendingRef.current = false;
-    if (autotagInFlightRef.current) return;
-    autotagInFlightRef.current = true;
-    try { await runAutotagScoringInner(); }
-    finally { autotagInFlightRef.current = false; }
-  }, []);
-
-  const runAutotagScoringInner = useCallback(async () => {
-    const s = autotagStateRef.current;
-    if (!s.workspaceId || !s.board?.id || !s.autotagSuggest || !s.autotagReady) return;
-    // Auto-apply threshold. Lower than the legacy 0.7 because:
-    //   - exact-name (0.95) and alias (0.9) hits are unaffected
-    //   - cold-start substring fallback (0.55) now auto-applies,
-    //     giving the "everything obvious gets tagged" feel
-    //   - users have a one-click "Don't suggest again" escape on
-    //     every chip, so false positives are cheap
-    const HIGH = 0.5;
-    const boardName = s.board.name || s.board.title || '';
-    // 1. Score the board itself.
-    if (boardName.trim()) {
-      const knownBoardIds = new Set((s.tagsByBoard?.get(s.board.id) || []).map(t => t.id));
-      const boardKey = `board:${s.board.id}`;
-      const boardHash = `${boardName}:${s.wsTagsFingerprint}:${knownBoardIds.size}`;
-      if (autoTaggedHashRef.current.get(boardKey) !== boardHash) {
-        autoTaggedHashRef.current.set(boardKey, boardHash);
-        try {
-          const suggestions = await s.autotagSuggest(boardName, { kind: 'board', id: s.board.id });
-          for (const sg of suggestions) {
-            if (sg.score < HIGH) continue;
-            if (knownBoardIds.has(sg.tagId) || !s.liveTagIds.has(sg.tagId)) continue;
-            await tagBoard({
-              workspaceId: s.workspaceId, boardId: s.board.id,
-              tagId: sg.tagId, source: 'auto',
-            });
-          }
-        } catch {}
-      }
-    }
-    // 1b. Score every named group on this board against the tag list.
-    //     A group called "Personal Pricing" should obviously pick up
-    //     the Pricing tag without any user prompt.
-    for (const g of (s.groups || [])) {
-      const gname = (g?.name || '').trim();
-      if (!gname || !g.id) continue;
-      const groupKey = `group:${g.id}`;
-      const groupHash = `${gname}:${boardName}:${s.wsTagsFingerprint}`;
-      if (autoTaggedHashRef.current.get(groupKey) === groupHash) continue;
-      autoTaggedHashRef.current.set(groupKey, groupHash);
-      // Enrich with the board name so a group called "Pricing"
-      // on a "Studio" board still benefits from board context.
-      const text = [boardName, gname].filter(Boolean).join(' ').trim();
-      try {
-        const suggestions = await s.autotagSuggest(text, { kind: 'group', id: g.id });
-        for (const sg of suggestions) {
-          if (sg.score < HIGH || !s.liveTagIds.has(sg.tagId)) continue;
-          await tagGroup({
-            workspaceId: s.workspaceId, boardId: s.board.id, groupId: g.id,
-            tagId: sg.tagId, source: 'auto',
-          });
-        }
-      } catch {}
-    }
-    // 2. Score every card. The card must say something on its own —
-    //    inherited context (board/group name) only BOOSTS cards
-    //    that already have content of their own. An empty note on
-    //    a board called "Pricing" is just an empty note, not a
-    //    pricing note. We never want to tag emptiness.
-    for (const c of s.cards || []) {
-      const title = (c.title || c.label || c.name || '').trim();
-      // Notes carry their text in `html` (rich-text); simple cards
-      // use `body`. We html-strip below before checking length so
-      // empty <p></p> wrappers don't fool the gate.
-      const rawBody = c.body || c.html || '';
-      const ownText = (title + ' ' + String(rawBody).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' '))
-        .replace(/\s+/g, ' ').trim();
-      if (ownText.length < 2) continue;
-      const groupName = c.groupId ? (s.groupById[c.groupId]?.name || '') : '';
-      // Build the scoring text now that we know the card has its own
-      // content. Board + group name go in as TF-IDF boosters.
-      const text = [boardName, groupName, title, rawBody].filter(Boolean).join(' ').trim();
-      const knownIds = new Set((s.tagsByCard.get(c.id) || []).map(t => t.id));
-      const cardKey = `card:${c.id}`;
-      const hash = `${ownText.length}:${title.slice(0, 40)}:${groupName}:${s.wsTagsFingerprint}:${knownIds.size}`;
-      if (autoTaggedHashRef.current.get(cardKey) === hash) continue;
-      autoTaggedHashRef.current.set(cardKey, hash);
-      try {
-        // embedText: what the card's embedding is built from (lib/embedText.js),
-        // never this boosted scoring text, which only the TF-IDF engine uses.
-        const suggestions = await s.autotagSuggest(text, {
-          kind: 'card', id: c.id, boardId: s.board.id, cardKind: c.kind || null, embedText: embedTextForLiveCard(c),
-        });
-        for (const sg of suggestions) {
-          if (sg.score < HIGH) continue;
-          if (knownIds.has(sg.tagId) || !s.liveTagIds.has(sg.tagId)) continue;
-          await tagCard({
-            workspaceId: s.workspaceId, boardId: s.board.id, cardId: c.id,
-            tagId: sg.tagId, source: 'auto',
-          });
-        }
-      } catch {}
-    }
-  }, []);
-
-  // Wake on any meaningful state change. The flag-and-singleton-timer
-  // pattern means rapid re-renders still produce exactly one scoring
-  // run per quiet window — render churn doesn't reset the clock.
-  //
-  // 3s settle (up from 1.5s) since the kill-the-bill rework: even
-  // with the LLM removed from the hot path, we don't need to score
-  // every 1.5s during a typing burst — the embed call is the
-  // remaining cost (cached after first hit, but still a network
-  // round-trip when content changes).
-  useEffect(() => {
-    if (!autotagReady || !workspaceId || !board?.id) return;
-    // A viewer or a share link can't save a suggestion; don't spend on one.
-    if (!canEdit || isPublic) return;
-    if (autotagPendingRef.current) return; // already scheduled
-    if (autotagInFlightRef.current) return; // currently scoring
-    autotagPendingRef.current = true;
-    autotagTimerRef.current = setTimeout(runAutotagScoring, 3000);
-  });
-  useEffect(() => () => clearTimeout(autotagTimerRef.current), []);
 
   // ── Comments ───────────────────────────────────────────────────────────
   // Live anywhere-comments, drawn as pins on what they are about
@@ -13219,7 +12773,6 @@ export function CanvasSurface({
       wrapperStyle.transformOrigin = 'center center';
     }
     const kindCls = `card-kind-${c.kind || 'unknown'}`;
-    const isTagDropHover = tagDropTarget?.cardId === c.id;
     const isVersionDrop = versionDropTarget?.cardId === c.id;
     const isLinkTarget = linkHoverIds.has(c.id);
     const isBoardDropTarget = boardDropTarget && (
@@ -13243,10 +12796,8 @@ export function CanvasSurface({
       if (hoverPrefetchTarget) cancelHoverPrefetch();
     };
     const wrapper = {
-      style: isTagDropHover
-        ? { ...wrapperStyle, '--tag-drop-color': tagDropTarget.color }
-        : wrapperStyle,
-      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isTagDropHover ? ' is-tag-drop' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}${spotMatched && !spotMatched.has(c.id) ? ' is-spot-dim' : ''}`,
+      style: wrapperStyle,
+      className: `card ${kindCls} ${isSelected ? 'is-selected' : ''} ${inDrag ? 'is-dragging' : ''} ${isArrowSource ? 'is-arrow-source' : ''}${isArrowTarget ? ' is-arrow-target' : ''}${isLinkTarget ? ' is-link-target' : ''}${isBoardDropTarget ? ' is-card-drop-target' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}${newCardIds.has(c.id) ? ' is-new' : ''}${liftedCardId === c.id ? ' is-lifted' : ''}${pressingCardId === c.id ? ' is-lifting' : ''}${isVersionDrop ? ' is-version-drop' : ''}`,
       'data-card-id': c.id,
       'data-version-drop': isVersionDrop ? versionDropTarget.label : undefined,
       onPointerDown: (e) => onCardPointerDown(e, c),
@@ -13471,81 +13022,8 @@ export function CanvasSurface({
                                                            onRemove={canEdit && !isPublic ? () => doDeleteIds([c.id]) : null} />;
     else inner = <div className="card-unknown">{c.kind}</div>;
 
-    // Tag chips along the card's bottom edge so the user actually sees
-    // their tagging — without this, "Tag…" silently writes to the DB
-    // and the user has no feedback that anything happened.
-    const cardTags = tagsByCard?.get?.(c.id) || [];
-    const cardSugg = canEdit && !isPublic
-      ? (tagSuggest.byCard.get(c.id) || []).find(sg => wsTagById.has(sg.tagId) && !cardTags.some(t => t.id === sg.tagId)) || null
-      : null;
-    const suggTag = cardSugg ? wsTagById.get(cardSugg.tagId) : null;
-    // The chips hang under the card, beside it in the DOM: .card clips what
-    // it holds (overflow: hidden, contain: paint), so a strip inside it
-    // never showed. Turned with the card, about the card's centre.
-    const stripStyle = { position: 'absolute', left: x, top: y + h + 6, width: Math.max(w, 180) };
-    if (rotation) {
-      stripStyle.transform = `rotate(${rotation}deg)`;
-      stripStyle.transformOrigin = `${w / 2}px ${-(h / 2 + 6)}px`;
-    }
-    const tagStrip = (cardTags.length > 0 || suggTag) ? (
-      <div className={`card-tags-strip${spotMatched && !spotMatched.has(c.id) ? ' is-spot-dim' : ''}${inDrag ? ' is-dragging' : ''}${isFadingForBoardDrop ? ' is-fading-for-drop' : ''}`}
-           data-card-id={c.id} style={stripStyle}>
-        {cardTags.slice(0, 4).map(t => (
-          <span key={t.id}
-                role="button"
-                className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
-                style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                title={t.source && t.source !== 'user'
-                  ? tr`${ph({ name: t.name })} (${ph({ source: t.source })}) — click to light it up on this cluster`
-                  : tr`${ph({ name: t.name })} — click to light it up on this cluster`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  // Lights the tag up here (the spotlight); its page opens
-                  // from the pill, the chip's menu or the sidebar.
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toggleSpotlight(t.id, 'card_chip');
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
-                }}>
-            <span className="card-tag-chip-dot" />
-            <span className="card-tag-chip-name" dir="auto">{t.name}</span>
-          </span>
-        ))}
-        {cardTags.length > 4 && (
-          <span className="card-tag-chip card-tag-chip-overflow"
-                title={cardTags.slice(4).map(t => t.name).join(', ')}>
-            +{cardTags.length - 4}
-          </span>
-        )}
-        {suggTag && (
-          <span className="card-tag-chip is-suggested"
-                style={{ '--tag-c': resolveTagColor(suggTag) }}
-                title={String(cardSugg.origin || '').startsWith('vision')
-                  ? tr`Suggested from the picture: ${ph({ name: suggTag.name })}. ✓ keeps it, × never suggests it here.`
-                  : tr`Suggested from the text: ${ph({ name: suggTag.name })}. ✓ keeps it, × never suggests it here.`}
-                onPointerDown={(e) => e.stopPropagation()}>
-            <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
-            <span className="card-tag-chip-name" dir="auto">{suggTag.name}</span>
-            <span className="card-tag-chip-acts">
-              <button type="button" className="card-tag-chip-act" aria-label={tr`Keep ${ph({ name: suggTag.name })}`}
-                      onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
-                <Icon as={Check} size={9} />
-              </button>
-              <button type="button" className="card-tag-chip-act is-dismiss" aria-label={tr`Never suggest ${ph({ name: suggTag.name })} here`}
-                      onClick={(e) => { e.stopPropagation(); dismissSuggestion(c.id, suggTag); }}>
-                <Icon as={X} size={9} />
-              </button>
-            </span>
-          </span>
-        )}
-      </div>
-    ) : null;
     const cardEl = (
-      <div {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
+      <div key={c.id} {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
         {(c.pending || transferCardIds.has(c.id)) && (
           <CardTransferState cardId={c.id} kind={c.kind} w={w} h={h} pending={!!c.pending}
@@ -13587,7 +13065,7 @@ export function CanvasSurface({
         )}
       </div>
     );
-    return <Fragment key={c.id}>{cardEl}{tagStrip}</Fragment>;
+    return cardEl;
   };
 
   // ── Files → board ────────────────────────────────────────────────────────
@@ -13973,12 +13451,6 @@ export function CanvasSurface({
   }, []);
 
   // ── HTML5 drag-drop ───────────────────────────────────────────────────────
-  // Tag drop highlight: when a tag is being dragged over the canvas,
-  // show the hovered card / board in the tag's color so the user can
-  // see exactly where it'll land. window.__soleilTagDrag is set by
-  // SidebarTags onDragStart since dataTransfer payload isn't readable
-  // during dragOver (only types).
-  const [tagDropTarget, setTagDropTarget] = useState(null); // { cardId, color }
   // One file held over a file card of its kind: the drop adds a version
   // (lib/versionActions.js). ⌥ makes it a separate file, as before.
   const [versionDropTarget, setVersionDropTarget] = useState(null); // { cardId, label }
@@ -14031,22 +13503,6 @@ export function CanvasSurface({
       e.dataTransfer.dropEffect = 'copy';
     }
     if (!dragOver) setDragOver(true);
-    // Tag-drag highlight: read the side-channel state and find which
-    // card is under the cursor. Update only on change to avoid React
-    // re-renders on every dragover tick.
-    const tagDrag = (typeof window !== 'undefined' && window.__soleilTagDrag) || null;
-    if (tagDrag && types.includes(ENTITY_REF_MIME)) {
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const cardEl = el?.closest?.('[data-card-id]');
-      const cardId = cardEl?.getAttribute('data-card-id') || null;
-      const next = cardId ? { cardId, color: tagDrag.color || '#4f8df8' } : null;
-      if ((tagDropTarget?.cardId || null) !== (next?.cardId || null)
-       || (tagDropTarget?.color || null) !== (next?.color || null)) {
-        setTagDropTarget(next);
-      }
-    } else if (tagDropTarget) {
-      setTagDropTarget(null);
-    }
     const vt = versionTargetAt(e);
     if ((vt?.cardId || null) !== (versionDropTarget?.cardId || null)) setVersionDropTarget(vt);
   };
@@ -14070,12 +13526,10 @@ export function CanvasSurface({
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
-    setTagDropTarget(null);
     setVersionDropTarget(null);
   };
   const handleDrop = async (e) => {
     setDragOver(false);
-    setTagDropTarget(null);
     setVersionDropTarget(null);
     // View-only board: swallow the drop (so the browser never navigates) and
     // tell the user, rather than silently no-op'ing the mutators.
@@ -14110,10 +13564,6 @@ export function CanvasSurface({
     // Universal entity-ref drop: any EntityLink chip / picker row /
     // canvas card dragged here materializes as a 'link' chip card
     // pointing at the entity. Click the chip to navigate.
-    //
-    // Tag refs are special: dropping a tag onto a card / board card
-    // applies the tag (link_kind='applied'); dropping on empty space
-    // is a no-op rather than a confusing "tag link card."
     if (types.includes(ENTITY_REF_MIME) || types.includes(ENTITY_REF_LIST_MIME)) {
       e.preventDefault();
       const raw = e.dataTransfer.getData(ENTITY_REF_MIME);
@@ -14121,32 +13571,6 @@ export function CanvasSurface({
         let ref = null;
         try { ref = coerceRef(JSON.parse(raw)); } catch (_) {}
         if (ref) {
-          if (ref.kind === 'tag') {
-            // Find which canvas card is under the drop point.
-            const el = document.elementFromPoint(e.clientX, e.clientY);
-            const cardEl = el && el.closest && el.closest('[data-card-id]');
-            const droppedCardId = cardEl?.getAttribute('data-card-id') || null;
-            const droppedCard = droppedCardId
-              ? (cards || []).find(c => c.id === droppedCardId)
-              : null;
-            if (droppedCard) {
-              if (droppedCard.kind === 'board') {
-                tagBoard({ workspaceId, boardId: droppedCard.id, tagId: ref.id, source: 'user' })
-                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` }));
-              } else if (effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(droppedCard.id)) {
-                // Dropped on a selected card: the whole selection takes it.
-                const tag = wsTagById.get(ref.id) || { id: ref.id, name: ref.title || 'tag' };
-                const ids = [...effectiveSelectedIds].filter(id => cardById[id] && cardById[id].kind !== 'board');
-                tagManyCards(ids, tag, 'add', 'drop_selection');
-              } else {
-                tagCard({ workspaceId, boardId: board.id, cardId: droppedCard.id, tagId: ref.id, source: 'user' })
-                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` }));
-              }
-            } else {
-              feedback.toast({ type: 'info', message: tr`Drop a tag onto a card or cluster to apply it.` });
-            }
-            return;
-          }
           const w = 240, h = 70;
           mutators.addCard?.({
             id: `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
@@ -14544,7 +13968,7 @@ export function CanvasSurface({
   }, [board.id, mutators, ydoc, sessionId, userId]);
 
   // Select + center a card when navigated to from elsewhere (e.g. clicking a
-  // card inside a tag/entity collection). App dispatches soleil-flash-card
+  // card inside an entity collection). App dispatches soleil-flash-card
   // after the board mounts; retry briefly while the board's cards stream in,
   // then select that one card and pan it to the viewport center (current zoom).
   useEffect(() => {
@@ -15070,21 +14494,6 @@ export function CanvasSurface({
                       }}
                     />
                   ) : g.name}
-                  {(tagsByGroup?.get(g.id) || []).length > 0 && (
-                    <span className="group-label-tags">
-                      {(tagsByGroup.get(g.id) || []).slice(0, 3).map(t => (
-                        <button type="button" key={t.id}
-                                className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
-                                style={{ '--tag-c': t.color || '#4f8df8' }}
-                                title={tr`${ph({ name: t.name })} — click to light it up on this cluster`}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={(e) => { e.stopPropagation(); toggleSpotlight(t.id, 'group_chip'); }}>
-                          <span className="card-tag-chip-dot" />
-                          <span className="card-tag-chip-name" dir="auto">{t.name}</span>
-                        </button>
-                      ))}
-                    </span>
-                  )}
                 </div>
               ) : null;
 
@@ -15242,59 +14651,6 @@ export function CanvasSurface({
       {/* Grain texture — sits behind cards on the canvas surface
           only. Cards / popovers / modals all stack above it. */}
       <div className="grain-canvas" aria-hidden="true" />
-      {(tagsByBoard?.get(board.id) || []).length > 0 && (
-        <div className="board-tags-strip" data-board-id={board.id}>
-          {(tagsByBoard.get(board.id) || []).slice(0, 6).map(t => (
-            <span key={t.id}
-                  role="button"
-                  tabIndex={0}
-                  className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
-                  style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                  title={t.source && t.source !== 'user'
-                    ? tr`${ph({ name: t.name })} (${ph({ source: t.source })}) — right-click to confirm — click to light it up on this cluster`
-                    : tr`${ph({ name: t.name })} — click to light it up on this cluster`}
-                  onKeyDown={(e) => {
-                    if (isComposingKey(e)) return;
-                    // The cluster's own chips are few, so they take the keyboard.
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleSpotlight(t.id, 'board_chip');
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'board', targetId: board.id, tag: t });
-                  }}>
-              <span className="card-tag-chip-dot" />
-              <span className="card-tag-chip-name" dir="auto">{t.name}</span>
-            </span>
-          ))}
-        </div>
-      )}
-      {spotlightTag && (
-        <div className="tag-spotlight-pill" role="status" aria-live="polite">
-          <Icon as={Eye} size={15} className="tag-spotlight-eye" />
-          <span><Trans>Showing</Trans></span>
-          <button type="button" className="card-tag-chip is-lit tag-spotlight-chip"
-                  style={{ '--tag-c': resolveTagColor(spotlightTag) }}
-                  title={tr`Open ${ph({ name: spotlightTag.name })}'s page: everything carrying it, everywhere`}
-                  onClick={() => openTagPage(spotlightTag.id, 'spotlight')}>
-            <span className="card-tag-chip-dot" />
-            <span className="card-tag-chip-name" dir="auto">{spotlightTag.name}</span>
-          </button>
-          <span className="tag-spotlight-count"><Trans>{ph({ value: spotMatched?.size || 0 })} of {ph({ count: (cards || []).length })} cards</Trans></span>
-          <span className="tag-spotlight-rule" aria-hidden="true" />
-          <span className="tag-spotlight-hint"><Trans><kbd>Esc</kbd>clears</Trans></span>
-          <button type="button" className="tag-spotlight-x" aria-label={tr`Clear filter: ${ph({ name: spotlightTag.name })}`}
-                  onClick={() => setSpotlightTagId(null)}>
-            <Icon as={X} size={14} />
-          </button>
-        </div>
-      )}
       {/* Capture Mode's synthetic cast is spliced in HERE and nowhere else.
           These two components read presence; everything else that touches
           awareness WRITES through it — the cursor broadcast, the selection
@@ -16625,7 +15981,7 @@ export function CanvasSurface({
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (selBarOn ? (
         <Suspense fallback={null}>
           <SelectionBarA count={selected.size + selectedStrokes.size + selectedArrows.size} items={selBarItems}
-                         api={selBarApi} canDelete={canEdit} tagOpen={!!tagMany} />
+                         api={selBarApi} canDelete={canEdit} />
         </Suspense>
       ) : (
         <div className="cnv-selcount"><Trans>{ph({ value: selected.size + selectedStrokes.size + selectedArrows.size })} selected</Trans></div>
@@ -17140,55 +16496,6 @@ export function CanvasSurface({
           disableRecent={picker.disableRecent}
         />
       )}
-      {tagMany && (
-        <Suspense fallback={null}>
-          <TagManyPicker
-            open
-            anchorRect={tagMany.anchorRect}
-            onClose={() => setTagMany(null)}
-            tags={wsTags}
-            counts={tagManyCounts}
-            total={tagMany.cardIds.length}
-            onApply={(t, mode) => tagManyCards(tagMany.cardIds, t, mode, 'selection')}
-            onCreate={createTagForMany}
-          />
-        </Suspense>
-      )}
-      {tagPicker && (
-        <TagPicker
-          open={!!tagPicker}
-          anchorRect={tagPicker.anchorRect}
-          onClose={closeTagPicker}
-          tags={wsTags}
-          appliedIds={new Set((tagPicker.kind
-            ? tagTargets[tagPicker.kind].applied(tagPicker.id)
-            : (tagsByCard.get(tagPicker.cardId) || [])).map(t => t.id))}
-          onToggle={(t) => {
-            // TAG_MANUAL_APPLY has been in the event catalog since the tags
-            // rework with no emission site anywhere, so hand-tagging — the whole
-            // point of this picker — recorded nothing. This is its home.
-            const kind = tagPicker.kind || 'card';
-            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: kind, via: 'picker', tag_id: t?.id }); } catch (_) {}
-            if (kind === 'card') toggleTagOnCard(tagPicker.cardId, t);
-            else toggleTagOn(kind, tagPicker.id, t);
-          }}
-          onCreate={(name) => {
-            const kind = tagPicker.kind || 'card';
-            try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: kind, via: 'picker_create' }); } catch (_) {}
-            if (kind === 'card') createAndApplyTag(tagPicker.cardId, name);
-            else createAndApplyTagOn(kind, tagPicker.id, name);
-          }}
-        />
-      )}
-      <CardContextMenu
-        open={!!tagChipMenu}
-        x={tagChipMenu?.x ?? 0}
-        y={tagChipMenu?.y ?? 0}
-        label={tagChipMenu?.tag?.name}
-        root="menu"
-        items={tagChipMenu ? tagChipMenuItems(tagChipMenu) : []}
-        onClose={closeTagChipMenu}
-      />
       {lightbox && (() => {
         // Share this one file from the viewer: same gates as the card menu.
         // A sub-cluster's row brings its own cluster and card.

@@ -2,7 +2,7 @@
 //
 //   POST /api/seo/draft  { board_id }
 //     A text model drafts { seo_title, seo_description, seo_body, suggested_keyword }
-//     GROUNDED in the board's real content (name, tags, card titles, notes) so
+//     GROUNDED in the board's real content (name, card titles, notes) so
 //     the output is unique per board. Returns the draft to the client — does NOT
 //     save. The admin edits + saves via the normal publish flow (human-in-loop).
 //
@@ -349,14 +349,12 @@ const DRAFT_SYSTEM = [
 
 async function handleSeoDraft(env, boardId) {
   const enc = encodeURIComponent;
-  const [boards, cards, tagRows, pbRows] = await Promise.all([
+  const [boards, cards, pbRows] = await Promise.all([
     sbGet(env, `boards?id=eq.${enc(boardId)}&select=name&limit=1`),
     sbGet(env, `card_index?board_id=eq.${enc(boardId)}&kind=in.(image,note,doc,link)&select=kind,title,body&order=updated_at.desc&limit=80`),
-    sbGet(env, `board_tags?board_id=eq.${enc(boardId)}&select=tags(name)`),
     sbGet(env, `public_boards?board_id=eq.${enc(boardId)}&select=slug,target_keyword,seo_title&limit=1`),
   ]);
   const name = boards?.[0]?.name || 'Untitled board';
-  const tags = (tagRows || []).map((r) => r?.tags?.name).filter(Boolean).slice(0, 30);
   const titles = (cards || []).map((c) => (c.title || '').trim()).filter(Boolean).slice(0, 40);
   const notes = (cards || [])
     .filter((c) => c.kind === 'note' || c.kind === 'doc')
@@ -367,7 +365,6 @@ async function handleSeoDraft(env, boardId) {
   const payload = {
     board_name: name,
     existing_target_keyword: existingKeyword,
-    tags,
     image_count: imageCount,
     sample_card_titles: titles,
     notes_from_board: notes,
@@ -389,7 +386,7 @@ async function handleSeoDraft(env, boardId) {
   }
   const draft = parseJsonLoose(responseText(out));
   if (!draft || !draft.seo_title) return json({ error: 'model returned no usable draft — try again' }, 502);
-  return json({ draft, grounded_on: { tags: tags.length, titles: titles.length, notes: notes.length, image_count: imageCount } });
+  return json({ draft, grounded_on: { titles: titles.length, notes: notes.length, image_count: imageCount } });
 }
 
 // ── /api/seo/alt ────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 > Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.
 
-_Source: https://clusters.soleilpictures.com/docs/security · Updated 2026-11-05_
+_Source: https://clusters.soleilpictures.com/docs/security · Updated 2026-11-17_
 
 Clusters keeps film and creative work: scripts, references, cuts in progress.
 This page says how that work is protected, in plain words, and only what is
@@ -39,7 +39,7 @@ Clusters is run from the United States. Each part runs on one provider:
 | Uploaded files, and their backup copy | Cloudflare R2. Some message attachments and a few older card pictures are in Supabase storage |
 | The website, the API and the MCP server | Cloudflare Workers |
 | Live editing: who's here, and changes as they happen | Cloudflare Durable Objects |
-| Picture descriptions for search and tags | Cloudflare Workers AI, which doesn't keep the picture or train on it |
+| Picture descriptions for search | Cloudflare Workers AI, which doesn't keep the picture or train on it |
 | Payments | Stripe. Card details are typed on Stripe's page and never reach Clusters |
 | Email | Resend |
 | Making videos and audio play in every browser, previews of photos and documents browsers can't open, and Scout | Fly.io |

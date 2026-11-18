@@ -23,16 +23,8 @@ import { useFeedback } from './AppFeedback.jsx';
 import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { getEntityMentions } from '../lib/entityMentionsCache.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
-import { R2Image } from './R2Image.jsx';
-import { ImageLightbox } from './ImageLightbox.jsx';
-import { fetchTagVisuals } from '../lib/tagVisuals.js';
-import { shareTargetForRef } from '../lib/fileShareBus.js';
-import { tagFallbackColor } from '../lib/tagColor.js';
-import { entityTypeLabel } from '../lib/entityTypes.js';
-import { logEvent } from '../lib/analytics.js';
-import { EV } from '../lib/analyticsEvents.js';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { t, ph, plural } from '@lingui/core/macro';
+import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 const PAD = 8;
@@ -119,7 +111,9 @@ export function EntityHoverPopover({
           if (!seen.has(r.id)) { merged.push(r); seen.add(r.id); }
         }
         if (cancelled) return;
-        setEntityRows(merged);
+        // The entity_search view and the mentions RPC still return tag rows until
+        // their migrations ship; tags are gone.
+        setEntityRows(merged.filter((r) => r.kind !== 'tag'));
         setAppearsIn(rpcApps);
         setTotalAppears(rpcTotal);
       } catch (e) {
@@ -139,18 +133,6 @@ export function EntityHoverPopover({
       return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
     });
   }, [entityRows]);
-
-  // Partition: tags are the "concept" abstraction the user invoked
-  // when they typed this word — they get a featured top block.
-  // Everything else falls through to the existing flat ENTITIES section.
-  const tagEntities = useMemo(
-    () => sortedEntities.filter(r => r.kind === 'tag'),
-    [sortedEntities],
-  );
-  const nonTagEntities = useMemo(
-    () => sortedEntities.filter(r => r.kind !== 'tag'),
-    [sortedEntities],
-  );
 
   // Position the portal near the anchor — flip above when no room
   // below; clamp to viewport. Re-measure on scroll/resize so the
@@ -235,8 +217,6 @@ export function EntityHoverPopover({
   const seeAll = () => {
     if (onSeeAll) { onSeeAll(seeAllRef, headingTerm); return; }
     if (!seeAllRef) return;
-    // A tag's own page IS its full list of references.
-    if (seeAllRef.kind === 'tag') { onClose?.(); navigate(seeAllRef); return; }
     document.dispatchEvent(new CustomEvent('soleil-open-backlinks', {
       detail: { ref: seeAllRef, name: headingTerm || null },
     }));
@@ -269,29 +249,12 @@ export function EntityHoverPopover({
           <div className="ent-pop-empty"><Trans>Nothing linked here yet.</Trans></div>
         )}
 
-        {tagEntities.length > 0 && (
-          <div className="ent-pop-section ent-pop-tag-feature">
-            <div className="ent-pop-section-head">
-              {tagEntities.length === 1 ? t`TAG` : t`TAGS`}
-            </div>
-            {tagEntities.map(row => (
-              <TagFeatureCard
-                key={row.id}
-                row={row}
-                workspaceId={workspaceId}
-                onOpenTag={() => { navigate(rowToRef(row)); onClose?.(); }}
-                onNavigate={(target) => { onClose?.(); navigate(target); }}
-              />
-            ))}
-          </div>
-        )}
-
-        {nonTagEntities.length > 0 && (
+        {sortedEntities.length > 0 && (
           <div className="ent-pop-section">
             <div className="ent-pop-section-head">
-              <Trans>ENTITIES NAMED THIS</Trans> <span className="ent-pop-section-count">({nonTagEntities.length})</span>
+              <Trans>ENTITIES NAMED THIS</Trans> <span className="ent-pop-section-count">({sortedEntities.length})</span>
             </div>
-            {nonTagEntities.slice(0, 6).map(row => {
+            {sortedEntities.slice(0, 6).map(row => {
               // Boards (and groups, conceptually) hold contents — let the
               // user expand them inline so the popover surfaces what's
               // actually in there without forcing a navigation. Other
@@ -319,9 +282,9 @@ export function EntityHoverPopover({
                 </div>
               );
             })}
-            {nonTagEntities.length > 6 && canSeeAll && (
+            {sortedEntities.length > 6 && canSeeAll && (
               <button className="ent-pop-more" onClick={seeAll}>
-                <Trans>+ {ph({ value: nonTagEntities.length - 6 })} more →</Trans>
+                <Trans>+ {ph({ value: sortedEntities.length - 6 })} more →</Trans>
               </button>
             )}
           </div>
@@ -408,138 +371,6 @@ export function EntityHoverPopover({
   );
 }
 
-// Featured tag "card" — the headline of the tags rework. When a hovered
-// name maps to a tag (a character, a setting, a concept), show what it
-// LOOKS like: a few image thumbs + palette strips pulled cross-board,
-// not just a dot. Clicking the header opens the full collection; a thumb
-// or palette jumps to its source. Same shared fetch (lib/tagVisuals) the
-// doc popover uses, so this stays in lockstep and the cache is shared.
-function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
-  const color = row?.meta?.color || tagFallbackColor(row.title || row.id);
-  const [vis, setVis] = useState(null); // null = still loading
-  // Clicking a thumb opens a fullscreen lightbox that pages through the
-  // whole tag's image set (←/→) instead of navigating away — matching the
-  // doc tag popover. A capturing key handler owns Escape/arrows while it's
-  // open so they don't also close the hover popover behind it.
-  const [lightboxIdx, setLightboxIdx] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetchTagVisuals({ tagId: row.id, workspaceId }).then(res => {
-      if (cancelled) return;
-      setVis(res);
-      if (res.images.length || res.palettes.length) {
-        try { logEvent(EV.TAG_HOVER_OPEN, { tag_id: row.id, surface: 'entity_popover' }); } catch (_) {}
-      }
-    });
-    return () => { cancelled = true; };
-  }, [row.id, workspaceId]);
-
-  const allImages = vis?.images || [];
-  useEffect(() => {
-    if (lightboxIdx == null) return;
-    const onKey = (e) => {
-      if (isComposingKey(e)) return;
-      if (e.key === 'Escape') { e.stopPropagation(); setLightboxIdx(null); return; }
-      if (!allImages.length) return;
-      if (e.key === 'ArrowLeft')  { e.preventDefault(); e.stopPropagation(); setLightboxIdx(i => (i - 1 + allImages.length) % allImages.length); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setLightboxIdx(i => (i + 1) % allImages.length); }
-    };
-    document.addEventListener('keydown', onKey, true);
-    return () => document.removeEventListener('keydown', onKey, true);
-  }, [lightboxIdx, allImages.length]);
-
-  const thumbs = allImages.slice(0, 9);
-  const palettes = vis?.palettes?.slice(0, 2) || [];
-  // Non-visual payoff — docs/notes/boards/cards. For a concept/Topic tag
-  // (e.g. "Pricing") this IS the content; for a character it's extra.
-  const others = vis?.other || [];
-  const typeLabel = entityTypeLabel(vis?.entityType);
-  const hasAny = thumbs.length || palettes.length || others.length;
-
-  return (
-    <div className="ent-pop-tag-card" style={{ '--tag-color': color }}>
-      <button className="tag-pop-header" onClick={onOpenTag} title={row.title ? t`Open ${ph({ title: row.title })}` : t`Open tag`}>
-        <span className="tag-pop-stamp" aria-hidden="true" />
-        <span className="tag-pop-name">{row.title || t`Untitled`}</span>
-        {typeLabel && <span className="tag-pop-type">{typeLabel}</span>}
-        {vis?.total > 0 && (
-          <span className="tag-pop-count">{t`${plural(vis.total, { one: '# item', other: '# items' })}`}</span>
-        )}
-        <span className="ent-pop-tag-arrow" aria-hidden="true">→</span>
-      </button>
-
-      {!vis && (
-        <div className="tag-pop-skeleton" aria-hidden="true">
-          {Array.from({ length: 6 }).map((_, i) => <span key={i} />)}
-        </div>
-      )}
-      {vis && !hasAny && (
-        <div className="tag-pop-empty"><Trans>No other items tagged.</Trans></div>
-      )}
-
-      {thumbs.length > 0 && (
-        <div className="tag-pop-images">
-          {thumbs.map((im, i) => (
-            <button key={i} className="tag-pop-thumb" title={im.title || t`Image`}
-                    onClick={() => setLightboxIdx(i)}>
-              <R2Image src={im.src} alt="" />
-            </button>
-          ))}
-        </div>
-      )}
-      {palettes.length > 0 && (
-        <div className="tag-pop-palettes">
-          {palettes.map((p, i) => {
-            const colors = (p.swatches || [])
-              .map(c => (typeof c === 'string' ? c : c?.hex))
-              .filter(Boolean).slice(0, 10);
-            return (
-              <button key={i} className="tag-pop-palette" title={p.title || t`Palette`}
-                      onClick={() => onNavigate?.(p.navTarget)}>
-                <span className="tag-pop-palette-swatches">
-                  {colors.map((c, j) => <span key={j} style={{ background: c }} />)}
-                </span>
-                {p.title && <span className="tag-pop-palette-title">{p.title}</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      {others.length > 0 && (
-        <div className="tag-pop-list">
-          {others.map((o, i) => {
-            const IcnCmp = getKind(o.kind)?.icon || StickyNote;
-            return (
-              <button key={i} className="tag-pop-row" title={o.title}
-                      onClick={() => onNavigate?.(o.navTarget)}>
-                <span className="tag-pop-row-icon"><Icon as={IcnCmp} size={12} /></span>
-                <span className="tag-pop-row-main">
-                  <span className="tag-pop-row-title">{o.title}</span>
-                  {o.snippet && <span className="tag-pop-row-snip">{o.snippet}</span>}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {lightboxIdx != null && allImages[lightboxIdx] && createPortal(
-        // Portal to body: ImageLightbox is position:fixed inset:0, but the
-        // popover's overflow:hidden + .surface-frosted backdrop-filter would
-        // otherwise clip/trap it inside the ~380px card.
-        <ImageLightbox
-          src={allImages[lightboxIdx].src}
-          title={allImages[lightboxIdx].title || ''}
-          alt={allImages[lightboxIdx].title || ''}
-          shareTarget={shareTargetForRef({ ...allImages[lightboxIdx], kind: 'image', name: allImages[lightboxIdx].title }, 'tag_popover')}
-          onClose={() => setLightboxIdx(null)}
-        />,
-        document.body,
-      )}
-    </div>
-  );
-}
-
 function EntityRow({ row, onClick, expandable = false, expanded = false, onToggleExpand }) {
   const def = getKind(row.kind);
   const IconCmp = def?.icon;
@@ -571,7 +402,7 @@ function EntityRow({ row, onClick, expandable = false, expanded = false, onToggl
 
 // Inline contents preview for a board referenced from the popover.
 // Lazy-loads the most-recent ~12 cards via card_index, renders them
-// using the same rich previews the tag detail view uses (image thumbs,
+// using rich previews (image thumbs,
 // palette swatches, text excerpts). Click a card → navigate to it.
 function BoardInlineExpansion({ boardId, onNavigate }) {
   const [cards, setCards] = useState(null); // null = loading; [] = empty
@@ -705,7 +536,6 @@ function rowToRef(row) {
     case 'user':    return { kind: 'user', id: row.id };
     case 'url':     return { kind: 'url', href: row.title };
     case 'group':   return { kind: 'group', id: row.card_id, boardId: row.board_id };
-    case 'tag':     return { kind: 'tag', id: row.id };
     default:        return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
   }
 }
@@ -720,7 +550,6 @@ function refToSearchId(r) {
     case 'card':    return `${r.boardId}:${r.cardId}`;
     case 'user':    return r.id;
     case 'group':   return r.boardId ? `${r.boardId}:g:${r.id}` : null;
-    case 'tag':     return r.id;
     default:        return null;
   }
 }

@@ -2,10 +2,10 @@
 
 > A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-11-15_
+_Source: https://clusters.soleilpictures.com/docs/canvas/cards · Updated 2026-11-17_
 
 Everything on a canvas is a card. They differ in what they hold and nothing
-else — position, size, stacking order, selection, grouping, tagging, commenting
+else — position, size, stacking order, selection, grouping, commenting
 and duplication work identically on all of them.
 
 ## Every kind
@@ -68,8 +68,6 @@ canvas. A move is one action: its toast undoes both sides at
 once. Moving cards doesn't change how many you have.
 
 **Group** — select several and press `⌘G`. See [Groups](/docs/canvas/groups).
-
-**Tag** — right-click → tag. See [Tags](/docs/organize/tags).
 
 **Comment** — right-click → **Add comment**, which puts a pin at the corner of that card. See
 [Comments](/docs/collaborate/comments).

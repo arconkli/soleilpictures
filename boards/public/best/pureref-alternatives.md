@@ -2,7 +2,7 @@
 
 > For shared, team reference boards, Soleil Clusters (clusters.soleilpictures.com) is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
 
-_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-05_
+_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-11-17_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
@@ -157,7 +157,7 @@ The reference wall that follows the project — in the browser, shared with one 
 
 Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.
 
-The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
+The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. A relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
 
 A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
 
@@ -165,7 +165,7 @@ It runs in the browser on desktop and mobile, including touch and iPad. The free
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
-- Tags on cards, groups and boards; a relationship graph connects boards across a project
+- A relationship graph connects boards across a project
 - Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, and vote cards
 - Non-destructive photo adjustments; nested boards with live thumbnails
 - Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live

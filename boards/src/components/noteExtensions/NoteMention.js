@@ -48,7 +48,8 @@ export const NoteMention = Node.create({
   renderHTML({ node, HTMLAttributes }) {
     return [
       'span',
-      mergeAttributes({ class: 'tt-link tt-link-manual' }, HTMLAttributes),
+      // An old @-mention of a tag (tags are gone) is plain text: no link look.
+      mergeAttributes(node.attrs.entityRef?.kind === 'tag' ? {} : { class: 'tt-link tt-link-manual' }, HTMLAttributes),
       node.attrs.label || '',
     ];
   },

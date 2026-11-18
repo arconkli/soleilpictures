@@ -4,7 +4,7 @@ import { MenuButton, MenuHead, MenuItem, MenuSep } from './Menu.jsx';
 import { useIslandFit } from './useIslandFit.js';
 import {
   AlignCardsBottom, AlignCardsCenter, AlignCardsLeft, AlignCardsMiddle, AlignCardsRight, AlignCardsTop, ArrowBendUpRight,
-  BoundingBox, DistributeAcross, DistributeDown, FolderSimplePlus, LayoutGrid, MoreHorizontal, Tag, Trash2,
+  BoundingBox, DistributeAcross, DistributeDown, FolderSimplePlus, LayoutGrid, MoreHorizontal, Trash2,
 } from '../../lib/icons.js';
 import { t, plural } from '@lingui/core/macro';
 
@@ -46,7 +46,7 @@ function Rows({ rows, icons = null, onPick }) {
     : <MenuItem key={r.id} icon={icons?.[r.id]} label={r.aside ? `${r.aside} / ${r.label}` : r.label} disabled={!!r.disabled} onSelect={() => onPick(r.id)} />));
 }
 
-function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
+function SelectionBar({ count, items, api, canDelete }) {
   const barRef = useRef(null);
   useIslandFit(barRef, { on: true, max: 0 });
   useLiftOverTob(barRef);
@@ -62,7 +62,6 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
   const group = find(items, 'group-these');
   const cluster = find(items, 'new-cluster-from');
   const move = find(items, 'move');
-  const tagMany = find(items, 'tag');
   return (
     <Toolbar label={t`Selection`} barRef={barRef} className="sel-a" onPointerDown={(e) => e.stopPropagation()}>
       <Group><span className="sel-count">{plural(count, { one: '# selected', other: '# selected' })}</span></Group>
@@ -87,13 +86,9 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
           )}
         </Group>
       )}
-      {(group || cluster || move || tagMany) && (
+      {(group || cluster || move) && (
         <Group>
           {group && <Btn icon={BoundingBox} text={t({ message: 'Group', context: 'verb' })} keys="Mod+G" onClick={() => run('group-these')} />}
-          {tagMany && (
-            <Btn icon={Tag} text={t({ message: 'Tag', context: 'verb' })} aria-haspopup="dialog" aria-expanded={tagOpen} data-tag-many-trigger=""
-                 onClick={(e) => find(api.items(), 'tag')?.run?.(e.currentTarget.getBoundingClientRect())} />
-          )}
           {cluster && <Btn icon={FolderSimplePlus} label={cluster.label} onClick={() => run('new-cluster-from')} />}
           {move && (
             <MenuButton icon={ArrowBendUpRight} label={move.label} caret side="above" menuClassName="sel-a-menu sel-a-move">

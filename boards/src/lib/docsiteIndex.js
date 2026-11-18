@@ -30,7 +30,7 @@ export const DOCS_SECTIONS = [
   {
     "id": "organize",
     "label": "Organize and find",
-    "blurb": "Tags, links, mentions and search across everything."
+    "blurb": "Links, mentions and search across everything."
   },
   {
     "id": "collaborate",
@@ -193,7 +193,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.",
     "section": "start",
     "order": 2,
-    "updated": "2026-10-21",
+    "updated": "2026-11-17",
     "navLabel": "Core concepts",
     "headings": [
       {
@@ -245,7 +245,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -336,7 +336,7 @@ export const DOCS_PAGES = [
     "answer": "There is no connector to another app. Moving to Soleil Clusters means downloading your files and dragging them in, which is usually one drag: drop the folder, or the zip a cloud drive gives you, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.",
     "section": "start",
     "order": 4,
-    "updated": "2026-10-21",
+    "updated": "2026-11-17",
     "navLabel": "Coming from another tool",
     "headings": [
       {
@@ -460,7 +460,7 @@ export const DOCS_PAGES = [
     "answer": "A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.",
     "section": "canvas",
     "order": 1,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Cards",
     "headings": [
       {
@@ -524,7 +524,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Images",
     "headings": [
       {
@@ -596,7 +596,7 @@ export const DOCS_PAGES = [
     "answer": "A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.",
     "section": "canvas",
     "order": 3,
-    "updated": "2026-11-09",
+    "updated": "2026-11-17",
     "navLabel": "Notes",
     "headings": [
       {
@@ -660,7 +660,7 @@ export const DOCS_PAGES = [
     "answer": "Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.",
     "section": "canvas",
     "order": 4,
-    "updated": "2026-08-27",
+    "updated": "2026-11-17",
     "navLabel": "Shapes and drawing",
     "headings": [
       {
@@ -767,12 +767,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/canvas/groups",
     "title": "Groups — Soleil Clusters",
-    "metaDescription": "Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on, tagged and coloured as a unit.",
+    "metaDescription": "Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on and coloured as a unit.",
     "h1": "Groups",
-    "answer": "Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on and tagged as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.",
+    "answer": "Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.",
     "section": "canvas",
     "order": 6,
-    "updated": "2026-10-21",
+    "updated": "2026-11-17",
     "navLabel": "Groups",
     "headings": [
       {
@@ -788,8 +788,8 @@ export const DOCS_PAGES = [
         "text": "Moving and selecting"
       },
       {
-        "id": "comments-and-tags-on-a-group",
-        "text": "Comments and tags on a group"
+        "id": "comments-on-a-group",
+        "text": "Comments on a group"
       },
       {
         "id": "when-the-canvas-gets-crowded",
@@ -798,8 +798,7 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/canvas/cards",
-      "/docs/collaborate/comments",
-      "/docs/organize/tags"
+      "/docs/collaborate/comments"
     ],
     "faq": [
       {
@@ -1183,7 +1182,7 @@ export const DOCS_PAGES = [
     "answer": "Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.",
     "section": "files",
     "order": 1,
-    "updated": "2026-11-09",
+    "updated": "2026-11-17",
     "navLabel": "PDFs",
     "headings": [
       {
@@ -1363,7 +1362,7 @@ export const DOCS_PAGES = [
     "answer": "The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\\ hides Files, and F opens the full Files page.",
     "section": "clusters",
     "order": 0.5,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Sidebar",
     "headings": [
       {
@@ -1432,7 +1431,7 @@ export const DOCS_PAGES = [
     "answer": "Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.",
     "section": "clusters",
     "order": 1,
-    "updated": "2026-10-27",
+    "updated": "2026-11-17",
     "navLabel": "Files view",
     "headings": [
       {
@@ -1545,7 +1544,7 @@ export const DOCS_PAGES = [
     "answer": "Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Home",
     "headings": [
       {
@@ -1677,7 +1676,7 @@ export const DOCS_PAGES = [
     "answer": "A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, one row of formatting tools, tables you can grow, images, code blocks and embedded boards, real-time co-editing with visible cursors, and a side panel with every comment and a find and replace across all its pages. Open it full screen or docked beside the canvas.",
     "section": "documents",
     "order": 0,
-    "updated": "2026-10-24",
+    "updated": "2026-11-17",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1725,8 +1724,8 @@ export const DOCS_PAGES = [
         "text": "Undo"
       },
       {
-        "id": "comments-tags-and-links",
-        "text": "Comments, tags and links"
+        "id": "comments-and-links",
+        "text": "Comments and links"
       },
       {
         "id": "screenplays",
@@ -1773,7 +1772,7 @@ export const DOCS_PAGES = [
     "answer": "Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.",
     "section": "documents",
     "order": 1,
-    "updated": "2026-10-24",
+    "updated": "2026-11-17",
     "navLabel": "Screenplays",
     "headings": [
       {
@@ -1882,15 +1881,15 @@ export const DOCS_PAGES = [
     ]
   },
   {
-    "path": "/docs/documents/comments-and-tags",
-    "title": "Document Comments, Tags and Backlinks — Soleil Clusters",
-    "metaDescription": "Comment on a text range in a Soleil Clusters document, tag passages, confirm suggested entities from the margin, and see everywhere a document is referenced.",
-    "h1": "Comments, tags and backlinks in documents",
-    "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
+    "path": "/docs/documents/comments-and-backlinks",
+    "title": "Document Comments and Backlinks — Soleil Clusters",
+    "metaDescription": "Comment on a text range in a Soleil Clusters document, mention anything with @, and see everywhere a document is referenced.",
+    "h1": "Comments and backlinks in documents",
+    "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Type @ to mention a cluster, document, card or person, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-11-15",
-    "navLabel": "Comments and tags",
+    "updated": "2026-11-17",
+    "navLabel": "Comments and backlinks",
     "headings": [
       {
         "id": "comments-on-a-range",
@@ -1899,14 +1898,6 @@ export const DOCS_PAGES = [
       {
         "id": "every-comment-in-one-place",
         "text": "Every comment in one place"
-      },
-      {
-        "id": "tags-on-a-range",
-        "text": "Tags on a range"
-      },
-      {
-        "id": "suggested-entities",
-        "text": "Suggested entities"
       },
       {
         "id": "links-and-mentions",
@@ -1923,7 +1914,7 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/documents",
-      "/docs/organize/tags",
+      "/docs/organize/links-and-mentions",
       "/docs/collaborate/comments"
     ],
     "faq": [
@@ -1932,88 +1923,20 @@ export const DOCS_PAGES = [
         "a": "It follows the text. Comments anchor to the range, not to a character offset, so editing around them keeps them attached to the right passage."
       },
       {
-        "q": "What are the dots in the margins?",
-        "a": "Right margin is comments. Left margin is tags and suggested entities. Click one to open it."
-      },
-      {
-        "q": "Can I turn off the AI in documents?",
-        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. The automatic underlines stop and no text goes to a model. Suggested names still appear, without the AI's guess at what kind of name each is, and nothing becomes a tag until you accept it."
-      }
-    ]
-  },
-  {
-    "path": "/docs/organize/tags",
-    "title": "Tags and Entities — Soleil Clusters",
-    "metaDescription": "Tag cards, clusters and passages in Soleil Clusters, type tags as entities, and see everything carrying a tag on one page. The AI only suggests.",
-    "h1": "Tags and entities",
-    "answer": "A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.",
-    "section": "organize",
-    "order": 0,
-    "updated": "2026-11-09",
-    "navLabel": "Tags",
-    "headings": [
-      {
-        "id": "tagging",
-        "text": "Tagging"
-      },
-      {
-        "id": "lighting-a-tag-up-on-a-cluster",
-        "text": "Lighting a tag up on a cluster"
-      },
-      {
-        "id": "the-tag-page",
-        "text": "The tag page"
-      },
-      {
-        "id": "entity-types",
-        "text": "Entity types"
-      },
-      {
-        "id": "automatic-tagging",
-        "text": "Automatic tagging"
-      },
-      {
-        "id": "removing-deleting-and-merging-all-reversible",
-        "text": "Removing, deleting and merging — all reversible"
-      },
-      {
-        "id": "finding-by-tag",
-        "text": "Finding by tag"
-      }
-    ],
-    "related": [
-      "/docs/organize/links-and-mentions",
-      "/docs/documents/comments-and-tags",
-      "/docs/organize/search"
-    ],
-    "faq": [
-      {
-        "q": "Do tags move things?",
-        "a": "No. A tag is not a location. The same card can carry several tags and stays exactly where it is."
-      },
-      {
-        "q": "Does Clusters tag things without asking?",
-        "a": "Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested, and so is everything from pictures. Remove an automatic tag and it stays off that item for good."
-      },
-      {
-        "q": "What is an entity type?",
-        "a": "A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it."
-      },
-      {
-        "q": "Can I turn the AI off?",
-        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no text or picture to a model, and picture descriptions are deleted. Tags you add, and exact-name matches, still work. An AI app you connect yourself still reads what you ask it to."
+        "q": "What are the dots in the margin?",
+        "a": "Comments. Each commented passage has a dot in the right margin. Click one to open its thread."
       }
     ]
   },
   {
     "path": "/docs/organize/links-and-mentions",
     "title": "Links, Mentions and Backlinks — Soleil Clusters",
-    "metaDescription": "Mention any board, document, card, tag or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.",
+    "metaDescription": "Mention any board, document, card or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.",
     "h1": "Links and mentions",
-    "answer": "Type @ anywhere you can write to mention a cluster, document, card, tag or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.",
+    "answer": "Type @ anywhere you can write to mention a cluster, document, card or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.",
     "section": "organize",
     "order": 1,
-    "updated": "2026-10-20",
+    "updated": "2026-11-17",
     "navLabel": "Links and mentions",
     "headings": [
       {
@@ -2042,14 +1965,14 @@ export const DOCS_PAGES = [
       }
     ],
     "related": [
-      "/docs/organize/tags",
+      "/docs/organize/search",
       "/docs/canvas/notes",
       "/docs/documents"
     ],
     "faq": [
       {
         "q": "What can I mention?",
-        "a": "Clusters, documents, cards, notes, images, palettes, groups, tags, URLs and people. Each gets a preview appropriate to what it is."
+        "a": "Clusters, documents, cards, notes, images, palettes, groups, URLs and people. Each gets a preview appropriate to what it is."
       },
       {
         "q": "What are backlinks?",
@@ -2064,12 +1987,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/organize/search",
     "title": "Search and the Command Palette — Soleil Clusters",
-    "metaDescription": "Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.",
+    "metaDescription": "Cmd-K in Soleil Clusters searches clusters, cards, notes and docs, and runs commands — share, invite, trash, theme, settings — from the keyboard.",
     "h1": "Search and the command palette",
-    "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
+    "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents and files by name, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-11-09",
+    "updated": "2026-11-17",
     "navLabel": "Search",
     "headings": [
       {
@@ -2091,7 +2014,6 @@ export const DOCS_PAGES = [
     ],
     "related": [
       "/docs/keyboard-shortcuts",
-      "/docs/organize/tags",
       "/docs/clusters/list-view"
     ],
     "faq": [
@@ -2337,7 +2259,7 @@ export const DOCS_PAGES = [
     "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Comments",
     "headings": [
       {
@@ -2382,7 +2304,7 @@ export const DOCS_PAGES = [
       }
     ],
     "related": [
-      "/docs/documents/comments-and-tags",
+      "/docs/documents/comments-and-backlinks",
       "/docs/api/comments",
       "/docs/collaborate/notifications",
       "/docs/canvas/vote-cards"
@@ -2546,7 +2468,7 @@ export const DOCS_PAGES = [
     "answer": "Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.",
     "section": "publish",
     "order": 0,
-    "updated": "2026-10-11",
+    "updated": "2026-11-17",
     "navLabel": "Explore",
     "headings": [
       {
@@ -3071,7 +2993,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
@@ -3155,7 +3077,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-11-15",
+    "updated": "2026-11-17",
     "navLabel": "Data and privacy",
     "headings": [
       {
@@ -3240,7 +3162,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.",
     "section": "account",
     "order": 5.5,
-    "updated": "2026-11-05",
+    "updated": "2026-11-17",
     "navLabel": "Security",
     "headings": [
       {
@@ -3365,7 +3287,7 @@ export const DOCS_PAGES = [
     "answer": "The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.",
     "section": "developers",
     "order": 0,
-    "updated": "2026-10-27",
+    "updated": "2026-11-17",
     "navLabel": "API overview",
     "headings": [
       {
@@ -3377,8 +3299,8 @@ export const DOCS_PAGES = [
         "text": "Endpoints"
       },
       {
-        "id": "comments-docs-and-tags",
-        "text": "Comments, docs and tags"
+        "id": "comments-and-docs",
+        "text": "Comments and docs"
       },
       {
         "id": "authentication",
@@ -3976,62 +3898,6 @@ export const DOCS_PAGES = [
     ]
   },
   {
-    "path": "/docs/api/tags",
-    "title": "Tags API — List Tags and Tag Cards — Soleil Clusters",
-    "metaDescription": "List a Soleil Clusters workspace's tags over REST, see everything carrying one, and put tags on cards or take them off, by name or by id.",
-    "h1": "Tags API",
-    "answer": "GET /workspaces/:id/tags lists a workspace's tags, each with how many things carry it, and GET /tags/:id lists everything carrying one tag, on every board. GET /boards/:id/tags shows the tags on one board, and POST /boards/:id/tags puts tags on its cards or takes them off, by name or by id, exactly as the Tag menu in the app does.",
-    "section": "developers",
-    "order": 4.7,
-    "updated": "2026-10-25",
-    "navLabel": "Tags",
-    "headings": [
-      {
-        "id": "get-workspaces-id-tags",
-        "text": "GET /workspaces/:id/tags"
-      },
-      {
-        "id": "get-tags-id",
-        "text": "GET /tags/:id"
-      },
-      {
-        "id": "get-boards-id-tags",
-        "text": "GET /boards/:id/tags"
-      },
-      {
-        "id": "post-boards-id-tags",
-        "text": "POST /boards/:id/tags"
-      },
-      {
-        "id": "who-can-do-what",
-        "text": "Who can do what"
-      }
-    ],
-    "related": [
-      "/docs/organize/tags",
-      "/docs/api/cards",
-      "/docs/mcp"
-    ],
-    "faq": [
-      {
-        "q": "Does tagging a card by a new name make the tag?",
-        "a": "Yes, as typing a new name into the app's Tag menu does. The new tag then also goes on whatever else in the workspace says its name, marked auto, as a tag made in the app does."
-      },
-      {
-        "q": "Will automatic tagging put back a tag I removed?",
-        "a": "No. Taking a tag off a card over the API keeps it off that card for good, as removing it in the app does. Putting it back on yourself lifts that."
-      },
-      {
-        "q": "Who can tag things over the API?",
-        "a": "Tags belong to a workspace. Its members can read them, and anyone who can edit the workspace can tag things in it, as in the app. Someone a board is shared with sees no tags."
-      },
-      {
-        "q": "Can an AI assistant tag cards?",
-        "a": "Yes. The MCP server's list_tags and tag_cards tools are these endpoints, so an assistant can see how a workspace is tagged and tag the cards it is asked to."
-      }
-    ]
-  },
-  {
     "path": "/docs/api/images",
     "title": "Uploading Images via the API — Soleil Clusters",
     "metaDescription": "Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.",
@@ -4395,7 +4261,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-11-14",
+    "updated": "2026-11-17",
     "navLabel": "MCP",
     "headings": [
       {
@@ -4576,7 +4442,7 @@ export const DOCS_PAGES = [
     "answer": "Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.",
     "section": "developers",
     "order": 11,
-    "updated": "2026-10-25",
+    "updated": "2026-11-17",
     "navLabel": "Errors",
     "headings": [
       {
@@ -4623,12 +4489,12 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/api/webhooks",
     "title": "Webhooks — Soleil Clusters API",
-    "metaDescription": "Get notified when boards, cards, comments and tags change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
+    "metaDescription": "Get notified when boards, cards and comments change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.",
     "h1": "Webhooks",
-    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
+    "answer": "Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads and comments change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.",
     "section": "developers",
     "order": 12,
-    "updated": "2026-10-26",
+    "updated": "2026-11-17",
     "navLabel": "Webhooks",
     "headings": [
       {

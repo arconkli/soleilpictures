@@ -60,7 +60,7 @@ test('workspace AI off is 403', async () => {
   aiOn = false;
   const r = await call({ ...ok, q: '가나' });
   assert.equal(r.status, 403);
-  assert.equal((await r.json()).error, 'AI suggestions are off for this workspace');
+  assert.equal((await r.json()).error, 'AI for pictures and search is off for this workspace');
 });
 
 test('budget spent is 429', async () => {

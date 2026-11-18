@@ -63,8 +63,9 @@ function buildTrie(rows, aliases, ignored) {
 function addToTrie(trie, row, name, ignoredSet, seen) {
   const n = (name || '').trim();
   const low = n.toLowerCase();
-  // Chinese, Japanese and Korean names are short: two Han/Katakana/Hangul characters count (東京, 서울), as for tags in 0880.
+  // Chinese, Japanese and Korean names are short: two Han/Katakana/Hangul characters count (東京, 서울).
   if (!n || (isCompactScriptName(n) ? !longEnoughToSpread(n) : n.length < MIN_LEN)) return;
+  if (row.kind === 'tag') return; // the entity_search view still returns tag rows until its migration ships
   if (STOP_TERMS.has(low)) return;
   if (ignoredSet.has(low)) return;
   // Dedupe (kind,id,name) so the trie node has one record per entity.
@@ -168,13 +169,11 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     // so a re-mount with the same name returns the previously-
     // subscribed channel and `.on()` throws ("after subscribe").
     const sfx = Math.random().toString(36).slice(2, 9);
-    // One multiplexed channel carrying all five postgres_changes bindings
-    // (was five separate channels): same events, but a single websocket
-    // join + heartbeat slot per workspace instead of five. Tags are
-    // first-class entities (migration 0036) — a tag create/rename/delete
-    // rebuilds the trie so its name auto-underlines like any other entity.
+    // One multiplexed channel carrying all four postgres_changes bindings
+    // (was four separate channels): same events, but a single websocket
+    // join + heartbeat slot per workspace instead of five.
     const ch = supabase.channel(`trie:${workspaceId}:${sfx}`);
-    for (const table of ['boards', 'card_index', 'entity_aliases', 'entity_ignore_terms', 'tags']) {
+    for (const table of ['boards', 'card_index', 'entity_aliases', 'entity_ignore_terms']) {
       ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `workspace_id=eq.${workspaceId}` }, schedule);
     }
     ch.subscribe();
