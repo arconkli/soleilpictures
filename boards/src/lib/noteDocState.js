@@ -65,10 +65,9 @@ export function ensureNoteFragment(ydoc, cardYMap) {
 // yUndoPlugin creates + destroys its UndoManager with the editor view — so
 // every exit-edit used to wipe the note's undo history for good. Instead we
 // mint ONE UndoManager per fragment, cached here, and hand it to the editor
-// via Collaboration.configure({ yUndoOptions: { undoManager } }). The
-// extension-collaboration wrapper detaches it on unmount but leaves a
-// `restore` hook; reviving it on the next edit session brings the whole
-// history back. Config mirrors yUndoPlugin's defaults exactly (trackedOrigins
+// via Collaboration.configure({ yUndoOptions: { undoManager } }). Editors
+// only borrow it, so no editor may switch it off (see below), and the next
+// edit session finds the whole history there. Config mirrors yUndoPlugin's defaults exactly (trackedOrigins
 // = the sync plugin's origin, protected paragraphs, addToHistory opt-out) —
 // checklist toggles from the read-only display are deliberately NOT tracked
 // here (they transact under 'local' and belong to the board UndoManager,
@@ -88,12 +87,17 @@ export function getNoteUndoManager(ydoc, cardYMap) {
       captureTransaction: (tr) => tr.meta.get('addToHistory') !== false,
       captureTimeout: 500,
     });
+    // An editor that closes destroys its undo manager (y-prosemirror's undo
+    // plugin), and one can close while another is already open on the same
+    // note: React's dev mode builds every editor twice and drops the spare a
+    // moment after the real one is up, and a note card that mounts afresh
+    // mid-edit does the same in production. That destroy left the open editor
+    // recording nothing, so Undo stayed grey while typing. The manager lives
+    // as long as the board's Y.Doc instead, whose own destroy drops the
+    // manager's afterTransaction handler. Tiptap's restore hook, run when an
+    // editor opens, stays harmless: everything it re-adds is already there.
+    um.destroy = () => {};
     noteUndoManagers.set(frag, um);
-  } else if (typeof um.restore === 'function') {
-    // Dormant manager from a previous edit session — reattach it (idempotent:
-    // lib0 observer sets dedupe the handler references).
-    try { um.restore(); } catch (_) {}
-    um.restore = () => {};
   }
   return um;
 }

@@ -21,6 +21,29 @@ async function bootSigned(page) {
   });
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 60000 });
 }
+// Draw armed the way a finger does it: the rail's tool on a sideways iPad, the
+// + sheet's Draw tile on the phone's shell (no rail there).
+async function armDraw(page) {
+  if (mobileShell(page)) {
+    await expect(page.locator('.cnv-tools')).toHaveCount(0);
+    await page.getByLabel('Add a card').first().tap();
+    await page.locator('.mobile-add-tile').filter({ has: page.locator('.mobile-add-lbl', { hasText: /^Draw$/ }) }).tap();
+  } else {
+    await page.locator('.cnv-tools [aria-label="Free-draw tool"]').tap();
+  }
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
+}
+// Inside a cluster the phone's shell has no tab bar: Home has it, by the ☰
+// drawer's Home row.
+async function homeTab(page, name) {
+  await expect(page.locator('.mb-nav')).toHaveCount(0);
+  await page.getByLabel('Open menu').first().tap();
+  const drawer = page.locator('.sidebar.is-mobile-open');
+  await expect(drawer).toBeVisible();
+  await drawer.locator('.sbf-quickbtn', { hasText: 'Home' }).tap();
+  await expect(page.locator('.app.is-home')).toHaveCount(1);
+  await page.locator('.mb-nav-tab', { hasText: name }).tap();
+}
 async function bootLocal(page, extra = '') {
   await page.goto(`/?local=1&reset=1${extra}`);
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
@@ -114,7 +137,7 @@ test.describe('fields', () => {
 test.describe('the board', () => {
   test('Done, which leaves Draw, takes 40px', async ({ page }) => {
     await bootLocal(page);
-    await page.locator('.cnv-tools [aria-label="Free-draw tool"]').tap();
+    await armDraw(page);
     const done = page.locator('.cnv-hint-btn', { hasText: 'Done' });
     await expect(done).toBeVisible();
     await expectFinger(page, ['.cnv-hint-btn']);
@@ -167,8 +190,8 @@ test.describe('the board', () => {
   });
 
   for (const width of [390, 320]) {
-    test(`the plan chip takes 40px and leaves Draw's Done clear at ${width} wide`, async ({ page }) => {
-      test.skip(page.viewportSize().width > 640, 'a phone: the chip sits under the top bar there');
+    test(`the plan chip takes 40px in the drawer and leaves Draw's Done clear at ${width} wide`, async ({ page }) => {
+      test.skip(page.viewportSize().width > 640, 'a phone: the chip is the drawer\'s last row there');
       await page.setViewportSize({ width, height: page.viewportSize().height });
       await page.addInitScript(() => { try { sessionStorage.setItem('soleil.revealSession', '1'); } catch (_) {} });
       // A free account with enough cards for the chip to show.
@@ -176,17 +199,37 @@ test.describe('the board', () => {
         rpc: { get_my_tier: [{ tier: 'demo', demo_card_count: 20, onboarding: { seeded: true, done: true } }] },
       });
       await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 60000 });
-      await expect(page.locator('.upgrade-chip')).toBeVisible({ timeout: 15000 });
-      // Something lies over the chip while the board settles in: measured once
-      // the chip is on top.
-      await expect.poll(async () => (await hitBox(page.locator('.upgrade-chip'))).covered, { timeout: 10000 }).toBe(false);
-      await expectFinger(page, ['.upgrade-chip']);
-      await page.locator('.cnv-tools [aria-label="Free-draw tool"]').tap();
+      const chip = page.locator('.upgrade-chip');
+      await expect(page.locator('.mb-add-fab')).toBeVisible({ timeout: 30000 });
+      await expect(chip).toBeAttached({ timeout: 15000 });
+      await expect(chip).toBeHidden();
+      // Draw is a tile of the + sheet, which an empty board's + doesn't open:
+      // a first note, from the empty panel.
+      await page.locator('.cnv-empty-tile').filter({ hasText: /note/i }).first().tap();
+      await expect(page.locator('.card .note-body[contenteditable="true"]')).toBeFocused();
+      await page.keyboard.type('One');
+      await page.locator('.topbar .tb-done').tap();
+      await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
+      await armDraw(page);
       await expect(page.locator('.cnv-hint-btn')).toBeVisible();
-      // A toast passing over the chip (the stack sits there on a phone) is not
-      // Done: wait it out, as above. Done lying on the chip would never clear.
-      await expect.poll(async () => (await hitBox(page.locator('.upgrade-chip'))).covered, { timeout: 10000 }).toBe(false);
-      await expectFinger(page, ['.cnv-hint-btn', '.upgrade-chip']);
+      // Done is clear: the chip is not on the board to lie over it.
+      await expect(chip).toBeHidden();
+      await expect.poll(async () => (await hitBox(page.locator('.cnv-hint-btn'))).covered, { timeout: 10000 }).toBe(false);
+      await expectFinger(page, ['.cnv-hint-btn']);
+      await page.locator('.cnv-hint-btn').tap();
+      await expect(page.locator('.cnv-hint-btn')).toHaveCount(0);
+      // Over a cluster the chip keeps out of the way: it is the last row of
+      // the ☰ drawer, and a finger takes it there.
+      await page.getByLabel('Open menu').first().tap();
+      const drawer = page.locator('.sidebar.is-mobile-open');
+      await expect(drawer).toBeVisible();
+      await expect(chip).toBeVisible();
+      // Measured once the drawer has stopped sliding and the chip is on top.
+      await expect.poll(async () => (await hitBox(chip)).covered, { timeout: 10000 }).toBe(false);
+      await expectFinger(page, ['.upgrade-chip']);
+      await drawer.locator('.sb-mid-collapse').tap();
+      await expect(drawer).toHaveCount(0);
+      await expect(chip).toBeHidden();
     });
   }
 
@@ -247,7 +290,7 @@ test.describe('Settings', () => {
   test('close, back, the mode pills and the accent dots take 40px; no wheel or W A S D rows', async ({ page }) => {
     shellOnly(page);
     await bootSigned(page);
-    await page.locator('.mb-nav-tab', { hasText: 'Settings' }).tap();
+    await homeTab(page, 'Settings');
     const modal = page.locator('.settings-modal');
     await expect(modal).toBeVisible();
     await modal.locator('.settings-tab', { hasText: 'Appearance' }).tap();
@@ -318,7 +361,7 @@ test.describe('Messages', () => {
   test('an empty list says Tap +, not Click', async ({ page }) => {
     shellOnly(page);
     await bootSigned(page);
-    await page.locator('.mb-nav-tab', { hasText: 'Messages' }).tap();
+    await homeTab(page, 'Messages');
     const empty = page.locator('.msg-empty').first();
     await expect(empty).toBeVisible({ timeout: 15000 });
     await expect(empty).toContainText('Tap');

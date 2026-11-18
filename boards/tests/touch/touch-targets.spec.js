@@ -149,9 +149,27 @@ async function drawTool(page) {
   await page.locator('.tob').waitFor();
   return true;
 }
+// A tile of the phone shell's add sheet (no rail there: the + and its sheet).
+async function sheetTile(page, name) {
+  await page.getByRole('button', { name: 'Add a card' }).first().tap();
+  await page.locator('.mobile-add-tile')
+    .filter({ has: page.locator('.mobile-add-lbl', { hasText: new RegExp(`^${name}$`) }) }).tap();
+  await page.locator('.mobile-add-grid').waitFor({ state: 'detached' });
+}
 async function shapeTool(page) {
-  await tapOn(page, '.cnv-tools [aria-label="Add menu"]');
-  await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
+  if (await tapOn(page, '.cnv-tools [aria-label="Add menu"]')) {
+    await page.locator('.cnv-add-menu [role="menuitem"][aria-label="Shape"]').tap();
+  } else {
+    // The sheet's Shape puts a shape on the board; picked, its bar is up.
+    const shapes = page.locator('.canvas-wrap .card.card-kind-shape');
+    const ids = () => shapes.evaluateAll((els) => els.map((el) => el.getAttribute('data-card-id')));
+    const had = await ids();
+    await sheetTile(page, 'Shape');
+    await expect(shapes).toHaveCount(had.length + 1);
+    const made = (await ids()).find((id) => !had.includes(id));
+    await page.waitForTimeout(600);   // the view may move to show it
+    await page.locator(`.canvas-wrap .card[data-card-id="${made}"]`).tap();
+  }
   await page.locator('.tob').waitFor();
   return true;
 }
@@ -230,6 +248,15 @@ const PAGES = [
   // ── The canvas's bars ──
   { name: 'add menu', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: (page) => tapOn(page, '.cnv-tools [aria-label="Add menu"]'), scope: '.cnv-add-menu' },
+  // The phone shell's: the + and the sheet it opens.
+  { name: 'add sheet', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
+    open: async (page) => {
+      if (await page.locator('.cnv-tools').count()) return false;
+      await page.getByRole('button', { name: 'Add a card' }).first().tap();
+      await page.locator('.mobile-add-grid').waitFor();
+      await page.waitForTimeout(350);   // the sheet slides up
+      return true;
+    }, scope: '.mobile-add-grid' },
   { name: 'a card picked', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
       await page.locator('.canvas-wrap .card[data-card-id="home-note"]').tap();
@@ -292,7 +319,7 @@ const PAGES = [
     scope: '.sb-more' },
   { name: 'arrow bar', url: '/?local=1&reset=1', ready: '.canvas-wrap .card',
     open: async (page) => {
-      await page.locator('.cnv-tools [aria-label="Arrow tool"]').tap();
+      if (!(await tapOn(page, '.cnv-tools [aria-label="Arrow tool"]'))) await sheetTile(page, 'Arrow');
       await page.locator('.tob').waitFor();
       return true;
     }, scope: '.tob' },

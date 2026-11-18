@@ -8,16 +8,21 @@ import { expect, test } from '@playwright/test';
 // options bar hidden behind the bottom nav, and a pinch in draw mode painting a
 // smear across the board.
 //
+// The mobile shell has no rail now: Draw is a tile of the + sheet. An empty
+// board's + goes straight to photos, so the board here starts with three
+// pictures on it (?mixqa=3) and the + opens the sheet.
+//
 // Touch-only behaviour, so skip the mouse project throughout.
 
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome', 'these are touch interactions');
-  await page.goto('/?local=1&reset=1&blank=1');
+  await page.goto('/?local=1&reset=1&blank=1&mixqa=3');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await expect(page.locator('.card[data-card-id="mixqa-0"]')).toBeVisible();
   // What only the dev harness draws: its tweaks gear, which on a phone sits
   // over the end of the toolbar look's draw bar, where Canvas is.
   await page.addStyleTag({ content: '.twk-gear { display: none !important; }' });
-  // The blank board settles before the rail is safe to drive.
+  // The board settles before the + is safe to drive.
   await page.waitForTimeout(1000);
 });
 
@@ -48,14 +53,24 @@ async function fingerStroke(page, selector, { from, to, steps = 12, pointerId = 
   }, { selector, from, to, steps, pointerId });
 }
 
+// Draw, the way a finger reaches it on the mobile shell: the +, then the
+// sheet's Draw tile.
+async function pickDraw(page) {
+  await page.getByRole('button', { name: 'Add a card' }).tap();
+  const tile = page.locator('.mobile-add-tile').filter({ has: page.locator('.mobile-add-lbl', { hasText: /^Draw$/ }) });
+  await expect(tile).toBeVisible();
+  await tile.tap();
+  await expect(page.locator('.mobile-add-grid')).toHaveCount(0);
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
+}
 
 test.describe('board', () => {
-  test('draw is on the rail, and a finger stroke commits to the board', async ({ page }) => {
+  test('draw is in the + sheet, and a finger stroke commits to the board', async ({ page }) => {
     // Reachability: on a desktop D reaches Draw instantly, but a touch device
-    // has no keyboard — the rail is the only sane way in.
-    const drawTool = page.getByRole('button', { name: 'Free-draw tool', exact: true });
-    await expect(drawTool).toBeVisible();
-    await drawTool.click();
+    // has no keyboard, and the mobile shell has no rail — the + sheet is the
+    // way in.
+    await expect(page.locator('.cnv-tools')).toHaveCount(0);
+    await pickDraw(page);
     await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
 
     const before = await page.locator('.strokes-layer path').count();
@@ -71,7 +86,7 @@ test.describe('board', () => {
     // which meant the colour you were drawing with faded out the instant you
     // touched the canvas and popped back ~700ms after you lifted. The rail is
     // worth hiding — it sits over the drawing area. The bar you are USING is not.
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.waitForTimeout(300);
     const mid = await page.evaluate(async () => {
       const el = document.querySelector('.canvas-wrap');
@@ -95,7 +110,7 @@ test.describe('board', () => {
   });
 
   test('the draw options bar is fully on screen, clear of the bottom nav', async ({ page }) => {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     const tob = page.locator('.tob');
     await expect(tob).toBeVisible();
 
@@ -118,7 +133,7 @@ test.describe('board', () => {
   test('a finger can select strokes with the lasso', async ({ page }) => {
     // The reason the lasso exists: one-finger touch on the select tool pans, so
     // the marquee is mouse/stylus-only and a finger could not select anything.
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await fingerStroke(page, '.canvas-wrap', { from: { x: 200, y: 300 }, to: { x: 280, y: 340 } });
     await page.waitForTimeout(250);
     expect(await page.locator('.strokes-layer path').count()).toBe(2);
@@ -157,7 +172,7 @@ test.describe('board', () => {
   });
 
   test('the sketch pad is reachable from the draw options', async ({ page }) => {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     const canvasBtn = page.locator('.tob-canvas-btn');
     await expect(canvasBtn).toBeVisible();
     await canvasBtn.click();
@@ -167,7 +182,7 @@ test.describe('board', () => {
 
 test.describe('sketch pad', () => {
   test.beforeEach(async ({ page }) => {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.locator('.tob-canvas-btn').click();
     await expect(page.locator('.sketchpad-surface')).toBeVisible();
   });
@@ -245,14 +260,14 @@ test.describe('sketch pad', () => {
 // check passes on all of it. Measure against the CLIPPING ANCESTOR instead.
 test.describe('everything fits', () => {
   async function openPad(page) {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.locator('.tob-canvas-btn').click();
     await expect(page.locator('.sketchpad-surface')).toBeVisible();
     await page.waitForTimeout(200);
   }
 
   test('the board draw bar holds every control without scrolling', async ({ page }) => {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.waitForTimeout(250);
     const overflow = await page.evaluate(() => {
       const el = document.querySelector('.tob');
@@ -265,7 +280,7 @@ test.describe('everything fits', () => {
     // The brush, the colour and the width are one chip's menu; the chip is what
     // keeps that honest. A picker you can reach is worth nothing if the bar can
     // no longer tell you what is selected.
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.waitForTimeout(250);
     // It shows the colour and the width it draws with, and opens a menu of the
     // three.
@@ -359,7 +374,7 @@ test.describe('two fingers', () => {
   });
 
   test('pinching in draw mode leaves no stray stroke on the board', async ({ page }) => {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     const before = await page.locator('.strokes-layer path').count();
 
     const cdp = await page.context().newCDPSession(page);
@@ -393,7 +408,7 @@ test.describe('two fingers', () => {
   });
 
   test('pinching in the sketch pad zooms it', async ({ page }) => {
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.locator('.tob-canvas-btn').click();
     await expect(page.locator('.sketchpad-surface')).toBeVisible();
     await expect(page.locator('.sp-zoom-reset')).toHaveCount(0);
@@ -426,7 +441,7 @@ test.describe('two fingers', () => {
 test.describe('pad zoom', () => {
   test('drawing while the pad is zoomed lands where the finger is', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'CDP touch dispatch is Chromium-only');
-    await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+    await pickDraw(page);
     await page.locator('.tob-canvas-btn').first().click();
     await expect(page.locator('.sketchpad-surface')).toBeVisible();
     await page.waitForTimeout(300);

@@ -5,8 +5,8 @@ h1: Mobile and tablet
 navLabel: Mobile and tablet
 section: account
 order: 4
-updated: 2026-11-17
-answer: Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
+updated: 2026-11-18
+answer: Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom and long-press menus. Inside a cluster on a phone or an upright iPad the board gets the whole screen, with one + at the bottom for adding and the menu top left for everything else. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 faq:
   - q: Is there a real app?
     a: Not in the app stores yet. Clusters runs in the mobile browser and can be added to your home screen from the browser's share or menu button, where it opens full-screen without browser chrome. Native iOS and Android builds are in development and will be announced in the changelog when they ship.
@@ -17,7 +17,7 @@ faq:
   - q: How do I select several cards with a finger?
     a: Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out.
   - q: How do I type in a note on a phone?
-    a: Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done.
+    a: Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done. While you type, the board's other buttons step back, and Done in the top bar finishes too and puts the keyboard away.
   - q: Is anything unavailable on mobile?
     a: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.
 related:
@@ -72,6 +72,14 @@ and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The
 keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in
 any text field.
 
+On a phone or an upright iPad, while you type on a board (a note, a grid cell, a
+caption, a link's title or a cluster's name), the board's other buttons step
+back until you finish. The top bar keeps Undo and Redo and shows **Done**. A
+note's formatting row rests right on top of the keyboard. **Done**, or a tap on
+the board, finishes typing and puts the keyboard away. When a note's words
+would be small, or would sit under the keyboard, the board moves and zooms in so
+the note you are typing stays above the keyboard.
+
 With the draw tool active, one finger draws and two fingers still pinch-zoom.
 Starting a pinch part-way through a stroke discards that stroke rather than
 smearing it across the board as the canvas moves underneath — the failure that
@@ -84,7 +92,7 @@ top, and a row of tiles holds the quick actions. A row with a **›** (**Arrange
 **Export**, **Tidy up**, **Move to cluster**) steps into the menu itself instead
 of opening beside it. Inside a submenu a **Back** row goes back a level, and a list
 inside a list works the same way, one level at a time. A menu taller than the
-screen stops above the bottom bar and scrolls.
+screen stops above the bottom bar, where there is one, and scrolls.
 
 On an iPad held sideways, a tap on a row with a **›** opens its list beside the
 menu and leaves it open. A list's own list, such as a group's **Outline shape**,
@@ -135,14 +143,25 @@ switch is kept on that device, not on your account.
 
 **Bottom navigation** replaces the sidebar — Home, the current board, Messages,
 and more.
+It shows outside a cluster, on Home, Messages and the like. Inside a cluster
+the board gets the whole screen: there is no bottom bar, no tools down the left
+edge and no "Add images" banner. Moving around is the same: drag to move, pinch
+to zoom, hold and drag to select.
 
 **The top bar** keeps what you reach for on the board: the cluster's name,
 Undo, Redo, who else is here, and Share.
+Inside a cluster, **Comments** is a button there too. Redo appears only after
+you undo, and the dot that shows the live connection appears only when someone
+else is in the cluster or the connection is lost.
 
 **A drawer**, behind **Open menu**, holds the [sidebar](/docs/clusters/sidebar#on-a-phone)
 — Home, Messages, the cluster tree and every cluster's Files — with Search,
 Version history, Focus view and Help. ⤢ on its Files opens the full Files
 page.
+**Open menu** is the ☰ at the top left. Home, Search, Messages and Settings are
+in it, and the ☰ shows a dot when Messages has something unread. On the free
+plan, the plan reminder (the upgrade pill) shows in the menu instead of on the
+board.
 Tap a cluster to open it. Hold one to pick it up, then drag it onto another
 cluster to nest it there; hold and let go without moving for its menu —
 rename, colour, delete. A swipe that starts on a row just scrolls the list.
@@ -169,8 +188,12 @@ menu does that instead.
 drawer, a sheet or Settings, instead of leaving the app. Once nothing is open
 on top, Back returns to the cluster you were on before.
 
-**The add sheet**, behind the **+** in the middle of the bottom bar, lays out
-everything you can add across the screen, sized for thumbs. The tool rail keeps
+**The add sheet**, behind the **+** at the bottom of the board, lays out
+everything you can add across the screen, sized for thumbs: photos, notes,
+docs, clusters, grids, files, links, drawing, arrows, comments, votes and the
+rest. Someone who can only comment on a cluster gets a **+** that places a
+comment, and someone who can only view it sees no **+**. On an iPad held
+sideways the tool rail keeps
 its own `+`, whose menu opens beside the rail. A new card lands in free space
 where you are looking, and a new note or document zooms in so you can read and
 type in it.
@@ -206,7 +229,8 @@ give the board room. Tap **Show** to open them; your choice is kept.
 Turning an iPad keeps the board where it was.
 
 **Drawing** is on the rail directly on touch, and in the add sheet, rather than
-behind the `D` shortcut there is no keyboard for. A stylus draws with pressure;
+behind the `D` shortcut there is no keyboard for. On a phone or an upright iPad,
+where a cluster has no rail, it is in the add sheet. A stylus draws with pressure;
 flipping it over erases. The full-screen [sketch pad](/docs/canvas/shapes-and-drawing#the-sketch-pad)
 goes edge to edge, with pinch-to-zoom inside the frame for detail work. Its
 chrome is two rows that never scroll — leaving and committing on one, the tools

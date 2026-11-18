@@ -2,7 +2,7 @@
 
 > A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-11-17_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/comments · Updated 2026-11-18_
 
 Comments attach to the thing they are about. This is the whole design: feedback
 that lives in a sidebar, ordered by time, loses the connection to what it
@@ -21,7 +21,8 @@ referred to within a day.
 Right-click a card, a group or the empty canvas and choose the comment item
 (on a phone, touch and hold), or use the rail's **+** → *Annotate* →
 **Comment** and click what it is about. A box opens right there, beside the
-spot its pin will sit on.
+spot its pin will sit on. On a phone or an upright iPad, **Comment** is in the
+sheet the **+** at the bottom of the board opens.
 
 A comment on the board as a whole has no place on the canvas, so it has no pin:
 it shows in the comments list. Those come from the [API](/docs/api/comments) or
@@ -55,7 +56,8 @@ Delete a card and its comments go with it; restore the card and they come back.
 ## The comments list
 
 The comments button at the top left of the board shows how many conversations
-are open, with a dot when one is unread. Press it for the list:
+are open, with a dot when one is unread. On a phone or an upright iPad it is
+in the top bar. Press it for the list:
 
 | Tab | Holds |
 |---|---|

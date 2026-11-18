@@ -27,11 +27,13 @@ const tile = (page, name) => page.locator('.ctx-quick').getByRole('menuitem', { 
 
 async function boot(page, { width, height, blank = false } = {}) {
   if (width) await page.setViewportSize({ width, height });
-  await page.goto(`/?local=1&reset=1${blank ? '&blank=1' : ''}`);
+  // A bare board with three pictures: the phone's + opens the add sheet there
+  // (an empty board's + goes straight to photos).
+  await page.goto(`/?local=1&reset=1${blank ? '&blank=1&mixqa=3' : ''}`);
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
   // What only the dev harness draws, over the corner a menu opens in.
   await page.addStyleTag({ content: '.twk-gear { display: none !important; }' });
-  if (blank) await expect(page.getByRole('button', { name: 'Free-draw tool', exact: true })).toBeVisible({ timeout: 30000 });
+  if (blank) await expect(card(page, 'mixqa-0')).toBeVisible({ timeout: 30000 });
   else await expect(card(page, 'home-image')).toBeVisible({ timeout: 30000 });
 }
 
@@ -216,9 +218,25 @@ test('a group\'s Outline shape steps a level deeper, ‹ comes back a level at a
 test('the canvas menu\'s Export steps in and stays on screen', async ({ page, browserName }) => {
   phoneOnly();
   await boot(page, { width: 320, height: 568 });
-  const wrap = await page.locator('.canvas-wrap').boundingBox();
-  // Empty canvas, top right (as long-press.spec.js).
-  await hold(page, wrap.x + wrap.width * 0.92, wrap.y + 80, browserName);
+  // Empty canvas: with no rail the board fits the whole width, so a fixed
+  // corner can have a card in it. The first spot with nothing on it.
+  const spot = await page.evaluate(() => {
+    const wrap = document.querySelector('.canvas-wrap');
+    const r = wrap.getBoundingClientRect();
+    const bare = (x, y) => {
+      const el = document.elementFromPoint(x, y);
+      return !!el && wrap.contains(el) && !el.closest('.card, button, .tob, .sel-menu, .cnv-hint, .cnv-studio-bar, .upgrade-chip, .strokes-layer path');
+    };
+    for (let y = r.top + 80; y < r.bottom - 140; y += 20) {
+      for (let x = r.right - 24; x > r.left + 24; x -= 20) {
+        // Room for a fingertip: the spot and its neighbours are bare.
+        if (bare(x, y) && bare(x - 16, y) && bare(x + 16, y) && bare(x, y - 16) && bare(x, y + 16)) return { x, y };
+      }
+    }
+    return null;
+  });
+  expect(spot, 'an empty spot on the board').not.toBeNull();
+  await hold(page, spot.x, spot.y, browserName);
   await expect(menu(page)).toBeVisible();
   await expectOnScreen(page);
   const exportRow = menu(page).locator('.ctx-has-submenu', { hasText: 'Export' });
@@ -284,7 +302,10 @@ test('a scrolling menu fades at its foot while more rows wait, and not at its en
 test('a selected drawing is deleted from the canvas menu, and Undo brings it back', async ({ page, browserName }) => {
   phoneOnly();
   await boot(page, { blank: true });
-  await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
+  // No rail on a phone: Draw is a tile of the + sheet.
+  await page.getByRole('button', { name: 'Add a card' }).tap();
+  await page.locator('.mobile-add-tile').filter({ has: page.locator('.mobile-add-lbl', { hasText: /^Draw$/ }) }).tap();
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-draw/);
   const wrap = await page.locator('.canvas-wrap').boundingBox();
   await page.evaluate(async () => {
     const el = document.querySelector('.canvas-wrap');
@@ -304,7 +325,9 @@ test('a selected drawing is deleted from the canvas menu, and Undo brings it bac
   // A stroke is two paths: its hit halo and its line.
   await expect(paths).toHaveCount(2);
 
-  await page.getByRole('button', { name: 'Select tool', exact: true }).click();
+  // Back to Select by the draw hint's button.
+  await page.locator('.cnv-hint button').tap();
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-select/);
   const x = wrap.x + 230, y = wrap.y + 340;
   await page.touchscreen.tap(x, y);
   // Selected, it wears a third: its highlight.
@@ -333,10 +356,11 @@ test('a photo\'s menu opens it full size', async ({ page }) => {
   await expect(page.locator('.lightbox-img')).toBeVisible();
 });
 
-// The signed-in phone shell has a tab bar fixed to the foot of the screen
-// (.mb-nav); ?local=1 has none. The menu is a sheet that covers it (plan.md,
-// steps 2-3: "covers the tab bar"), and its last row can be reached.
-test('signed in, a card\'s menu covers the tab bar and its last row can be tapped', async ({ page }) => {
+// Signed in, a cluster has a floating + at the foot of the screen where the
+// tab bar's was (.mb-add-fab; no tab bar inside a cluster). The menu is a
+// sheet that covers it (plan.md, steps 2-3: "covers the tab bar"), and its
+// last row can be reached.
+test('signed in, a card\'s menu covers the + and its last row can be tapped', async ({ page }) => {
   phoneOnly();
   await page.setViewportSize({ width: 375, height: 667 });
   await page.addInitScript(() => { try { sessionStorage.setItem('soleil.revealSession', '1'); } catch (_) {} });
@@ -344,19 +368,24 @@ test('signed in, a card\'s menu covers the tab bar and its last row can be tappe
     rpc: { get_my_tier: [{ tier: 'demo', demo_card_count: 0, onboarding: { seeded: true, done: true } }] },
   });
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 60000 });
-  const nav = page.locator('.mb-nav');
+  const nav = page.locator('.mb-add-fab');
   await expect(nav).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('.mb-nav')).toHaveCount(0);
 
-  const wrap = await page.locator('.canvas-wrap').boundingBox();
-  await page.getByRole('button', { name: 'Add note tool', exact: true }).tap();
-  await page.touchscreen.tap(wrap.x + wrap.width * 0.55, wrap.y + wrap.height * 0.3);
-  await page.keyboard.type('Opening shot');
+  // The empty board's first note comes from the empty panel's Note tile.
+  await page.locator('.cnv-empty-tile').filter({ hasText: /note/i }).first().tap();
   const note = page.locator('.card').first();
   await expect(note).toBeVisible();
-  // Out of the note, and nothing selected.
-  for (let i = 0; i < 2; i++) {
+  await expect.poll(() => page.evaluate(() => !!document.activeElement?.isContentEditable)).toBe(true);
+  await page.keyboard.type('Opening shot');
+  // Out of the note by the top bar's Done, and nothing selected.
+  await page.locator('.topbar .tb-done').tap();
+  await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
+  await expect(nav).toBeVisible();
+  if (await page.locator('.card.is-selected').count()) {
+    const wrap = await page.locator('.canvas-wrap').boundingBox();
     await page.touchscreen.tap(wrap.x + wrap.width * 0.85, wrap.y + wrap.height * 0.9);
-    await page.waitForTimeout(350);
+    await expect(page.locator('.card.is-selected')).toHaveCount(0);
   }
   const b = await note.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height - 6);
@@ -365,8 +394,8 @@ test('signed in, a card\'s menu covers the tab bar and its last row can be tappe
   await more.tap();
   await expect(menu(page)).toBeVisible();
 
-  // The sheet is on top where the tab bar is: a finger there lands in the
-  // sheet, not on a tab.
+  // The sheet is on top where the + is: a finger there lands in the sheet,
+  // not on the +.
   const n = await nav.boundingBox();
   const v = page.viewportSize();
   await expect.poll(async () => {

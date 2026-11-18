@@ -5,7 +5,7 @@ h1: Presence
 navLabel: Presence
 section: collaborate
 order: 2
-updated: 2026-11-15
+updated: 2026-11-18
 answer: When several people are in a cluster you see each other's cursors, selections and text carets live. A facepile shows who is on the current board, and a workspace facepile shows who is anywhere in the workspace — clicking someone jumps you to whatever board they are on. Everyone has a stable colour that stays the same across sessions.
 faq:
   - q: Can I see what someone is looking at without asking?
@@ -29,6 +29,10 @@ having to say.
 - **Selection halos** — what someone has selected is outlined in their colour
 - **Text carets** inside [notes](/docs/canvas/notes) and [documents](/docs/documents), so you can see where someone is typing before the words appear
 - **A facepile** in the header — each person's picture, or their initial on their colour until they add one — with the full roster on click
+
+On a phone or an upright iPad, the dot in the top bar that shows the live
+connection appears only when someone else is in the cluster or the connection
+is lost.
 
 ## Across the workspace
 

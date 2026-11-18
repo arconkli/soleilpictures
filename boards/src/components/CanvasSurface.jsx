@@ -548,6 +548,8 @@ const ADD_ZOOM_TOP = 24;
 const ADD_ZOOM_SHARE = 0.8;
 const ADD_ZOOM_MAX = 1.5;
 const ADD_ZOOM_MS = 300;
+// A note's text under this many px on screen is too small to type in.
+const EDIT_READ_PX = 15;
 // Below this canvas width a fit-everything open is a phone, not a desktop.
 const NARROW_FIT_MAX_W = 640;
 // How many cards a public board should span on a phone when fitting everything
@@ -797,6 +799,10 @@ function noteWordCommentCount(ydoc, c) {
   return n;
 }
 
+// The surfaces with card text being typed now: body[data-text-editing] stays
+// while any of them holds it (see "Writing mode" below).
+const textEditingOwners = new Set();
+
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
   gridTemplates = {},      // id → { id, name, layout }  — shared Grid layouts
@@ -871,6 +877,7 @@ export function CanvasSurface({
                            // shapes the first board's headline and hero verb.
   firstBoardLinks = false, // the hint names pasted links too (where the setup runs)
   firstBoardJoin = null,   // { ws, by }: someone else's workspace with nothing in it
+  commentsSlot = null,     // the top bar's element for the Comments button (mobile shell)
                            // yet; the empty board names it and whose it is.
   freshProject = false,    // an empty TOP-LEVEL cluster (a project): it gets the
                            // first board's treatment — material from elsewhere,
@@ -2742,8 +2749,10 @@ export function CanvasSurface({
 
   // Mix wins the dock outright where the two bands overlap: at 3-5 images with
   // no writing both are true, and "add more of the thing that doesn't predict
-  // return" is the offer being corrected.
-  const depthDockEligible = !mixPromptVisible && dockAllowed('depth') && shouldShowDepthDock({
+  // return" is the offer being corrected. Never on the mobile shell, where the
+  // floating + is the one way to add: ineligible, so it neither claims the
+  // upsell slot nor logs as shown.
+  const depthDockEligible = !mobileShell && !mixPromptVisible && dockAllowed('depth') && shouldShowDepthDock({
     genuine: depthGenuineCount,
     dismissed: depthDockDismissed,
     canEdit,
@@ -4584,10 +4593,17 @@ export function CanvasSurface({
   const pickPhotosAtRef = useRef(null);
   // revealAdded is declared further down too (it needs the camera tween).
   const revealAddedRef = useRef(null);
+  // canComment is declared further down as well.
+  const canCommentRef = useRef(false);
   useEffect(() => {
     const onAdd = (e) => {
       if (e.detail?.boardId !== board.id) return;
-      if (!canEdit) return;
+      if (!canEdit) {
+        // View-only people who can comment: the + places a comment, as the
+        // rail's add menu did for them. It writes no card.
+        if (canCommentRef.current && document.body.dataset.tourActive !== '1') setAnnotPlacing('comment');
+        return;
+      }
       if (document.body.dataset.tourActive === '1') return;   // guided tour owns input
       const rect = wrapRef.current?.getBoundingClientRect();
       const pos = rect
@@ -6874,7 +6890,8 @@ export function CanvasSurface({
       if (b.height > 0 && b.bottom < half && b.right > r.left + left) top = Math.max(top, b.bottom - r.top);
     }
     let bottom = r.height;
-    const nav = document.querySelector('.mb-nav')?.getBoundingClientRect();
+    // Inside a cluster the nav is away and its + floats alone (.mb-add-fab).
+    const nav = document.querySelector('.mb-nav, .mb-add-fab')?.getBoundingClientRect();
     if (nav && nav.height > 0 && nav.top > half && nav.top < r.bottom) bottom = nav.top - r.top;
     return { r, left, top, w: r.width - left, h: bottom - top };
   };
@@ -6969,6 +6986,8 @@ export function CanvasSurface({
   // of `kind` that wasn't on the board. Dropped after `ms` (the card limit
   // refused the card).
   const followAddRef = useRef(null);
+  // The new note or doc the view last zoomed in to, for a moment after.
+  const followedAddRef = useRef(null);
   const followRafRef = useRef(0);
   useEffect(() => () => cancelAnimationFrame(followRafRef.current), []);
   const tryFollowAdd = (list) => {
@@ -6978,6 +6997,7 @@ export function CanvasSurface({
     const c = (list || []).find((x) => (f.id ? x.id === f.id : !f.known.has(x.id) && x.kind === f.kind));
     if (!c || ![c.x, c.y, c.w, c.h].every(Number.isFinite)) return;
     followAddRef.current = null;
+    if (f.zoomIn) followedAddRef.current = { id: c.id, until: performance.now() + 1500 };
     // A frame on, so a bar this card raised across the board's top (the Studio
     // bar counts loose cards) is there to be measured.
     cancelAnimationFrame(followRafRef.current);
@@ -6995,6 +7015,23 @@ export function CanvasSurface({
     if (id) tryFollowAdd(cardsRef.current);
   };
   useEffect(() => { tryFollowAdd(cards); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cards]);
+  // A note opened for typing on the mobile shell while its text would read
+  // small (under EDIT_READ_PX on screen): the view glides in as it does for a
+  // new note, and doesn't come back out on Done. A note the + just made is
+  // already on its way in (followedAddRef), so it isn't moved twice. Grid
+  // cells, captions and cluster names never move the view.
+  useEffect(() => {
+    if (!mobileShell || !editingNoteId) return;
+    const followed = followedAddRef.current;
+    if (followAddRef.current || (followed && followed.id === editingNoteId && performance.now() < followed.until)) return;
+    const c = cardByIdRef.current[editingNoteId];
+    if (!c || ![c.x, c.y, c.w, c.h].every(Number.isFinite)) return;
+    const body = wrapRef.current?.querySelector(`.card[data-card-id="${CSS.escape(String(editingNoteId))}"] .note-body`);
+    const px = (body && parseFloat(getComputedStyle(body).fontSize)) || 14;
+    if (px * zoomRef.current >= EDIT_READ_PX) return;
+    revealAddedRef.current?.({ x: c.x, y: c.y, w: c.w, h: c.h }, { zoomIn: true, fit: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingNoteId, mobileShell]);
   // ── Two-finger camera on touch: pinch + two-finger pan ─────────────────────
   // One finger belongs to whatever it pressed (a card, a tool, the board). The
   // moment a SECOND finger lands on the board, both belong to the camera until
@@ -12335,6 +12372,7 @@ export function CanvasSurface({
   // people included (the database lets them: can_comment_board is
   // can_read_board). The signed-out public page has no comments.
   const canComment = !isPublic && !!userId && !!board?.id && !!(board?.workspace_id || workspaceId);
+  canCommentRef.current = canComment;
   // Start a comment on a card, a group, a point or the cluster: its pin lands
   // there and the comment card opens beside it with an empty box
   // (CanvasCommentCard writes the row). Comments this person had switched off
@@ -12801,6 +12839,51 @@ export function CanvasSurface({
     if (fc && !cards.some((c) => c.id === fc.gridId)) focusCell(null, null);
     setEditingCell((ec) => (ec && !cards.some((c) => c.id === ec.gridId) ? null : ec));
   }, [cards, focusCell]);
+
+  // ── Writing mode (mobile shell) ──────────────────────────────────────────
+  // While card text is being typed, body[data-text-editing='1'] lets CSS step
+  // the board's chrome back and App show Done (styles.css, next to the
+  // data-canvas-interacting block). Notes and grid cells are in state; captions,
+  // link titles and cluster names (EditableText) are only known by their focus.
+  // Not a doc card: a doc has its own page and bar.
+  const [cardTextFocused, setCardTextFocused] = useState(false);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!mobileShell || !wrap) { setCardTextFocused(false); return undefined; }
+    const read = () => {
+      const el = document.activeElement;
+      setCardTextFocused(!!(el && wrap.contains(el) && el.closest('.cards-layer') && !el.closest('.card-kind-doc')
+        && (el.isContentEditable || el.matches('textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="file"])'))));
+    };
+    // focusout comes before the next element has the focus: read once it has
+    // settled, so stepping from one editor to another doesn't flicker the flag.
+    let settle = 0;
+    const onIn = () => { clearTimeout(settle); read(); };
+    const onOut = () => { clearTimeout(settle); settle = setTimeout(read, 0); };
+    read();
+    wrap.addEventListener('focusin', onIn);
+    wrap.addEventListener('focusout', onOut);
+    return () => {
+      clearTimeout(settle);
+      wrap.removeEventListener('focusin', onIn);
+      wrap.removeEventListener('focusout', onOut);
+    };
+  }, [mobileShell, board?.id]);
+  // The note must still be on this board: the surface doesn't remount on a
+  // board change, and a note that left with its board never said it stopped.
+  const textEditing = mobileShell && (!!(editingNoteId && cardById[editingNoteId]) || !!editingCell || cardTextFocused);
+  useEffect(() => {
+    if (!textEditing || typeof document === 'undefined') return undefined;
+    // Two surfaces (a split) must not clear each other's flag: each holds a
+    // token, and the attribute goes with the last one.
+    const owner = {};
+    textEditingOwners.add(owner);
+    document.body.setAttribute('data-text-editing', '1');
+    return () => {
+      textEditingOwners.delete(owner);
+      if (!textEditingOwners.size) document.body.removeAttribute('data-text-editing');
+    };
+  }, [textEditing, board?.id]);
   // A grid cell as it is NOW — an async backfill (the link preview) must not
   // land on a cell that was replaced or cleared while it was in flight.
   const liveCell = (gridId, cellId) => readGridModel(cardByIdRef.current[gridId], ydoc, null).cells[cellId] || null;
@@ -16100,7 +16183,11 @@ export function CanvasSurface({
       {/* The rail is `overflow-y: auto` on a phone (styles.css .cnv-tools) but
           lives inside `.canvas-wrap { touch-action: none }`, so the browser
           will not finger-scroll it. Drive it ourselves. Tapping a tool still
-          works — the gesture only engages past the movement threshold. */}
+          works — the gesture only engages past the movement threshold.
+          Not on the mobile shell: the board has the whole screen there, and
+          the floating + (App.jsx .mb-add-fab) opens the sheet that adds
+          everything. Each tool it arms shows a hint with Done. */}
+      {!mobileShell && (
       <div className={`cnv-tools ${canEdit ? '' : `is-readonly${canComment ? ' can-comment' : ''}`}`} data-tour="rail"
            ref={railRef} role="toolbar" aria-label={tr`Tools`} aria-orientation="vertical"
            onKeyDown={railKeys}
@@ -16298,6 +16385,21 @@ export function CanvasSurface({
         </div>
         </IconWeightContext.Provider>
       </div>
+      )}
+      {/* The rail hosts the template picker. Without a rail it is a sheet of
+          its own, so a grid's Apply template still opens it. */}
+      {mobileShell && templateStoreOpen && (
+        <GridTemplatePanel
+          open={tplPanelOpen}
+          onClose={() => setTplPanelOpen(false)}
+          sections={templateSections}
+          onPick={pickTemplate}
+          applyTargetId={templateTargetId}
+          mobileShell
+          rowActions={templatesEnabled ? templateRowActions : null}
+          onSaveCurrent={templatesEnabled ? openSaveTemplate : null}
+        />
+      )}
 
       <SaveTemplateDialog
         open={!!saveTplLayout}
@@ -16451,7 +16553,14 @@ export function CanvasSurface({
         // worst-returning one; a first board does not offer it as a peer of an
         // image. The headline names the job when the intent or landing page says
         // what it is (lib/firstBoardCopy.js).
-        const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
+        const runTile = (id) => {
+          markViewSettled();
+          // The Note tile holds the phone keyboard as the + sheet's Text note
+          // does: it comes up only for a focus inside this tap, and the
+          // editor mounts a beat later (lib/touchKeyboard.js).
+          if (id === 'note' && coarse) holdTouchKeyboard(null, newNoteKeyboardAt());
+          return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run();
+        };
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}${freshProject && !firstBoard ? ' is-project' : ''}`}
              aria-label={tr`Add your first images`}
@@ -16712,6 +16821,7 @@ export function CanvasSurface({
         onVisibleChange={setCommentsVisible}
         onGoTo={goToComment}
         sheet={isPhone}
+        slot={mobileShell ? commentsSlot : null}
         failed={commentsFailed}
       />
       <CanvasCommentCard
@@ -16828,13 +16938,19 @@ export function CanvasSurface({
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
               <span className="mobile-add-lbl"><Trans>Photos</Trans></span>
             </button>
-            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script' && !(a.id === 'board' && clusterNudgesAllowed())).map(a => (
+            {/* With no rail on the mobile shell this sheet is the way to every
+                tool: Arrow (the rail's alone until now) sits beside Draw. */}
+            {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script' && !(a.id === 'board' && clusterNudgesAllowed())).flatMap(a => (a.id === 'draw' ? [a, {
+              id: 'arrow', label: tr`Arrow`, icon: ArrowRight,
+              arm: () => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); },
+            }] : [a])).map(a => (
               <button
                 key={a.id}
                 type="button"
                 className="mobile-add-tile"
                 onClick={() => {
                   setMobileAdd(null);
+                  if (a.arm) { a.arm(); return; }
                   if (!coarse) { a.run(); return; }
                   // The keyboard comes up only for a focus inside this tap, and
                   // the note's editor mounts a beat later: the keeper holds it

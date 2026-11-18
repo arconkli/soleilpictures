@@ -190,8 +190,9 @@ test.describe('touch, Chromium', () => {
 
   test("a hold that does nothing doesn't buzz", async ({ page }) => {
     await open(page);
-    // The canvas toolbar is where the hold is ignored on a phone's layout.
-    const tool = page.locator('.cnv-tools .cnv-tool').first();
+    // The + is where the hold is ignored on a phone's layout (it has no rail).
+    await expect(page.locator('.cnv-tools')).toHaveCount(0);
+    const tool = page.getByRole('button', { name: 'Add a card' });
     await expect(tool).toBeVisible();
     const tb = await tool.boundingBox();
     await touchDown(page, [{ x: tb.x + tb.width / 2, y: tb.y + tb.height / 2 }]);
@@ -200,7 +201,9 @@ test.describe('touch, Chromium', () => {
     await page.waitForTimeout(200);
     expect(await vib(page)).toEqual([]);
     // Control: the same hold on empty canvas with the select tool buzzes once.
+    // (Lifting off the + may have opened its sheet: closed first.)
     await page.keyboard.press('Escape');
+    await expect(page.locator('.mobile-add-grid')).toHaveCount(0);
     await page.waitForTimeout(200);
     await page.evaluate(() => { window.__vib.length = 0; });
     const spot = await emptySpot(page);

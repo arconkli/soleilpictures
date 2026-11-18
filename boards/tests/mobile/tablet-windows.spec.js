@@ -12,13 +12,36 @@ test.beforeEach(({}, testInfo) => {
   test.skip(testInfo.project.name === 'desktop-chrome', 'the phone shell');
 });
 
-const tab = (page, name) => page.locator('.mb-nav-tab', { hasText: name });
+// Inside a cluster the phone shell has no tab bar: Settings and Search are
+// rows of the ☰ drawer, which closes as each opens.
+const drawer = (page) => page.locator('.sidebar.is-mobile-open');
+const menuButton = (page) => page.getByLabel('Open menu').first();
+async function fromDrawer(page, row) {
+  await menuButton(page).tap();
+  await expect(drawer(page)).toBeVisible();
+  await drawer(page).locator(row).tap();
+  await expect(drawer(page)).toHaveCount(0);
+}
+
+// Back out of a window on a phone. The drawer's cog opens Settings on its
+// General page, which a phone shows alone: Back steps to the list of pages
+// first, and Back again closes Settings. The others close on one Back.
+async function phoneBack(page, w) {
+  const panel = page.locator(w.panel);
+  await page.goBack();
+  if (w.name === 'Settings') {
+    await expect(panel.locator('.settings-title')).toHaveText('Settings');
+    await expect(panel.locator('.settings-me')).toBeVisible();
+    await page.goBack();
+  }
+  await expect(panel).toHaveCount(0);
+}
 
 // Each: how a finger opens it, its window, and the scrim around the window.
 const WINDOWS = [
-  { name: 'Settings', open: (page) => tab(page, 'Settings').tap(), panel: '.settings-modal', scrim: '.settings-bg' },
+  { name: 'Settings', open: (page) => fromDrawer(page, '.sb-foot-icon[aria-label="Settings"]'), panel: '.settings-modal', scrim: '.settings-bg' },
   { name: 'Share', open: (page) => page.locator('.tb-share').tap(), panel: '.share-modal', scrim: '.modal-shell-bg.share-backdrop' },
-  { name: 'Search', open: (page) => tab(page, 'Search').tap(), panel: '.cmdk', scrim: '.cmdk-bg' },
+  { name: 'Search', open: (page) => fromDrawer(page, '.sb-mid-search'), panel: '.cmdk', scrim: '.cmdk-bg' },
   { name: 'Notifications', open: (page) => page.locator('.nb-bell').tap(), panel: '.ntf-panel', scrim: '.ntf-shell.is-sheet' },
 ];
 
@@ -34,7 +57,8 @@ async function boot(page) {
     rpc: { get_my_tier: [{ tier: 'demo', demo_card_count: 0, onboarding: { seeded: true, done: true } }] },
   });
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('.mb-nav')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('.mb-add-fab')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('.mb-nav')).toHaveCount(0);
 }
 
 const rectOf = (loc) => loc.evaluate((el) => {
@@ -61,6 +85,7 @@ async function tapScrimOver(page, pt) {
   // The click follows the press: wait for it to have been raised.
   await expect.poll(() => page.evaluate(() => window.__clicks)).toBeGreaterThan(before);
   for (const w of WINDOWS) await expect(page.locator(w.panel)).toHaveCount(0);
+  await expect(drawer(page)).toHaveCount(0);
 }
 
 async function expectOnCluster(page) {
@@ -74,7 +99,7 @@ async function windowsAt(page, size) {
   await boot(page);
   const { width: vw, height: vh } = page.viewportSize();
   // Two controls the scrim covers, found before anything is open.
-  const searchTab = await centreOf(tab(page, 'Search'));
+  const menu = await centreOf(menuButton(page));
   const bell = await centreOf(page.locator('.nb-bell'));
   for (const w of WINDOWS) {
     await test.step(`${w.name} at ${vw}x${vh}`, async () => {
@@ -115,15 +140,13 @@ async function windowsAt(page, size) {
       await expect(panel).toHaveCount(0);
       await expectOnCluster(page);
 
-      // A tap on the scrim over the Search tab closes it and opens nothing;
-      // over the bell, Notifications stays closed.
-      if (w.name !== 'Search') {
-        expect(inside(searchTab, r)).toBe(false);
-        await w.open(page);
-        await expect(panel).toBeVisible();
-        await tapScrimOver(page, searchTab);
-        await expectOnCluster(page);
-      }
+      // A tap on the scrim over the ☰ button closes it and opens nothing
+      // (no drawer); over the bell, Notifications stays closed.
+      expect(inside(menu, r)).toBe(false);
+      await w.open(page);
+      await expect(panel).toBeVisible();
+      await tapScrimOver(page, menu);
+      await expectOnCluster(page);
       if (w.name === 'Notifications') {
         expect(inside(bell, r)).toBe(false);
         await w.open(page);
@@ -178,8 +201,7 @@ test('a phone keeps each as a full-screen sheet', async ({ page }, testInfo) => 
       expect(Math.round(r.left)).toBe(0);
       expect(r.height).toBeGreaterThanOrEqual(vh * 0.9);
       expect(parseFloat(await panel.evaluate((el) => getComputedStyle(el).borderTopLeftRadius))).toBe(0);
-      await page.goBack();
-      await expect(panel).toHaveCount(0);
+      await phoneBack(page, w);
       await expectOnCluster(page);
     });
   }
@@ -204,8 +226,7 @@ test('a phone held sideways keeps each as a full-width sheet', async ({ page }, 
       if (w.name !== 'Search') {
         expect(parseFloat(await panel.evaluate((el) => getComputedStyle(el).borderTopLeftRadius))).toBe(0);
       }
-      await page.goBack();
-      await expect(panel).toHaveCount(0);
+      await phoneBack(page, w);
     });
   }
 });

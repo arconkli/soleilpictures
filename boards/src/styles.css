@@ -2369,6 +2369,64 @@ body {
 .tb-icon:hover:not(:disabled), .tb-btn:hover:not(:disabled) { color: var(--ink-0); background: var(--bg-hov); }
 .tb-icon:disabled, .tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .tb-btn-label { font: 500 13px/1 var(--font-sans); }
+/* Unread messages, on ☰ while the phone's tab bar (and its Messages badge) is
+   away inside a cluster. Inverse ink like every unread count, never gold; the
+   ring is the bar's own background. Placed off the icon's top right corner. */
+.tb-icon.has-unread { position: relative; }
+.tb-menu-dot {
+  position: absolute; top: calc(50% - 12px); left: calc(50% + 4px);
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink-0);
+  box-shadow: 0 0 0 2px var(--bg-1);
+  pointer-events: none;
+}
+/* Done: only in writing mode on the mobile shell (see body[data-text-editing]). */
+.tb-done { display: none; }
+/* The canvas's Comments button in the top bar of a phone or upright iPad
+   (CanvasCommentsIsland portals it into App's .tb-comments-slot): a .tb-icon
+   like the bell beside it, without the count. The long selectors outrank the
+   floating button's rules here, in toolbarLook.css and in commentPins.css. */
+.tb-comments-slot { display: contents; }
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar {
+  position: relative; left: auto; top: auto; z-index: auto;
+  box-sizing: border-box;
+  width: 32px; height: 32px; padding: 0; gap: 0;
+  border: 0; border-radius: var(--radius);
+  background: transparent; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  color: var(--ink-2);
+  opacity: 1; transform: none;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar::before { content: none; }
+/* The 40px floor every .tb-icon has under a finger. */
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar { min-width: 0; min-height: 0; }
+@media (hover: none) and (pointer: coarse) {
+  :root .topbar .tb-right .cnv-comments-eye.is-in-bar { min-width: 40px; min-height: 40px; }
+}
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar svg { width: 16px; height: 16px; }
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar:hover { background: var(--bg-hov); color: var(--ink-0); }
+/* Comments hidden on the canvas: the struck glyph, fainter. */
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar.is-muted { background: transparent; color: var(--ink-3); }
+/* The list is open: the bell's pressed chip. */
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar.is-on,
+:root .topbar .tb-right .cnv-comments-eye.is-in-bar.is-on:hover {
+  background: var(--sbf-chip, var(--bg-4));
+  box-shadow: var(--sbf-chip-shadow, none);
+  color: var(--ink-0);
+}
+[data-theme='light'] .topbar .tb-right .cnv-comments-eye.is-in-bar.is-on,
+[data-theme='light'] .topbar .tb-right .cnv-comments-eye.is-in-bar.is-on:hover {
+  background: rgba(10, 10, 12, .07);
+  box-shadow: none;
+}
+/* Unread: ☰'s dot (.tb-menu-dot), inverse ink, never gold. */
+.cnv-comments-eye.is-in-bar .cnv-comments-eye-dot {
+  top: calc(50% - 12px); left: calc(50% + 4px); right: auto;
+  width: 8px; height: 8px;
+  box-shadow: 0 0 0 2px var(--bg-1);
+  pointer-events: none;
+}
 
 /* Share carries a little more weight than the icons around it: a raised pill
    with full-strength text, so it reads as the thing to press. Not louder than
@@ -10901,7 +10959,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
      width lay on it: the stack starts where the loose-cards bar's room does.
      Not the floating look, whose stack hangs from the right island at its own
      width. */
-  body:not([data-sb-float]):has(.cnv-comments-eye) .toast-stack { left: 76px; }
+  body:not([data-sb-float]):has(.cnv-comments-eye:not(.is-in-bar)) .toast-stack { left: 76px; }
   /* Share, Trash, Version history and Settings are full-screen sheets here,
      covering the topbar the offset above is tuned for, so a toast landed on
      the sheet's own header: over its close button, and over most of Share's
@@ -16800,6 +16858,7 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .imptray-chip,
 /* Mobile / overlay chrome the original clean-mode list missed: */
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .mb-nav,
+body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .mb-add-fab,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .presence-stack-wrap,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .upgrade-chip,
 body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) .feedback-trigger,
@@ -17307,17 +17366,108 @@ body:not([data-capture-clean='1']) .capture-hud-dot {
    `mobileShell` — so desktop panning never hides anything. */
 @media (max-width: 640px),
        (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
-  .mb-nav, .cnv-tools, .cnv-comments-eye, .upgrade-chip {
+  .mb-nav, .mb-add-fab, .cnv-tools, .cnv-comments-eye:not(.is-in-bar), .upgrade-chip {
     transition: opacity 220ms var(--ease), transform 220ms var(--ease);
   }
   body[data-canvas-interacting='1'] .mb-nav,
+  body[data-canvas-interacting='1'] .mb-add-fab,
   body[data-canvas-interacting='1'] .cnv-tools,
-  body[data-canvas-interacting='1'] .cnv-comments-eye,
+  body[data-canvas-interacting='1'] .cnv-comments-eye:not(.is-in-bar),
   body[data-canvas-interacting='1'] .upgrade-chip {
     opacity: 0;
     pointer-events: none;
   }
   body[data-canvas-interacting='1'] .mb-nav { transform: translateY(100%); }
+  /* The lone + inside a cluster leaves the way the bar does: down, past its
+     own 9px lift. */
+  body[data-canvas-interacting='1'] .mb-add-fab,
+  body[data-text-editing='1'] .mb-add-fab { transform: translateY(calc(100% + 9px + var(--safe-bottom, 0px))); }
+
+  /* Writing mode: while card text is being typed (CanvasSurface sets
+     body[data-text-editing='1']) the board's chrome steps back, the top bar
+     keeps Undo, Redo and Done, and the note's format row rests on the
+     keyboard. Hidden once faded, so it leaves the accessibility tree too:
+     visibility flips after the fade out and before the fade in. */
+  .cnv-depth-dock { transition: opacity 220ms var(--ease); }
+  body[data-text-editing='1'] .mb-nav,
+  body[data-text-editing='1'] .mb-add-fab,
+  body[data-text-editing='1'] .cnv-tools,
+  body[data-text-editing='1'] .cnv-comments-eye,
+  body[data-text-editing='1'] .cnv-depth-dock {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 220ms var(--ease), transform 220ms var(--ease), visibility 0s linear 220ms;
+  }
+  body[data-text-editing='1'] .mb-nav { transform: translateY(100%); }
+  /* visibility, not display: the chip publishes --upgrade-chip-gutter. The
+     first-value banner is the plan reminder too, and it sits where the
+     keyboard's row goes. */
+  body[data-text-editing='1'] .upgrade-chip,
+  body[data-text-editing='1'] .fv-banner { visibility: hidden; pointer-events: none; }
+
+  /* The plan chip inside a cluster (App sets body[data-phone-cluster='1']):
+     the board has the whole screen, so the chip is off it (visibility, not
+     display: UpgradeChip measures it). It is the open drawer's last row
+     instead, on every surface: the drawer keeps a row free under its foot, and
+     the chip sits there over the drawer. */
+  body[data-phone-cluster='1'] .upgrade-chip { visibility: hidden; pointer-events: none; }
+  body:has(.upgrade-chip) .sidebar.is-mobile-open { padding-bottom: calc(var(--safe-bottom, 0px) + 48px); }
+  body[data-phone-drawer='1'] .upgrade-chip {
+    visibility: visible; pointer-events: auto;
+    top: auto; right: auto;
+    left: calc(var(--safe-left, 0px) + 12px);
+    bottom: calc(var(--safe-bottom, 0px) + 8px);
+    max-width: calc(min(86vw, 320px) - 24px);
+    overflow: hidden;
+    /* A drawer row here: overflow clips the ::after's 40px touch reach, so
+       the chip itself is the 40px (it fits the 48px kept under the foot). */
+    height: 40px; padding: 0 16px;
+    z-index: 1101;
+    animation: md-fade 240ms var(--ease);
+  }
+  /* The left side keeps its room (no jump); the right keeps three buttons. */
+  body[data-text-editing='1'] .topbar > :not(.tb-right) { visibility: hidden; }
+  body[data-text-editing='1'] .topbar .tb-right > :not(.tb-undo):not(.tb-redo):not(.tb-done) { display: none; }
+  body[data-text-editing='1'] .topbar .tb-done {
+    display: block;
+    position: relative;
+    flex: 0 0 auto;
+    height: 32px;
+    margin-left: 8px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--ink-0);
+    color: var(--bg-3);
+    font: 600 15px/32px var(--font-sans);
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* A 44px target around the 32px pill. */
+  .topbar .tb-done::before { content: ''; position: absolute; inset: -6px 0; }
+
+  /* The format row docked on the keyboard (ToolOptionsBar sets is-docked and
+     the bottom): a flat row from edge to edge, not an island. With no
+     keyboard (a hardware one, or the iPad's hide key) it sits on the screen's
+     bottom edge, clear of the home bar. */
+  :root[data-tb] .tob.tob-a.nb-a.is-docked {
+    left: 0; right: 0;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    bottom: 0;
+    padding-left: 6px; padding-right: 6px;
+    padding-bottom: calc(var(--tl-pad, 4px) + var(--tob-dock-safe, 0px));
+    border: 0;
+    border-top: 1px solid var(--line-2);
+    border-radius: 0;
+    background: var(--bg-3);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
 
   /* Zoom widget: pinch is the obvious gesture on touch, so the −/slider/+
      control is hidden by default and only appears WHILE actively zooming
@@ -17344,7 +17494,7 @@ body:not([data-capture-clean='1']) .capture-hud-dot {
    cards are deliberately NOT locked: create/content steps need a canvas click to
    drop a card, and the cluster card itself is the .tour-target on rename/open. */
 body[data-tour-active] :is(
-  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .chrome-island, .mb-nav,
+  .cnv-tools, .cnv-add-wrap, .tob, .sidebar, .topbar, .chrome-island, .mb-nav, .mb-add-fab,
   .cnv-comments-eye, .cnv-zoom, .upgrade-chip, .feedback-trigger, .fv-banner
 ) { pointer-events: none; }
 body[data-tour-active] :is(
@@ -19358,6 +19508,17 @@ button, [role="button"], a {
 .mb-nav-create:focus-visible .mb-nav-create-fab {
   outline: 2px solid var(--ink-0); outline-offset: 2px;
 }
+/* The + alone, inside a cluster, where the tab bar is away (App.jsx). It sits
+   exactly where the bar's puck does (9px over the bar's foot), so coming in
+   from Home it doesn't jump. The bar's z-index too: whatever covered the bar
+   covers it. */
+.mb-add-fab {
+  position: fixed; z-index: 90;
+  left: calc(50% - 28px); bottom: calc(9px + var(--safe-bottom, 0px));
+  width: 56px; height: 56px; padding: 0;
+  border-radius: 999px;
+}
+.mb-add-fab .mb-nav-create-fab { margin-top: 0; }
 
 /* MobileDrawer ---------------------------------------------------------- */
 .md-drawer-root {
@@ -21864,7 +22025,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   .cnv-studio-bar-x { right: 8px; }
   /* The plan chip sits under the top bar on a phone, across where a tool's
      strip is: the strip (and its Done) goes below the chip. */
-  body:has(.upgrade-chip) .cnv-hint { top: 54px; }
+  body:not([data-phone-cluster]):has(.upgrade-chip) .cnv-hint { top: 54px; }
 }
 
 /* iPhone zooms the page when a field under 16px takes the focus, and leaves

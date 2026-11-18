@@ -136,6 +136,18 @@ test.describe('a finger on empty canvas', () => {
 
   test('the Image tool opens the photo picker where the finger lifts', async ({ page }) => {
     await open(page, { touchPass: false });
+    if (sheetShell(page)) {
+      // The phone's shell has no rail and no Image tool to arm: pictures come
+      // from the + sheet's Photos tile, which opens the picker itself.
+      await expect(page.locator('.cnv-tools')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Add a card' }).tap();
+      const photos = page.locator('.mobile-add-tile', { hasText: 'Photos' }).first();
+      await expect(photos).toBeVisible();
+      const picked = page.waitForEvent('filechooser', { timeout: 5000 });
+      await photos.tap();
+      expect((await picked).isMultiple()).toBe(true);
+      return;
+    }
     await page.getByRole('button', { name: 'Add image tool', exact: true }).tap();
     await expect(page.locator('.cnv-hint')).toContainText('Tap on the canvas to place an image');
     await expect(page.locator('.cnv-hint').getByRole('button', { name: 'Done' })).toBeVisible();
@@ -235,7 +247,6 @@ test.describe('a finger on empty canvas', () => {
     await open(page);
     const id = 'home-note';
     const note = await rectOf(page, id);
-    const p = await emptyNear(page, { x: note.right + 60, y: note.y }, 16);
     // A point on the card's body, with a touch's radius of body around it: not
     // its title, not a button, and off the corner, where Chrome moves a touch
     // onto the resize grip. The nearest such point to the card's middle.
@@ -261,10 +272,27 @@ test.describe('a finger on empty canvas', () => {
     // The first finger lands beside the card, the second on it, and the two
     // spread apart along the line between them: the one on the card a little,
     // the other as far as the board runs.
-    const gap = Math.hypot(p.x - q.x, p.y - q.y);
-    const u = { x: (p.x - q.x) / gap, y: (p.y - q.y) / gap };
+    // The first finger's spot is the empty one beside the card with the most
+    // board beyond it: with no rail a phone's board runs to both edges, and
+    // the card may sit against either.
     const b = await page.locator('.canvas-wrap').boundingBox();
-    const far = Math.min(140, u.x > 0 ? (b.x + b.width - 12 - p.x) / u.x : Infinity, u.x < 0 ? (b.x + 12 - p.x) / u.x : Infinity);
+    const runFrom = (p0) => {
+      const gap0 = Math.hypot(p0.x - q.x, p0.y - q.y);
+      const u0 = { x: (p0.x - q.x) / gap0, y: (p0.y - q.y) / gap0 };
+      const far0 = Math.min(140,
+        u0.x > 0 ? (b.x + b.width - 12 - p0.x) / u0.x : Infinity, u0.x < 0 ? (b.x + 12 - p0.x) / u0.x : Infinity,
+        u0.y > 0 ? (b.y + b.height - 12 - p0.y) / u0.y : Infinity, u0.y < 0 ? (b.y + 12 - p0.y) / u0.y : Infinity);
+      return { p: p0, u: u0, far: far0 };
+    };
+    let pick = null;
+    for (const near of [{ x: note.right + 60, y: note.y }, { x: note.left - 60, y: note.y }, { x: note.x, y: note.top - 60 }, { x: note.x, y: note.bottom + 60 }]) {
+      const p0 = await emptyNear(page, near, 16).catch(() => null);
+      if (!p0) continue;
+      const run = runFrom(p0);
+      if (!pick || run.far > pick.far) pick = run;
+    }
+    expect(pick?.far, 'room for the fingers to spread').toBeGreaterThanOrEqual(60);
+    const { p, u, far } = pick;
     const at = (d) => [{ x: p.x + u.x * d, y: p.y + u.y * d }, { x: q.x - u.x * d * 0.2, y: q.y - u.y * d * 0.2 }];
     await touchDown(page, [p]);
     await page.waitForTimeout(60);

@@ -34,7 +34,9 @@ async function boot(page, { blank = false, viewOnly = false } = {}) {
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
   // What only the dev harness draws, over the corner a menu opens in.
   await page.addStyleTag({ content: '.twk-gear { display: none !important; }' });
-  if (blank) await expect(page.getByRole('button', { name: 'Free-draw tool', exact: true })).toBeVisible({ timeout: 30000 });
+  // The phone's shell has no rail to wait for: the empty panel shows the
+  // blank board is ready.
+  if (blank) await expect(page.locator('.cnv-empty-tile').first()).toBeVisible({ timeout: 30000 });
   else await expect(card(page, 'home-image')).toBeVisible({ timeout: 30000 });
 }
 

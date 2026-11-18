@@ -37,11 +37,28 @@ async function canvasPoint(page, fx, fy) {
   return { x: b.x + b.width * fx, y: b.y + b.height * fy };
 }
 
-// The note tool, then a tap; `text` typed straight away (before the editor may
-// have mounted: the keeper holds it).
-async function placeNote(page, text = '') {
+// The phone's shell (phones and an upright iPad) has no rail: an empty
+// board's first note comes from the empty panel's Note tile. A sideways iPad
+// keeps the rail's note tool.
+const phoneShell = (page) => (page.viewportSize()?.width ?? 0) <= 1024;
+async function startNote(page, at) {
+  if (phoneShell(page)) {
+    await expect(page.locator('.cnv-tools')).toHaveCount(0);
+    await page.locator('.cnv-empty-tile').filter({ hasText: /note/i }).first().tap();
+    // The tile holds the keyboard keeper, as the + sheet's Text note and a
+    // tap do (lib/touchKeyboard.js); here the editor is waited for.
+    await expect(page.locator(EDIT)).toBeFocused();
+    return;
+  }
   await page.getByRole('button', { name: 'Add note tool', exact: true }).tap();
-  await tap(page, await canvasPoint(page, 0.45, 0.3));
+  await tap(page, at);
+}
+
+// A new note (the note tool, then a tap; the Note tile on the phone's shell);
+// `text` typed straight away (before the editor may have mounted: the keeper
+// holds it).
+async function placeNote(page, text = '') {
+  await startNote(page, await canvasPoint(page, 0.45, 0.3));
   if (text) await page.keyboard.type(text);
   await expect(page.locator(EDIT)).toBeFocused();
 }
@@ -69,6 +86,21 @@ function wordCentre(page, sel, word) {
     }
     return null;
   }, { sel, word });
+}
+
+// The same, once the board has stopped moving: two reads 200ms apart that
+// agree. A new note's view is still gliding in when the note is closed (on the
+// tablet it ran for over 700ms), so a centre read at once is where the word
+// was, and a later tap there landed on bare canvas.
+async function wordCentreAtRest(page, sel, word) {
+  let was = await wordCentre(page, sel, word);
+  for (let i = 0; i < 25; i++) {
+    await page.waitForTimeout(200);
+    const now = await wordCentre(page, sel, word);
+    if (was && now && Math.abs(now.x - was.x) < 0.5 && Math.abs(now.y - was.y) < 0.5) return now;
+    was = now;
+  }
+  return was;
 }
 
 // The word a collapsed caret sits in, or null.
@@ -116,6 +148,20 @@ test.describe('starting and finishing a note', () => {
 
   test('a note placed with the tool has the focus, and early typing lands in it', async ({ page }) => {
     await openBoard(page);
+    if (phoneShell(page)) {
+      // The phone's tool is the + sheet's Text note, which an empty board's +
+      // doesn't open: a first note, finished with Done, then the sheet's.
+      await placeNote(page, 'first');
+      await page.locator('.topbar .tb-done').tap();
+      await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
+      await page.getByRole('button', { name: 'Add a card' }).tap();
+      await page.locator('.mobile-add-tile', { hasText: 'Text note' }).first().tap();
+      await page.keyboard.type('hello there');
+      await expect(page.locator(EDIT)).toBeFocused();
+      await expect(page.locator(EDIT)).toHaveText('hello there');
+      await expect(page.locator('.note-touch-keeper')).toHaveCount(0);
+      return;
+    }
     await placeNote(page, 'hello there');
     await expect(page.locator(EDIT)).toHaveText('hello there');
     await expect(page.locator('.note-touch-keeper')).toHaveCount(0);
@@ -167,9 +213,8 @@ test.describe('while typing on touch', () => {
   // A note placed with a tap at (fx, fy) of the board, then opened with a
   // double tap (a phone places a note without opening it; a tablet may open it).
   async function noteOpen(page, fx = 0.3, fy = 0.62) {
-    await page.getByRole('button', { name: 'Add note tool', exact: true }).tap();
     const b = await page.locator('.canvas-wrap').boundingBox();
-    await page.touchscreen.tap(Math.round(b.x + b.width * fx), Math.round(b.y + b.height * fy));
+    await startNote(page, { x: Math.round(b.x + b.width * fx), y: Math.round(b.y + b.height * fy) });
     await expect(page.locator('.card')).toHaveCount(1);
     await page.waitForTimeout(400);
     if (!(await page.locator(EDITING).count())) {
@@ -287,7 +332,7 @@ test.describe('typing before the editor opens', () => {
     await placeNote(page);
     await paste(page, html, text);
     await finish(page);
-    const at = await wordCentre(page, READ, word);
+    const at = await wordCentreAtRest(page, READ, word);
     expect(at).not.toBeNull();
     await tap(page, at);
     await expect(page.locator(`${NOTE}.is-selected`)).toHaveCount(1);
@@ -295,6 +340,21 @@ test.describe('typing before the editor opens', () => {
     await expect(page.locator(EDIT)).toHaveCount(0);
     return at;
   }
+
+  test("the empty panel's Note tile holds the keyboard until the editor opens", async ({ page }) => {
+    test.skip(!phoneShell(page), 'the empty panel has a Note tile on the phone shell only');
+    await openBoard(page);
+
+    await holdFrames(page);
+    await page.locator('.cnv-empty-tile').filter({ hasText: /note/i }).first().tap();
+    await expect(page.locator(KEEPER)).toBeFocused();
+    await page.keyboard.type('quick');
+    await releaseFrames(page);
+
+    await expect(page.locator(EDIT)).toBeFocused();
+    await expect(page.locator(EDIT)).toContainText('quick');
+    await expect(page.locator(KEEPER)).toHaveCount(0);
+  });
 
   test('Enter typed before the editor opens in a bulleted list starts a new bullet', async ({ page }) => {
     await openBoard(page);

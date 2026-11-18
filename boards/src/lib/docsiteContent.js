@@ -1247,6 +1247,44 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "On a phone there is no rail: one "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the board adds everything. See "
+    },
+    {
+     "t": "link",
+     "v": "Mobile and tablet",
+     "href": "/docs/account/mobile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Mobile and tablet"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "A few things worth knowing on day one:"
     }
    ]
@@ -8143,6 +8181,44 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or an upright iPad there is no rail inside a cluster. One "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the board opens a sheet with everything above that adds something, Arrow, Comment and Vote included. See "
+    },
+    {
+     "t": "link",
+     "v": "Mobile and tablet",
+     "href": "/docs/account/mobile#layout-differences",
+     "children": [
+      {
+       "t": "text",
+       "v": "Mobile and tablet"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Right-click",
@@ -11608,6 +11684,44 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "On a phone or an upright iPad, the formatting row rests right on top of the keyboard while you type, and "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the top bar, or a tap on the board, finishes and puts the keyboard away. See "
+    },
+    {
+     "t": "link",
+     "v": "Mobile and tablet",
+     "href": "/docs/account/mobile#touch-on-the-canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "Mobile and tablet"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Formatting works as you would expect: "
     },
     {
@@ -12225,7 +12339,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". On a phone or tablet the draw tool is on the rail itself, and in the add sheet. Draw anywhere — over cards, between them, across the whole board."
+     "v": ". On an iPad held sideways the draw tool is on the rail itself, and in the add sheet. On a phone or an upright iPad a cluster has no rail, so it is in the add sheet, behind the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the board. Draw anywhere — over cards, between them, across the whole board."
     }
    ]
   },
@@ -13275,7 +13403,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", then drag from the source to the target."
+     "v": ", then drag from the source to the target. On a phone or an upright iPad, choose "
+    },
+    {
+     "t": "strong",
+     "v": "Arrow",
+     "children": [
+      {
+       "t": "text",
+       "v": "Arrow"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the sheet the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens, then drag."
     }
    ]
   },
@@ -14946,7 +15102,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". On a phone or an upright iPad, "
+    },
+    {
+     "t": "strong",
+     "v": "Vote",
+     "children": [
+      {
+       "t": "text",
+       "v": "Vote"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is in the sheet the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the board opens."
     }
    ]
   },
@@ -24984,7 +25168,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at the top left. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with "
+     "v": " (☰) at the top left. Search and Settings are in it too, and the ☰ shows a dot when Messages has something unread. It holds the same things — Home, Messages, your clusters and Files, with the same tabs, search and menus — at full width, without the sizing handles. The list of clusters opens as a sheet from the bottom, with "
     },
     {
      "t": "strong",
@@ -27775,7 +27959,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " beside the search — on a phone or tablet, the "
+     "v": " beside the search — on a phone or an upright iPad, the "
     },
     {
      "t": "strong",
@@ -27789,7 +27973,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the bottom bar. They join the cluster without going on its board: they wait in Files, marked "
+     "v": " at the bottom of the screen. They join the cluster without going on its board: they wait in Files, marked "
     },
     {
      "t": "link",
@@ -40349,6 +40533,15 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or an upright iPad, the dot in the top bar that shows the live connection appears only when someone else is in the cluster or the connection is lost."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Across the workspace",
@@ -41005,7 +41198,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and click what it is about. A box opens right there, beside the spot its pin will sit on."
+     "v": " and click what it is about. A box opens right there, beside the spot its pin will sit on. On a phone or an upright iPad, "
+    },
+    {
+     "t": "strong",
+     "v": "Comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is in the sheet the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the bottom of the board opens."
     }
    ]
   },
@@ -41276,7 +41497,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The comments button at the top left of the board shows how many conversations are open, with a dot when one is unread. Press it for the list:"
+     "v": "The comments button at the top left of the board shows how many conversations are open, with a dot when one is unread. On a phone or an upright iPad it is in the top bar. Press it for the list:"
     }
    ]
   },
@@ -48825,7 +49046,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and on the upgrade screen."
+     "v": ", and on the upgrade screen. On a phone or an upright iPad the pill is in the menu (☰) instead of on the board."
     }
    ]
   },
@@ -51758,6 +51979,43 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "On a phone or an upright iPad, while you type on a board (a note, a grid cell, a caption, a link's title or a cluster's name), the board's other buttons step back until you finish. The top bar keeps Undo and Redo and shows "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A note's formatting row rests right on top of the keyboard. "
+    },
+    {
+     "t": "strong",
+     "v": "Done",
+     "children": [
+      {
+       "t": "text",
+       "v": "Done"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or a tap on the board, finishes typing and puts the keyboard away. When a note's words would be small, or would sit under the keyboard, the board moves and zooms in so the note you are typing stays above the keyboard."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable."
     }
    ]
@@ -51891,7 +52149,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " row goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls."
+     "v": " row goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar, where there is one, and scrolls."
     }
    ]
   },
@@ -52209,7 +52467,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " replaces the sidebar — Home, the current board, Messages, and more."
+     "v": " replaces the sidebar — Home, the current board, Messages, and more. It shows outside a cluster, on Home, Messages and the like. Inside a cluster the board gets the whole screen: there is no bottom bar, no tools down the left edge and no \"Add images\" banner. Moving around is the same: drag to move, pinch to zoom, hold and drag to select."
     }
    ]
   },
@@ -52228,7 +52486,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " keeps what you reach for on the board: the cluster's name, Undo, Redo, who else is here, and Share."
+     "v": " keeps what you reach for on the board: the cluster's name, Undo, Redo, who else is here, and Share. Inside a cluster, "
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is a button there too. Redo appears only after you undo, and the dot that shows the live connection appears only when someone else is in the cluster or the connection is lost."
     }
    ]
   },
@@ -52276,7 +52548,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
+     "v": " — Home, Messages, the cluster tree and every cluster's Files — with Search, Version history, Focus view and Help. ⤢ on its Files opens the full Files page. "
+    },
+    {
+     "t": "strong",
+     "v": "Open menu",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open menu"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is the ☰ at the top left. Home, Search, Messages and Settings are in it, and the ☰ shows a dot when Messages has something unread. On the free plan, the plan reminder (the upgrade pill) shows in the menu instead of on the board. Tap a cluster to open it. Hold one to pick it up, then drag it onto another cluster to nest it there; hold and let go without moving for its menu — rename, colour, delete. A swipe that starts on a row just scrolls the list."
     }
    ]
   },
@@ -52493,7 +52779,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the middle of the bottom bar, lays out everything you can add across the screen, sized for thumbs. The tool rail keeps its own "
+     "v": " at the bottom of the board, lays out everything you can add across the screen, sized for thumbs: photos, notes, docs, clusters, grids, files, links, drawing, arrows, comments, votes and the rest. Someone who can only comment on a cluster gets a "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " that places a comment, and someone who can only view it sees no "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". On an iPad held sideways the tool rail keeps its own "
     },
     {
      "t": "code",
@@ -52665,7 +52979,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " shortcut there is no keyboard for. A stylus draws with pressure; flipping it over erases. The full-screen "
+     "v": " shortcut there is no keyboard for. On a phone or an upright iPad, where a cluster has no rail, it is in the add sheet. A stylus draws with pressure; flipping it over erases. The full-screen "
     },
     {
      "t": "link",

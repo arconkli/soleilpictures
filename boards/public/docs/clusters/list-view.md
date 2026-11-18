@@ -2,7 +2,7 @@
 
 > Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-11-17_
+_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-11-18_
 
 The board is for arranging. Files is for finding.
 
@@ -328,7 +328,7 @@ version…** too.
 ## Adding files here
 
 Drag files into Files, or use **Add files** beside the search — on a phone or
-tablet, the **+** in the bottom bar. They join the
+an upright iPad, the **+** at the bottom of the screen. They join the
 cluster without going on its board: they wait in Files, marked
 [**Not on board**](#not-on-board), until you drag them onto the board or choose
 **Put on board**. The same goes for **Upload** in the sidebar — dropping on the

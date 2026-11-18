@@ -591,6 +591,10 @@ function NoteTiptapEditing({
   // Register as the active note editor so the bottom toolbar drives it.
   useEffect(() => {
     if (!editor) return undefined;
+    // Who watches Undo (onUndoChange below). A style from the note bar changes
+    // no text history and runs no editor transaction, so noteStyleWrite tells
+    // them itself.
+    const styleWatchers = new Set();
     setActiveNoteEditor(editor, {
       openAddComment: addComment.open,
       // A whole-note style written to the board (CanvasSurface's
@@ -607,6 +611,8 @@ function NoteTiptapEditing({
           needsMeasureRef.current = false;
           try { flush(true); } catch (_) { /* noop */ }
         }));
+        // Queued after the route's own microtask, which records the step.
+        queueMicrotask(() => styleWatchers.forEach((f) => f()));
       },
       // Several writes as one board undo step: Yjs nests transactions and the
       // outer origin wins, so the fragment, its html cache and card fields all
@@ -618,6 +624,38 @@ function NoteTiptapEditing({
           fn();
           try { flush(false); } catch (_) { /* noop */ }
         }, 'local');
+      },
+      // Undo and Redo from a button (the phone's top bar while typing,
+      // hooks/useWritingUndo.js), as ⌘Z runs them in handleKeyDown: the route
+      // first, then the note's own history through Collaboration.
+      undo: () => { if (!undoRouteRef.current?.undo()) editor.commands.undo?.(); },
+      redo: () => { if (!undoRouteRef.current?.redo()) editor.commands.redo?.(); },
+      undoState: () => {
+        const route = undoRouteRef.current;
+        return {
+          canUndo: !!(route?.canUndo() || noteUndoManager?.undoStack.length > 0),
+          canRedo: !!(route?.canRedo() || noteUndoManager?.redoStack.length > 0),
+        };
+      },
+      // cb when either answer may have changed, at most once per microtask.
+      onUndoChange: (cb) => {
+        let queued = false;
+        let off = false;
+        const ping = () => {
+          if (queued || off) return;
+          queued = true;
+          queueMicrotask(() => { queued = false; if (!off) cb(); });
+        };
+        const events = ['stack-item-added', 'stack-item-updated', 'stack-item-popped', 'stack-cleared'];
+        events.forEach((ev) => noteUndoManager?.on(ev, ping));
+        editor.on('transaction', ping);
+        styleWatchers.add(ping);
+        return () => {
+          off = true;
+          events.forEach((ev) => noteUndoManager?.off(ev, ping));
+          editor.off('transaction', ping);
+          styleWatchers.delete(ping);
+        };
       },
     });
     return () => setActiveNoteEditor(null);

@@ -1222,6 +1222,13 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // dblclick is a MouseEvent with no pointerType: a pen's is known from its press.
   const lastPointerTypeRef = useRef('mouse');
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
+  // A note that goes away while it is being edited (deleted from elsewhere,
+  // its board left) still says it stopped, or the phone's writing mode sticks.
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const onEditingChangeRef = useRef(onEditingChange);
+  onEditingChangeRef.current = onEditingChange;
+  useEffect(() => () => { if (editingRef.current) onEditingChangeRef.current?.(false); }, []);
 
   const ref = useRef(null);
   const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, manuallyResized]);

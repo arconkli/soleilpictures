@@ -32,6 +32,8 @@ import { claimUpsellSlot, upsellSlotHolder } from '../lib/upsellSlot.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { t, ph } from '@lingui/core/macro';
 import { sizeText } from '../lib/intlFormat.js';
+import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { shellOf } from '../lib/deviceShell.js';
 
 // How long the first-value banner may wait for the server's card count to
 // catch up with the canvas before it shows whatever the server says. The sync
@@ -51,7 +53,28 @@ const FV_TRIAL_SINCE = Date.parse('2026-09-17T06:34:00Z');
 // who never places a card would otherwise never be asked.
 const FV_REARM_DELAY_MS = 20_000;
 
+// On a phone or an upright iPad a cluster has the whole screen: the chip is
+// off the board there and shows only in the open drawer (App sets both body
+// attributes; styles.css hides it). Off screen is not an impression.
+const CHIP_SEEN_MS = 1000;
+const chipOffBoard = () => typeof document !== 'undefined'
+  && document.body?.dataset.phoneCluster === '1' && document.body.dataset.phoneDrawer !== '1';
+function useChipOffBoard() {
+  const [off, setOff] = useState(chipOffBoard);
+  useEffect(() => {
+    if (typeof MutationObserver === 'undefined' || !document.body) return undefined;
+    const read = () => setOff(chipOffBoard());
+    const mo = new MutationObserver(read);
+    mo.observe(document.body, { attributes: true, attributeFilter: ['data-phone-cluster', 'data-phone-drawer'] });
+    read();
+    return () => mo.disconnect();
+  }, []);
+  return off;
+}
+
 export function UpgradeChip() {
+  const { mobileShell } = shellOf(useBreakpoint());
+  const offBoard = useChipOffBoard();
   const { user } = useAuth();
   const { tier, demoCardCount, serverCardCount, effectiveCardLimit, creatorTrialStartedAt } =
     useMyTier({ userId: user?.id });
@@ -436,23 +459,31 @@ export function UpgradeChip() {
   // read wrong at least once. Once per pageload per state (label vs priced),
   // never per render.
   useEffect(() => {
-    if (!showChip) return;
-    // `trial_shown` is the field that keeps the two offers separable once the
-    // trial starts replacing the price here. Without it, a fall in price_seen
-    // reads as lost reach when it is actually the trial landing.
-    logEventOnce(`up_chip_view:${showTrial ? 'trial' : showPrice ? 'price' : 'label'}`, EV.UP_CHIP_VIEW, {
-      near, count: demoCardCount, limit: cardLimit, pressure: elig.pressure,
-      elig_reason: elig.reason, cap_pct: elig.capPct,
-      price_shown: showPrice, trial_shown: showTrial, trial_reason: trialDecision.reason,
-      trial_pending: trialPending,
-      server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
-      elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
-    });
-    if (showPrice) notePriceSeen('chip');
+    if (!showChip || offBoard) return undefined;
+    const record = () => {
+      // `trial_shown` is the field that keeps the two offers separable once the
+      // trial starts replacing the price here. Without it, a fall in price_seen
+      // reads as lost reach when it is actually the trial landing.
+      logEventOnce(`up_chip_view:${showTrial ? 'trial' : showPrice ? 'price' : 'label'}`, EV.UP_CHIP_VIEW, {
+        near, count: demoCardCount, limit: cardLimit, pressure: elig.pressure,
+        elig_reason: elig.reason, cap_pct: elig.capPct,
+        price_shown: showPrice, trial_shown: showTrial, trial_reason: trialDecision.reason,
+        trial_pending: trialPending,
+        server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
+        elig_rev: ELIGIBILITY_REV, copy_rev: COPY_REV,
+      });
+      if (showPrice) notePriceSeen('chip');
+    };
+    if (!mobileShell) { record(); return undefined; }
+    // On a phone or an upright iPad the chip is off the board inside a
+    // cluster, and at launch the app may still be opening one: it counts once
+    // it has stayed on screen for a moment.
+    const id = setTimeout(() => { if (!chipOffBoard()) record(); }, CHIP_SEEN_MS);
+    return () => clearTimeout(id);
     // notePriceSeen is a plain closure over render state; the latch makes it
     // idempotent, so re-running on a count change is harmless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showChip, showPrice, showTrial, near, elig.pressure]);
+  }, [showChip, showPrice, showTrial, near, elig.pressure, offBoard, mobileShell]);
 
   if (tier !== 'demo') return null;
   const onSeeCreator = () => {

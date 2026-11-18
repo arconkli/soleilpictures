@@ -2,14 +2,15 @@
 
 > Press A and drag from one card to another to connect them. Arrows anchor to the cards rather than to fixed points, so they re-route automatically when you move things. Each arrow carries its own colour, thickness, head style, dashed or solid line, curve style and an optional label.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/arrows · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/canvas/arrows · Updated 2026-11-18_
 
 Arrows are for showing relationships: this shot follows that one, this reference
 informed that frame, this note explains that image.
 
 ## Drawing one
 
-Press `A`, then drag from the source to the target.
+Press `A`, then drag from the source to the target. On a phone or an upright
+iPad, choose **Arrow** in the sheet the **+** opens, then drag.
 
 - **Card to card** — the arrow anchors to both and follows them.
 - **Empty space to empty space** — a free-floating arrow, behaving like a shape.

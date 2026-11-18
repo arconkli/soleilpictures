@@ -207,7 +207,14 @@ export const CEILINGS = {
   // cluster name as a menu button. CI-style builds read 91,686 B on main
   // 7f140d69 and 91,854 B with it (1742d30e); the ceiling moves by the
   // difference, 168 B, rounded up.
-  entryCss: 92_000,
+  // 2026-11-18: +0.8 KB for a calmer phone (styles.css, the mobile shell
+  // only): writing mode, where the chrome steps back while a note is typed
+  // in and its row lies flat on the keyboard; the top bar's Undo, Redo and
+  // Done; the one floating + inside a cluster; Comments in the top bar; and
+  // the dot on the menu button for unread messages. CI-style builds read
+  // 91,854 B on main 632c8e86 and 92,593 B with it; the ceiling moves by the
+  // difference, 739 B, rounded up.
+  entryCss: 92_800,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -578,7 +585,17 @@ export const CEILINGS = {
   // top bar's cluster menu (CanvasSurface.jsx, cards.jsx, App.jsx). CI-style
   // builds read 804.6 KB on main 7f140d69 and 809,497 B with it; main's CI
   // went red on it. The ceiling moves by 4,863 B, rounded up.
-  appJs: 809_700,
+  // 2026-11-18: +2.0 KB for a calmer phone, the mobile shell only: writing
+  // mode's top bar with Undo, Redo and Done (App.jsx, hooks/useWritingUndo.js,
+  // the note's undo actions in NoteTiptapSurface.jsx and
+  // lib/noteUndoRoute.js), the floating + and the drawer's rows inside a
+  // cluster (App.jsx), the writing-mode flag, no depth dock and the zoom to a
+  // readable size when a small note opens (CanvasSurface.jsx), the note row
+  // on the keyboard (ToolOptionsBar.jsx), Comments in the top bar
+  // (comments/) and the plan reminder in the menu (UpgradeChip.jsx).
+  // CI-style builds read 809,621 B on main 632c8e86 and 811,595 B with it;
+  // the ceiling moves by the difference, 1,974 B, rounded up.
+  appJs: 811_700,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

@@ -5,7 +5,7 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-11-14
+updated: 2026-11-18
 answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever comes first, up to {{fact:editorLimit}} people who edit, and any file at any size; clusters cost no cards. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes two things: the card cap is removed, and your drive grows to {{fact:creatorStorage}}. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than {{fact:editorLimit}} people who edit, at {{fact:teamSeatMonthly}} a seat a month.
 faq:
   - q: What is actually limited on the free plan?
@@ -196,7 +196,8 @@ is more than your free card limit holds, Clusters offers you
 **{{fact:creatorTrialDays}} days of {{fact:planName}}** before you pay. The
 offer appears where you are already working: on the upgrade pill in the corner,
 on the prompts that show up as a cluster fills, when the files you drop will not
-fit, in **Settings → Plan & billing**, and on the upgrade screen.
+fit, in **Settings → Plan & billing**, and on the upgrade screen. On a phone or
+an upright iPad the pill is in the menu (☰) instead of on the board.
 
 While this is being tried out, some free accounts are offered the trial from
 their first card.

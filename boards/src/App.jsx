@@ -421,10 +421,12 @@ function loadImportStart() {
   return importStartModule;
 }
 import { useBreakpoint } from './hooks/useBreakpoint.js';
+import useWritingUndo from './hooks/useWritingUndo.js';
 import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 import { openableUrl } from './lib/openableUrl.js';
 import { holdNoteTypeAhead } from './lib/noteTypeAhead.js';
+import { endActiveNoteEdit } from './lib/noteEditorRegistry.js';
 import { dropUnclaimedTouchKeyboard } from './lib/touchKeyboard.js';
 import { isComposingKey } from './lib/composerKeys.js';
 import { initialOf } from './lib/graphemes.js';
@@ -1123,6 +1125,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const breakpoint = useBreakpoint();
   const { isPhone, isTouch } = breakpoint;
   const { mobileShell } = shellOf(breakpoint);
+  // Writing mode's Undo and Redo act on what is being typed, never the board.
+  const writingUndo = useWritingUndo(mobileShell);
   // The sidebar that holds every file (components/sidebar/ClusterSidebar.jsx),
   // held to the preview deploy (and opt-in dev) until it ships — lib/appHost.js.
   // Read this early: with it, Files has no dock and no pill (see canDockMain).
@@ -5896,7 +5900,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // ── Auto-focus on new card creation ───────────────────────────────────────
   const [autoFocusId, setAutoFocusId] = useState(null);
-  const clearAutoFocus = () => setAutoFocusId(null);
+  // Stable, because CanvasSurface clears the id 60ms after it is set: a new
+  // function on every render restarted that timer, so the id outlived its
+  // card's first mount and a note that Redo brought back opened for typing.
+  const clearAutoFocus = useCallback(() => setAutoFocusId(null), []);
 
   // Compose final mutator sets that include the workspace-scoped helpers
   // (renameBoardById / deleteBoardsById / cloneBoardToPersonal). They live
@@ -9650,6 +9657,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // The mobile shell inside a cluster: the board has the whole screen and the
+  // tab bar is away (the drawer has Home, Messages, Search and Settings). The
+  // open drawer doesn't count, or opening it would bring the bar back.
+  const mobileInCluster = mobileShell && currentSurface === 'board'
+    && !tweak.showMessages && !settingsOpen && !pickerOpen && !paletteOpen;
+  // The Messages tab's badge went with the bar: ☰ carries a dot instead.
+  const menuUnread = mobileInCluster && messagesUnread > 0;
+  // CSS keeps the plan chip off the board there and shows it in the open
+  // drawer (styles.css, .upgrade-chip); UpgradeChip reads both to count a view
+  // only when the chip is on screen.
+  useEffect(() => {
+    if (!mobileInCluster) return undefined;
+    document.body.setAttribute('data-phone-cluster', '1');
+    return () => document.body.removeAttribute('data-phone-cluster');
+  }, [mobileInCluster]);
+  const phoneDrawerOpen = mobileShell && mobileNavOpen;
+  useEffect(() => {
+    if (!phoneDrawerOpen) return undefined;
+    document.body.setAttribute('data-phone-drawer', '1');
+    return () => document.body.removeAttribute('data-phone-drawer');
+  }, [phoneDrawerOpen]);
+  // The top bar's place for the canvas's Comments button on the mobile shell:
+  // CanvasSurface's comments island portals its button in here.
+  const [commentsSlot, setCommentsSlot] = useState(null);
+  // Anyone signed in who can see a cluster may comment on it (CanvasSurface's
+  // canComment): on the mobile shell their + places a comment.
+  const canCommentCurrent = !!user?.id && !!currentBoard?.id && !!(currentBoard.workspace_id || workspace?.id);
   // A viewer through a share (not a workspace member, whatever their role
   // there) can ask the people who shared the cluster to let them edit.
   const canAskViaShare = !canEditCurrent && currentBoardPerm.source === 'share'
@@ -10332,6 +10366,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       uploadingTo,
     },
   });
+  // On the mobile shell presence shows only when it has something to say:
+  // someone else is here, or the live channel has been off for a few seconds
+  // while the app is in front. A phone back from the background rejoins in
+  // about a second (a tab hidden five minutes leaves the room), so a brief
+  // off is no news.
+  const wsOff = wsStatus === 'error' || wsStatus === 'disconnected';
+  const [wsOffLong, setWsOffLong] = useState(false);
+  useEffect(() => {
+    if (!mobileShell || !wsOff || !tabVisible) { setWsOffLong(false); return undefined; }
+    const id = setTimeout(() => setWsOffLong(true), 4000);
+    return () => clearTimeout(id);
+  }, [mobileShell, wsOff, tabVisible]);
+  const presenceShown = !mobileShell || wsOffLong
+    || (wsPeers || []).some((p) => p.user && p.user.id !== user.id);
   // Rendered beside the faces in both top bars. Free accounts only: paid tiers
   // bank the cards silently (see `together` above).
   const togetherChipEl = myTier.tier === 'demo' && togetherShown(together, Date.now()) ? (
@@ -12044,6 +12092,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            firstBoardKind={firstBoardKind}
                            firstBoardLinks={setupHere}
                            firstBoardJoin={isMain ? firstBoardJoin : null}
+                           commentsSlot={isMain ? commentsSlot : null}
                            freshProject={isTopLevelProject(boards, board.id, rootBoard.id)}
                            gridTemplates={gridTemplates} gridSequences={gridSequences}
                            ydoc={yd}
@@ -12575,7 +12624,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 // Messages opens over the cluster you're in, so it reads as
                 // pressed, not as where you are: the gold bar stays on that
                 // cluster.
-                messages: { pressed: !!tweak.showMessages, unread: messagesUnread, onClick: () => setTweak('showMessages', !tweak.showMessages) },
+                messages: { pressed: !!tweak.showMessages, unread: messagesUnread, onClick: () => { if (mobileShell) setMobileNavOpen(false); setTweak('showMessages', !tweak.showMessages); } },
                 // No Schedule: the feature is retired (owner, 2026-10-18).
               }}
               listRef={sidebarScrollRef}
@@ -12873,13 +12922,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
             {(!sidebarShownNow || mobileShell) && (
-              <button className="tb-icon" title={mobileShell ? tr`Open menu` : tr`Open sidebar (⌘B)`}
-                      aria-label={mobileShell ? tr`Open menu` : tr`Open sidebar`}
+              <button className={`tb-icon${menuUnread ? ' has-unread' : ''}`} title={mobileShell ? tr`Open menu` : tr`Open sidebar (⌘B)`}
+                      aria-label={menuUnread ? tr`Open menu, unread messages` : mobileShell ? tr`Open menu` : tr`Open sidebar`}
                       onClick={() => {
                         if (mobileShell) setMobileNavOpen(true);
                         else showSidebarNow();
                       }}>
                 <Icon as={PanelLeftOpen} size={16} />
+                {menuUnread && <span className="tb-menu-dot" aria-hidden="true" />}
               </button>
             )}
             {/* Not on a phone: the bar is 360-390px wide and these overflowed
@@ -12955,15 +13005,58 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             )}
             {/* A viewer on a phone gets the VIEW ONLY pill in this room instead
                 of two buttons that can never be enabled. */}
-            {(!mobileShell || canEditCurrent) && (
+            {/* Writing mode (hooks/useWritingUndo.js): the two act on the note
+                being typed, not the board, and must not take the focus from
+                its editor (see Done below). Typing anywhere else (a caption,
+                a grid cell, a name) shows neither: the keyboard's own undo
+                serves those. */}
+            {(!mobileShell || canEditCurrent) && writingUndo?.mode !== 'none' && (() => {
+              const canUndo = writingUndo ? writingUndo.canUndo : tbYb.canUndo;
+              const canRedo = writingUndo ? writingUndo.canRedo : tbYb.canRedo;
+              const keepFocus = writingUndo
+                ? { onPointerDown: (e) => e.preventDefault(), onMouseDown: (e) => e.preventDefault() }
+                : null;
+              return (
               <>
-                <button className="tb-icon" title={tr`Undo (⌘Z)`} aria-label={tr`Undo`} disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
+                <button className="tb-icon tb-undo" title={tr`Undo (⌘Z)`} aria-label={tr`Undo`} disabled={!canUndo} {...keepFocus}
+                        onClick={() => (writingUndo ? writingUndo.undo() : tbMutators.undo?.())}>
                   <Icon as={Undo} size={16} />
                 </button>
-                <button className="tb-icon" title={tr`Redo (⌘⇧Z)`} aria-label={tr`Redo`} disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
-                  <Icon as={Redo} size={16} />
-                </button>
+                {/* A phone's bar shows Redo only when there is something to redo. */}
+                {(!mobileShell || canRedo) && (
+                  <button className="tb-icon tb-redo" title={tr`Redo (⌘⇧Z)`} aria-label={tr`Redo`} disabled={!canRedo} {...keepFocus}
+                          onClick={() => (writingUndo ? writingUndo.redo() : tbMutators.redo?.())}>
+                    <Icon as={Redo} size={16} />
+                  </button>
+                )}
               </>
+              );
+            })()}
+            {mobileInCluster && <span className="tb-comments-slot" ref={setCommentsSlot} />}
+            {/* Writing mode (body[data-text-editing], set by CanvasSurface):
+                the only way out that doesn't need a tap on bare canvas. CSS
+                shows it only then. It must not take the focus on the way
+                down, or the editor blurs, the flag clears, this goes and the
+                tap lands on Share underneath. */}
+            {mobileShell && (
+              <button className="tb-done" type="button"
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        // A note whose editor isn't focused (the bar's size
+                        // box has it) ends on this very press (its NOTES-13
+                        // exit), so Done is gone before the click: swallow a
+                        // click that lands anywhere else, such as Share.
+                        const swallow = (ev) => {
+                          if (ev.target?.closest?.('.tb-done')) return;
+                          ev.preventDefault(); ev.stopPropagation();
+                        };
+                        document.addEventListener('click', swallow, { capture: true, once: true });
+                        setTimeout(() => document.removeEventListener('click', swallow, true), 800);
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { endActiveNoteEdit(); document.activeElement?.blur?.(); }}>
+                <Trans context="finish typing">Done</Trans>
+              </button>
             )}
             {!mobileShell && (
               <>
@@ -12980,10 +13073,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             <span className="tb-divider" aria-hidden="true" />
             {/* One face and a "+N" on a phone: four faces were ~100px of a
                 360px bar. */}
-            <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
-                                    workspaceId={workspace.id}
-                                    max={mobileShell ? 1 : 4}
-                                    onJumpTo={jumpToPeer} />
+            {presenceShown && (
+              <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
+                                      workspaceId={workspace.id}
+                                      max={mobileShell ? 1 : 4}
+                                      onJumpTo={jumpToPeer} />
+            )}
             {togetherChipEl}
             <span className="tb-divider" aria-hidden="true" />
             {/* On a phone the Ask to edit button takes the pill's room (the
@@ -13863,27 +13958,29 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       )}
 
       {mobileShell && (() => {
-        // The "+" appears only when a board canvas is the active surface and
-        // it's editable — that's the only place a card can be created. When it
-        // shows, no tab is "selected" (the user is on a board, not Home), so
-        // pass active={null} rather than the old fall-through to 'home' which
-        // wrongly lit Home next to the create puck.
-        const onBoard = currentSurface === 'board'
-          && !tweak.showMessages && !settingsOpen && !pickerOpen && !paletteOpen && !mobileNavOpen;
-        const showCreate = onBoard && canEditCurrent;
+        // Inside a cluster there is no tab bar, only the "+" where the bar's
+        // puck sits, and only for someone who can add a card or, view-only,
+        // a comment (CanvasSurface arms comment placing for them). It steps
+        // aside for the open drawer. Same look and tour anchor as the puck.
+        if (mobileInCluster) {
+          if (!(canEditCurrent || (canCommentCurrent && mainFilesMode !== 'full')) || mobileNavOpen) return null;
+          return (
+            <button type="button" className="mb-nav-create mb-add-fab" data-tour="mb-create"
+                    aria-label={canEditCurrent ? tr`Add a card` : tr`Add comment`}
+                    onClick={() => {
+                      setMobileNavOpen(false);
+                      document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', {
+                        detail: { boardId: currentBoard?.id },
+                      }));
+                    }}>
+              <span className="mb-nav-create-fab" aria-hidden="true"><Icon as={Plus} size={26} /></span>
+            </button>
+          );
+        }
         return (
         <MobileBottomNav
-          showCreate={showCreate}
-          createIcon={<Icon as={Plus} size={26} />}
-          onCreate={() => {
-            setMobileNavOpen(false);
-            document.dispatchEvent(new CustomEvent('soleil-mobile-add-card', {
-              detail: { boardId: currentBoard?.id },
-            }));
-          }}
           active={
-            onBoard ? null
-            : currentSurface === 'home' ? 'home'
+            currentSurface === 'home' ? 'home'
             : tweak.showMessages ? 'messages'
             : settingsOpen ? 'settings'
             : (paletteOpen || pickerOpen) ? 'search'

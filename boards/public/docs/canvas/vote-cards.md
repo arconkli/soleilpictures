@@ -2,12 +2,14 @@
 
 > A vote card is a small up/down poll you anchor anywhere on a canvas — beside an image, over a group, on empty space. Everyone with access can vote once, counts are live, and it exists so a team can settle a choice between options without turning it into a comment thread nobody reads.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/vote-cards · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/canvas/vote-cards · Updated 2026-11-18_
 
 A vote card is deliberately the smallest possible decision tool: a ✓ and an ✗
 with live counts, anchored wherever the decision actually is.
 
-Add one from the rail's **+** menu → *Annotate* → **Vote**.
+Add one from the rail's **+** menu → *Annotate* → **Vote**. On a phone or an
+upright iPad, **Vote** is in the sheet the **+** at the bottom of the board
+opens.
 
 ## Anchoring
 

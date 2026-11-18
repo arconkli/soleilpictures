@@ -5,6 +5,10 @@
 // to it (CanvasSurface revealAdded), to 80% of the visible board's width and
 // 1.5x at most, and never back out. The Text tool's tap keeps the tap point
 // and zooms in the same way.
+//
+// The mobile shell has no rail: the board is the wrap's whole width, and the
+// Text tool is reached by its key (N, an iPad with a keyboard). The helpers
+// still read a rail when there is one, so the numbers hold either way.
 import { deflateSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
 
@@ -15,8 +19,8 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.waitForTimeout(600);
 });
 
-// The board as it is drawn: zoom, the wrap, the rail's right edge, and every
-// card's box on screen.
+// The board as it is drawn: zoom, the wrap, the rail's right edge and its
+// gutter (when there is a rail), and every card's box on screen.
 const scene = (page) => page.evaluate(() => {
   const wrap = document.querySelector('.canvas-wrap');
   const r = wrap.getBoundingClientRect();
@@ -29,7 +33,7 @@ const scene = (page) => page.evaluate(() => {
   });
   return {
     zoom: m.a,
-    left: rail ? rail.right : r.left, right: r.right, top: r.top,
+    left: rail ? rail.right : r.left, gutter: rail ? 8 : 0, right: r.right, top: r.top,
     bottom: nav && nav.top < r.bottom ? nav.top : r.bottom,
     cards,
   };
@@ -50,9 +54,15 @@ const insideBoard = (s, card) => {
   expect(card.y).toBeGreaterThanOrEqual(s.top);
   expect(card.y + card.h).toBeLessThanOrEqual(s.bottom);
 };
-// The zoom a new card `w` wide is brought to: 80% of the board right of the
-// rail (and its 8px gutter), 1.5x at most.
-const zoomFor = (s, w) => Math.min(0.8 * (s.right - s.left - 8) / w, 1.5);
+// The zoom a new card `w` wide is brought to: 80% of the visible board (right
+// of the rail and its 8px gutter, where there is one), 1.5x at most.
+const zoomFor = (s, w) => Math.min(0.8 * (s.right - s.left - s.gutter) / w, 1.5);
+// Out of a note: writing mode hides the + until the typing is over.
+async function stopTyping(page) {
+  await page.keyboard.press('Escape');
+  await expect(page.locator('body')).not.toHaveAttribute('data-text-editing');
+  await expect(page.getByRole('button', { name: 'Add a card' })).toBeVisible();
+}
 
 async function addFromSheet(page, name) {
   await page.getByRole('button', { name: 'Add a card' }).tap();
@@ -74,8 +84,8 @@ test('a Text note from the + sheet lands in free space, the view zooms in to it,
   const want = zoomFor(after, note.w / after.zoom);
   expect(after.zoom).toBeGreaterThan(before.zoom);
   expect(Math.abs(after.zoom - want)).toBeLessThan(0.02);
-  // Centred right of the rail, its top a little under the board's top edge.
-  const mid = (after.left + 8 + after.right) / 2;
+  // Centred in the visible board, its top a little under the board's top edge.
+  const mid = (after.left + after.gutter + after.right) / 2;
   expect(Math.abs(note.x + note.w / 2 - mid)).toBeLessThan(3);
   expect(note.y).toBeGreaterThanOrEqual(after.top + 20);
   expect(note.y).toBeLessThan(after.top + 140);
@@ -111,7 +121,11 @@ test('a Doc from the + sheet: the view zooms in to its card under the editor', a
 test('already zoomed in: a second note keeps the zoom and comes into view', async ({ page }) => {
   await addFromSheet(page, 'Text note');
   await page.keyboard.type('One');
+  // Typing hides the +: out of the first note, and the zoom it took stays.
+  const typing = await scene(page);
+  await stopTyping(page);
   const first = await scene(page);
+  expect(Math.abs(first.zoom - typing.zoom)).toBeLessThan(0.005);
   await addFromSheet(page, 'Text note');
   const second = await scene(page);
   const note = newCard(first, second);
@@ -126,8 +140,11 @@ test('already zoomed in: a second note keeps the zoom and comes into view', asyn
 
 test('the Text tool\'s tap keeps the tap point and zooms in to the note', async ({ page }) => {
   const before = await scene(page);
-  await page.getByRole('button', { name: 'Add note tool', exact: true }).tap();
-  // An empty spot low on the board, right of the rail.
+  // No rail on the mobile shell: the Text tool by its key.
+  await expect(page.locator('.cnv-tools')).toHaveCount(0);
+  await page.keyboard.press('n');
+  await expect(page.locator('.canvas-wrap')).toHaveClass(/tool-text/);
+  // An empty spot low on the board.
   const at = { x: Math.round(before.left + (before.right - before.left) * 0.6), y: Math.round(before.bottom - 110) };
   await page.touchscreen.tap(at.x, at.y);
   await page.waitForTimeout(900);
@@ -245,27 +262,48 @@ test('a photo picked from the + sheet lands in free space and in view', async ({
   insideBoard(after, photo);
 });
 
-// Opening a note that is already on the board is not adding one: the view
-// stays where it is.
-test('opening a note that is already on the board changes no zoom', async ({ page }) => {
+// Opening a note that is already on the board is not adding one. Text that
+// would read small (under 15px on screen) brings the view in once, as a new
+// note does; after that, opening the same note again changes no zoom.
+test('opening a note that is already on the board: small text glides in once, then the zoom stays', async ({ page }) => {
   const before = await scene(page);
   const target = await page.evaluate(({ left, right, top, bottom }) => {
     for (const el of document.querySelectorAll('.cards-layer .card[data-card-id]')) {
       if (!el.querySelector('.note')) continue;
       const b = el.getBoundingClientRect();
       if (b.left >= left && b.right <= right && b.top >= top && b.bottom <= bottom) {
-        return { id: el.getAttribute('data-card-id'), x: b.left + b.width / 2, y: b.top + Math.min(20, b.height / 2) };
+        return { id: el.getAttribute('data-card-id') };
       }
     }
     return null;
   }, before);
   expect(target, 'a seeded note wholly inside the visible board').not.toBeNull();
-  const x = Math.round(target.x), y = Math.round(target.y);
-  await page.touchscreen.tap(x, y);
-  await page.waitForTimeout(90);
-  await page.touchscreen.tap(x, y);
-  await expect(page.locator(`.card[data-card-id="${target.id}"] .note-body[contenteditable="true"]`)).toBeVisible();
-  await page.waitForTimeout(700);
-  const after = await scene(page);
-  expect(Math.abs(after.zoom - before.zoom)).toBeLessThan(0.005);
+  const body = page.locator(`.card[data-card-id="${target.id}"] .note-body`);
+  const open = async () => {
+    const b = await page.locator(`.card[data-card-id="${target.id}"]`).boundingBox();
+    const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + Math.min(20, b.height / 2));
+    await page.touchscreen.tap(x, y);
+    await page.waitForTimeout(90);
+    await page.touchscreen.tap(x, y);
+    await expect(page.locator(`.card[data-card-id="${target.id}"] .note-body[contenteditable="true"]`)).toBeVisible();
+    await page.waitForTimeout(700);
+  };
+  // The text's size on screen: its own font size times the board's zoom.
+  const textPx = async () => (await body.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))) * (await scene(page)).zoom;
+  const small = (await textPx()) < 15;
+  await open();
+  const opened = await scene(page);
+  if (small) {
+    expect(opened.zoom).toBeGreaterThan(before.zoom);
+    expect(await textPx()).toBeGreaterThanOrEqual(15);
+  } else {
+    expect(Math.abs(opened.zoom - before.zoom)).toBeLessThan(0.005);
+  }
+  // Out, and in again: readable now, so nothing moves.
+  await stopTyping(page);
+  const rest = await scene(page);
+  expect(Math.abs(rest.zoom - opened.zoom)).toBeLessThan(0.005);
+  await open();
+  const again = await scene(page);
+  expect(Math.abs(again.zoom - opened.zoom)).toBeLessThan(0.005);
 });

@@ -3815,6 +3815,7 @@ msgstr "Добавить: {value}"
 msgid "Add 1 TB · {price} a month"
 msgstr "Добавить 1 ТБ · {price} в месяц"
 
+#: src/App.jsx
 #: src/components/shell/MobileBottomNav.jsx
 msgid "Add a card"
 msgstr "Добавить карточку"
@@ -3981,6 +3982,7 @@ msgstr "Добавить столбец слева"
 msgid "Add column right"
 msgstr "Добавить столбец справа"
 
+#: src/App.jsx
 #: src/components/DocPageEditor.jsx
 #: src/components/toolbar/NoteBarA.jsx
 #: src/lib/menus/rows.js
@@ -8654,6 +8656,11 @@ msgstr "Не хотите ждать?"
 #: src/components/StorageAddonSheet.jsx
 #: src/lib/importCopy.js
 #: src/lib/onboardingTourWords.js
+msgid "Done"
+msgstr "Готово"
+
+#: src/App.jsx
+msgctxt "finish typing"
 msgid "Done"
 msgstr "Готово"
 
@@ -15203,6 +15210,10 @@ msgstr "Открыть связанный кластер"
 #: src/App.jsx
 msgid "Open menu"
 msgstr "Открыть меню"
+
+#: src/App.jsx
+msgid "Open menu, unread messages"
+msgstr "Открыть меню, есть непрочитанные сообщения"
 
 #: src/pages/ResumePage.jsx
 msgid "Open my clusters"

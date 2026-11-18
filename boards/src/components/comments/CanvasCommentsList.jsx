@@ -79,7 +79,21 @@ export function CanvasCommentsList({
     if (!listOpen || sheet) return undefined;
     const fit = () => {
       const b = btnRef.current;
-      if (b) setAt({ left: b.offsetLeft, top: b.offsetTop + b.offsetHeight + 8 });
+      if (!b) return;
+      const host = popRef.current?.offsetParent;
+      if (host && !host.contains(b)) {
+        // The button is in the top bar (an upright iPad): the list hangs at
+        // the canvas's top, its right edge under the button's.
+        const hr = host.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        const w = popRef.current.offsetWidth;
+        setAt({
+          left: Math.max(8, Math.min(br.right - hr.left - w, hr.width - w - 8)),
+          top: Math.max(8, br.bottom - hr.top + 8),
+        });
+        return;
+      }
+      setAt({ left: b.offsetLeft, top: b.offsetTop + b.offsetHeight + 8 });
     };
     fit();
     window.addEventListener('resize', fit);

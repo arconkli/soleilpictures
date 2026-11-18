@@ -5,7 +5,7 @@ h1: The canvas
 navLabel: Overview
 section: canvas
 order: 0
-updated: 2026-11-17
+updated: 2026-11-18
 answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.
 faq:
   - q: How big is the canvas?
@@ -13,7 +13,7 @@ faq:
   - q: Can I change the background?
     a: Yes. Right-click the canvas, choose Background and pick a colour — seven presets plus a custom picker. The setting is per cluster.
   - q: Does the canvas work on a tablet?
-    a: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. The tool rail adapts, and drawing works with a stylus or a finger.
+    a: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then drag, to select cards with a box; hold and let go for the canvas menu, whose Select… lets taps pick several. On an iPad held sideways the tool rail adapts; on a phone or an upright iPad one + at the bottom of the board takes its place. Drawing works with a stylus or a finger.
 related:
   - /docs/canvas/cards
   - /docs/keyboard-shortcuts
@@ -79,6 +79,11 @@ The **+** at the top of the rail opens the rest, grouped:
 - *Tools* — Draw (`D`), Shape, Palette
 - *Create* — File, Folder (on a desktop browser), Link, Linked cluster
 - *Annotate* — Comment, Vote
+
+On a phone or an upright iPad there is no rail inside a cluster. One **+** at
+the bottom of the board opens a sheet with everything above that adds
+something, Arrow, Comment and Vote included. See
+[Mobile and tablet](/docs/account/mobile#layout-differences).
 
 ## Right-click
 

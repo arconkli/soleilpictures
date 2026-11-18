@@ -2,7 +2,7 @@
 
 > A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/notes · Updated 2026-11-17_
+_Source: https://clusters.soleilpictures.com/docs/canvas/notes · Updated 2026-11-18_
 
 A note is the general-purpose card: a caption, a brief, a to-do list, a
 paragraph of context beside a set of images. Press `N`, or right-click where you
@@ -25,6 +25,11 @@ never typed in goes away when you click off it, with no undo toast, since there
 was nothing in it. `⌘Z` undoes inside the note, and the note's undo history
 survives closing and reopening it. Right after a colour, font, size or
 **Center in the box** from the toolbar, `⌘Z` takes that back first.
+
+On a phone or an upright iPad, the formatting row rests right on top of the
+keyboard while you type, and **Done** in the top bar, or a tap on the board,
+finishes and puts the keyboard away. See
+[Mobile and tablet](/docs/account/mobile#touch-on-the-canvas).
 
 Formatting works as you would expect: `⌘B`, `⌘I`, `⌘U` for bold, italic and
 underline. A toolbar appears at the bottom of the canvas while a note is
