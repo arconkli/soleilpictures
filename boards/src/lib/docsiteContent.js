@@ -53138,7 +53138,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "This runs on Cloudflare Workers AI, the provider that already stores your files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models ("
+     "v": "This runs on Cloudflare Workers AI, from the provider that already runs the Clusters website. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models ("
     },
     {
      "t": "link",
@@ -55076,7 +55076,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters is run from the United States. Each part runs on one provider:"
+     "v": "Clusters is run from the United States, on these providers:"
     }
    ]
   },
@@ -55121,7 +55121,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Cloudflare R2. Some message attachments and a few older card pictures are in Supabase storage"
+       "v": "Cloudflare R2, moving to Backblaze B2 (US East); during the move both hold a copy. Some message attachments and a few older card pictures are in Supabase storage"
       }
      ]
     ],
@@ -55313,6 +55313,21 @@ export const DOCS_CONTENT = {
        {
         "t": "text",
         "v": "R2 data security"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), Backblaze B2, where files are moving, encrypts them with AES-256 as well ("
+     },
+     {
+      "t": "link",
+      "v": "B2 server-side encryption",
+      "href": "https://www.backblaze.com/docs/cloud-storage-server-side-encryption",
+      "children": [
+       {
+        "t": "text",
+        "v": "B2 server-side encryption"
        }
       ]
      },
@@ -55949,7 +55964,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " are copied by an hourly job to a separate backup store. Message attachments kept in Supabase storage aren't part of that copy."
+      "v": " are copied to a separate backup store. Message attachments kept in Supabase storage aren't part of that copy."
      }
     ],
     [
@@ -56129,6 +56144,21 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Cloudflare"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "link",
+     "v": "Backblaze",
+     "href": "https://www.backblaze.com/cloud-storage/compliance",
+     "children": [
+      {
+       "t": "text",
+       "v": "Backblaze"
       }
      ]
     },
