@@ -367,6 +367,8 @@ export default {
   // {price} is the amount with its currency, like $12. The second is a yearly price.
   "trial_ending.price_month": "{price}/month",
   "trial_ending.price_year": "{price}/year",
+  // ── checkout: not an email: the line Stripe shows beside its button on a Creator trial's checkout page (create-checkout-session) ──
+  "checkout.trial_note": "We'll email you about three days before your trial ends. Cancel before then in Settings and you pay nothing.",
 
   // ── magic_link: the sign-in code email (Supabase fills in the code) ──
   // {code} is the 6-digit code. The page keeps the code's own look; only the words change.

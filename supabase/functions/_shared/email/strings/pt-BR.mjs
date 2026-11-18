@@ -253,6 +253,8 @@ export default {
   "trial_ending.charge_at": "em {date} UTC",
   "trial_ending.price_month": "{price} por mês",
   "trial_ending.price_year": "{price} por ano",
+  // checkout: the line Stripe shows beside its button on a Creator trial (not an email)
+  "checkout.trial_note": "Avisaremos por e-mail cerca de três dias antes de o seu teste terminar. Cancele antes em Configurações e você não paga nada.",
 
   // ── magic_link: the sign-in code email (Supabase fills in the code) ──
   "magic_link.subject": "{code} é seu código de acesso ao Clusters",

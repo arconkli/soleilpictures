@@ -171,3 +171,8 @@ test('a released folder waits for a running import instead of being refused and 
   assert.ok(fn.indexOf("args.source === 'held'") < fn.indexOf('A folder is still importing'), 'it waits before the refusal');
   assert.match(fn, /finally \{ folderImportBusyRef\.current = false; idle\(\); \}/);
 });
+
+test('the upgrade answer places what fits through upgradeTake', () => {
+  assert.ok(app.includes("onUpgrade={() => answerImportAsk('upgrade', upgradeTake(importAsk))}"));
+  assert.match(app, /import \{[^}]*\bupgradeTake\b[^}]*\} from '\.\/lib\/importPreflight\.js';/);
+});

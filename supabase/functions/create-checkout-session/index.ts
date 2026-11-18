@@ -25,6 +25,7 @@ import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from 
 import { trialEarlyArm } from "../_shared/trialEarly.mjs";
 import { failedWith, reported } from "../_shared/reportError.ts";
 import { stripeLocale } from "../_shared/stripeLocale.mjs";
+import { emailStrings } from "../_shared/email/i18n.mjs";
 import { claimsMatch, earlyOr, settle, tokenClaims } from "../_shared/earlyReads.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
@@ -329,6 +330,11 @@ Deno.serve(reported("create-checkout-session", async (req) => {
       // required — card-required is the trial model that converts and the one
       // that keeps a premium offer from being a free fortnight for anybody.
       payment_method_collection: trial ? "always" : "if_required",
+      // A trial's card form says plainly that nothing is charged today: the
+      // reminder email comes about three days before the end, and cancelling
+      // before then costs nothing. In the account's language (`locale` above;
+      // missing means English, as the app is then), from the email strings.
+      ...(trial ? { custom_text: { submit: { message: emailStrings(locale).t("checkout.trial_note") } } } : {}),
       client_reference_id: userId,
       // Match params ride along in session metadata; stripe-webhook +
       // verify-checkout-session read them back into the CAPI Purchase. Omit

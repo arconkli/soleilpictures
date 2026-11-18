@@ -48098,7 +48098,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead."
+     "v": ". Nothing you have already made is removed, locked, or hidden. A drop that would not fit is caught before anything uploads, so you can add the part that fits instead. Picking the upgrade or the trial there over the card limit adds that part at once too, and the rest waits for the new plan (a folder waits whole)."
     }
    ]
   },
