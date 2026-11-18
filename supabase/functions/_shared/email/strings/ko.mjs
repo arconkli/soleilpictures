@@ -273,6 +273,8 @@ export default {
   "trial_ending.charge_at": "{date} UTC",
   "trial_ending.price_month": "월 {price}",
   "trial_ending.price_year": "연 {price}",
+  // checkout: the line Stripe shows beside its button on a Creator trial (not an email)
+  "checkout.trial_note": "체험이 끝나기 약 3일 전에 이메일로 알려 드려요. 그 전에 “설정”에서 해지하면 결제되지 않아요.",
 
   // ── magic_link ──
   "magic_link.subject": "Clusters 로그인 코드: {code}",

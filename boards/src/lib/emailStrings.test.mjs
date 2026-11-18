@@ -28,6 +28,8 @@ const SOURCES = [
   '../../../supabase/functions/_shared/email/theme.ts',
   '../../../supabase/functions/_shared/email/layout.ts',
   '../../../supabase/functions/_shared/email/trialEnding.ts',
+  // Not an email: the trial's line on Stripe's checkout page (checkout.trial_note).
+  '../../../supabase/functions/create-checkout-session/index.ts',
   '../../scripts/gen-magic-link.mjs',
 ];
 const source = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');

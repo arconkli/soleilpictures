@@ -14,7 +14,7 @@
 // demoCardCap.test.mjs had to be rewritten; deriving them means the next move
 // costs nothing.
 
-import { planImport, planBytes, MEDIA_SLACK_BYTES } from './importPreflight.js';
+import { planImport, planBytes, upgradeTake, MEDIA_SLACK_BYTES } from './importPreflight.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 let failed = 0;
@@ -144,6 +144,18 @@ assertEq(planImport({ capped: true, resolved: true, count: 0, limit: 0, requeste
   assertEq(planBytes({ items: [], remaining: 0 }).take, 0, 'an empty drop takes nothing');
 }
 
+// ------------------------------------------------------- the upgrade answer
+
+const held = { limit: 25 };
+assertEq(upgradeTake({ n: 76, take: 20, hold: held, limitKind: 'cards' }), 20, 'a loose card drop with a hold places what fits');
+assertEq(upgradeTake({ n: 76, take: 20, hold: held }), 20, 'a missing limitKind counts as cards');
+assertEq(upgradeTake({ n: 76, take: 20, hold: held, folder: true }), 0, 'a folder places nothing');
+assertEq(upgradeTake({ n: 76, take: 20, hold: held, limitKind: 'storage' }), 0, 'the drive question places nothing');
+assertEq(upgradeTake({ n: 76, take: 20, hold: null, limitKind: 'cards' }), 0, 'no hold places nothing');
+assertEq(upgradeTake(null), 0, 'null places nothing');
+assertEq(upgradeTake(undefined), 0, 'undefined places nothing');
+assertEq(upgradeTake({ n: 10, take: 30, hold: held }), 10, 'never more than the drop');
+assertEq(upgradeTake({ n: 10, take: -5, hold: held }), 0, 'never below zero');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
-

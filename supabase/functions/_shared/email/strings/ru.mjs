@@ -313,6 +313,8 @@ export default {
   "trial_ending.charge_at": "{date} UTC",
   "trial_ending.price_month": "{price} в месяц",
   "trial_ending.price_year": "{price} в год",
+  // checkout: the line Stripe shows beside its button on a Creator trial (not an email)
+  "checkout.trial_note": "Мы отправим вам письмо примерно за три дня до окончания пробного периода. Отмените подписку до этого момента в разделе Настройки — и вы ничего не заплатите.",
 
   // ── magic_link ──
   "magic_link.subject": "{code} — ваш код для входа в Clusters",

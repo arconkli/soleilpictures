@@ -293,6 +293,8 @@ export default {
   "trial_ending.charge_at": "le {date} UTC",
   "trial_ending.price_month": "de {price} par mois",
   "trial_ending.price_year": "de {price} par an",
+  // checkout: the line Stripe shows beside its button on a Creator trial (not an email)
+  "checkout.trial_note": "Nous vous enverrons un e-mail environ trois jours avant la fin de votre essai. Résiliez avant dans Paramètres et vous ne paierez rien.",
 
   // ── magic_link ──
   "magic_link.subject": "{code} est votre code de connexion Clusters",

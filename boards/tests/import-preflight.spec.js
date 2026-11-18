@@ -150,11 +150,12 @@ test.describe('unresolved is not uncapped (App.jsx-only path)', () => {
     expect(s).toMatch(/if \(!ask\) return null;/);
   });
 
-  test('upgrading does not silently half-import', () => {
-    // Upgrade takes 0: nothing goes on before the plan changes. On the
-    // person's own plan the drop waits in the tab and goes on once checkout
-    // (opened in a new tab) lands; anywhere else the folder stays on disk.
-    expect(app()).toMatch(/answerImportAsk\('upgrade', 0\)/);
+  test('upgrading places what fits and holds the rest', () => {
+    // Upgrade places what fits at once (the same split as "Add what fits")
+    // and the rest waits in the tab for the plan; a folder, the drive
+    // question, or a drop with nothing to hold it places nothing
+    // (lib/importPreflight.js upgradeTake).
+    expect(app()).toMatch(/answerImportAsk\('upgrade', upgradeTake\(importAsk\)\)/);
     expect(app()).toMatch(/answerImportAsk\('cancel', 0\)/);
     expect(app()).toMatch(/answerImportAsk\('partial', importAsk\.take\)/);
   });

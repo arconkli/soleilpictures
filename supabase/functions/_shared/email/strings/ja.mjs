@@ -273,6 +273,8 @@ export default {
   "trial_ending.charge_at": "{date} UTC",
   "trial_ending.price_month": "月額{price}",
   "trial_ending.price_year": "年額{price}",
+  // checkout: the line Stripe shows beside its button on a Creator trial (not an email)
+  "checkout.trial_note": "トライアル終了の約3日前にメールでお知らせします。それまでに「設定」でキャンセルすれば、お支払いは一切ありません。",
 
   // ── magic_link ──
   "magic_link.subject": "{code}がClustersのログインコードです",

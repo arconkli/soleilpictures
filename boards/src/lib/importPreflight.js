@@ -126,3 +126,24 @@ export function planBytes(opts) {
   }
   return { take, needed, resolved: true };
 }
+
+// How many files the import question's upgrade answer places at once.
+//
+// A loose drop over the CARD limit puts what fits on the board now, the same
+// split "Add what fits" makes, and the rest waits in this tab for the plan
+// (lib/heldUploads.js). It used to place nothing: the whole drop waited, so
+// someone who opened the Creator pop-up and closed it again was left with an
+// empty board and their files in a "waiting for room" bar.
+//
+// Three cases still place nothing and keep the whole drop waiting:
+// - a folder: cut down to what fits, its remainder is folders and files from
+//   the middle of a tree, which nothing can hold (App.jsx importFolderOnce);
+// - the drive (limitKind 'storage'): its wall sells room, not a part;
+// - no hold (not the person's own plan): the rest could not wait, and dropping
+//   the whole thing again would duplicate the part already placed.
+export function upgradeTake(ask) {
+  if (!ask || !ask.hold || ask.folder) return 0;
+  if ((ask.limitKind || 'cards') !== 'cards') return 0;
+  const n = Math.max(0, Number(ask.n) | 0);
+  return Math.max(0, Math.min(n, Number(ask.take) | 0));
+}

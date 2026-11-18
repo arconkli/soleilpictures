@@ -233,7 +233,7 @@ import { b64ToBytes } from './lib/yhelpers.js';
 import { cardToYMap, groupYMap } from './lib/yhelpers.js';
 import { evaluateDemoCap, fitByCost, rejectedNoun, wallCardsOf, DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import { CLUSTER_CARD_COST } from './lib/gridCount.js';
-import { planImport, planBytes } from './lib/importPreflight.js';
+import { planImport, planBytes, upgradeTake } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
@@ -7185,10 +7185,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           count: ask.count, limit: ask.limit, source: ask.source, board_id: ask.boardId,
         });
       } catch (_) {}
-      // Upgrading continues the import when it can: the files are held in this
-      // tab (lib/heldUploads.js, `ask.hold`) and Checkout opens in a new one,
-      // so they upload when the plan lands. Where they cannot be held, the
-      // folder is untouched on disk and the return says to drop it again.
+      // Upgrading places what fits at once when it can (lib/importPreflight.js
+      // upgradeTake) and the rest is held in this tab (lib/heldUploads.js,
+      // `ask.hold`) while Checkout opens in a new one, so it uploads when the
+      // plan lands. Where nothing can be held, the folder stays on disk and the
+      // return says to drop it again.
       //
       // Claim the slot, exactly as pitchCapWall does, and for a reason the
       // production trace spells out. On 2026-09-17 someone chose Upgrade here
@@ -13536,7 +13537,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             early: trialEarlyOn(user?.id),
           }).eligible : Boolean(wallTrialRef.current(importWallCards(importAsk)))}
           onTakePartial={() => answerImportAsk('partial', importAsk.take)}
-          onUpgrade={() => answerImportAsk('upgrade', 0)}
+          onUpgrade={() => answerImportAsk('upgrade', upgradeTake(importAsk))}
           onCancel={() => answerImportAsk('cancel', 0)}
         />
       )}

@@ -114,6 +114,8 @@ You are told when you reach either one, and offered the upgrade — or, when a
 Creator drive is full, [more storage](#more-storage). Nothing you
 have already made is removed, locked, or hidden. A drop that would not fit is
 caught before anything uploads, so you can add the part that fits instead.
+Picking the upgrade or the trial there over the card limit adds that part at
+once too, and the rest waits for the new plan (a folder waits whole).
 
 Unless you cancel, the files that did not go on wait in that browser tab.
 Upgrade, or add storage, and they upload by themselves, so you never drop the
