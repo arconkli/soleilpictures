@@ -64,6 +64,8 @@ const SECTIONS = () => [
     rows: [
       [[`${CMD}Z`, `${CMD}⇧Z`], t`Undo · redo`],
       [[`${CMD}C`, `${CMD}X`, `${CMD}V`], t`Copy · cut · paste`],
+      // One selected card: what a double-click does (CanvasSurface cardEnterRef).
+      [[t({ message: 'Enter', context: 'keyboard key' })], t`Open or edit the selected card`],
       [[`${CMD}D`], t`Duplicate`],
       [[`${CMD}A`], t`Select all`],
       [[`${CMD}G`], t`Group selection`],

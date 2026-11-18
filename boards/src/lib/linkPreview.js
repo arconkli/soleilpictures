@@ -8,11 +8,46 @@
 const SAME_ORIGIN = '/api/og';
 const MICROLINK = 'https://api.microlink.io/';
 
-export async function fetchLinkPreview(rawUrl) {
-  if (!rawUrl) return null;
-  const url = rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
+function normalUrl(rawUrl) {
+  if (!rawUrl) return '';
+  return rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
     ? rawUrl
     : `https://${rawUrl}`;
+}
+
+// Fetches in flight, by normalised URL, so a link card can say "Getting
+// preview…" while it waits. Counted, so two cards asking for the same URL
+// don't clear each other. Shaped for React's useSyncExternalStore.
+const pending = new Map();
+const pendingListeners = new Set();
+function notifyPending() {
+  for (const fn of pendingListeners) { try { fn(); } catch (_) {} }
+}
+
+export function isPreviewPending(rawUrl) {
+  return pending.has(normalUrl(rawUrl));
+}
+
+export function subscribePreviewPending(fn) {
+  pendingListeners.add(fn);
+  return () => { pendingListeners.delete(fn); };
+}
+
+export async function fetchLinkPreview(rawUrl) {
+  if (!rawUrl) return null;
+  const url = normalUrl(rawUrl);
+  pending.set(url, (pending.get(url) || 0) + 1);
+  notifyPending();
+  try {
+    return await fetchPreview(url);
+  } finally {
+    const n = (pending.get(url) || 1) - 1;
+    if (n > 0) pending.set(url, n); else pending.delete(url);
+    notifyPending();
+  }
+}
+
+async function fetchPreview(url) {
   // 1) Same-origin worker.
   try {
     const r = await fetch(`${SAME_ORIGIN}?url=${encodeURIComponent(url)}`);

@@ -127,7 +127,7 @@ A few things worth knowing on day one:
 To do this | Do this
 Add a note | Press N, or right-click where you want it
 Add images | Drag them in, paste from the clipboard, or use the image tool — the picker is multi-select. Drop a whole folder and it becomes a cluster, its folders nested ones
-Add a link | Paste a URL onto the canvas — it unfurls into a real card
+Add a link | Paste a URL onto the canvas — it unfurls into a real card, and a picture's address brings in the picture
 Pan | Hold Space and drag, or press H
 Fit everything on screen | ⇧1
 Undo | ⌘Z
@@ -302,7 +302,8 @@ Edit
 
 Key | Action
 ⌘Z / ⌘⇧Z | Undo · redo
-⌘C / ⌘X / ⌘V | Copy · cut · paste
+⌘C / ⌘X / ⌘V | Copy · cut · paste — not a cluster card; use Move to… in its menu
+Enter | Open or edit the one selected card, as a double-click does — a note starts typing at the end, a picture opens full size, a cluster, doc or file opens. On audio it plays
 ⌘D | Duplicate
 ⌘A | Select all
 ⌘G | Group selection
@@ -327,7 +328,7 @@ Key | Action
 F | Open or close the full Files page
 ⌘I | Info — the selection, or the cluster when nothing is selected
 ⌘0 | Reset zoom
-⌘+ / ⌘− | Zoom in · out
+⌘+ / ⌘− | Zoom in · out — the on-screen − and + dim at the limits
 ⇧1 | Fit everything
 ⇧2 | Fit selection
 Space-drag | Pan with any tool active
@@ -340,7 +341,7 @@ Zoom and pan are remembered per cluster. Reopening a board puts you back where y
 
 Swapping what the wheel does
 
-Settings → Appearance → Scroll wheel. Scrolling pans by default and ⌘-scroll zooms; set it to Zoom and they trade places, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. ⌘K → "scroll wheel" flips it without opening settings.
+Settings → Appearance → Scroll wheel. Scrolling pans by default and ⌘-scroll zooms; set it to Zoom and they trade places, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. ⌘K → "scroll wheel" flips it without opening settings. Scroll back and forth as if expecting zoom and a tip says "Scrolling pans the canvas. ⌘-scroll zooms." once, with a Zoom with the wheel button that switches it there and then, and Undo.
 
 Which one is right depends on what you came from — PureRef and Miro zoom on scroll, Figma and Milanote pan — which is why it is a setting and not a default we picked for you.
 
@@ -447,7 +448,9 @@ Words you leave unsent are kept, so clicking away never loses them.
 Notes
 
 Key | Action
-Double-click | Edit a note or a title
+Double-click | Edit a note or a title — on a picture, double-click its title; the picture itself opens full size
+Click a selected note | Start typing where you clicked, when it is the only card selected
+Enter | With one note selected, start typing at the end
 ⌘Z / ⌘⇧Z | Undo · redo text — history survives closing the note; right after a colour, font, size or Center in the box from the note bar, that change first
 ⌘B / ⌘I / ⌘U | Bold · italic · underline
 ⌘\ | Clear formatting — links and comments stay
@@ -494,7 +497,7 @@ Double-click empty canvas opens an add menu at your cursor.
 Right-click anything for its full menu — cards, groups, and the canvas background each have their own.
 Hold Alt while dragging to bypass snapping.
 Hold ⌥ while dragging files to another cluster to copy them instead of moving them — Ctrl on Windows.
-Paste a URL onto the canvas to create a link card that unfurls its preview.
+Paste a URL onto the canvas to create a link card that unfurls its preview — or, for a picture's address, the picture itself.
 Drag files from your desktop straight onto the canvas.
 
 ## Frequently asked questions
@@ -503,7 +506,7 @@ Q: How do I see shortcuts without leaving what I am doing?
 A: Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects.
 
 Q: Can the scroll wheel zoom instead of scrolling the board around?
-A: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
+A: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel", or Zoom with the wheel on the tip that appears when you scroll as if expecting zoom. Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
 
 Q: Can I move around a board with W, A, S and D?
 A: Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way, hold Q or E to zoom in or out, and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on.
@@ -638,7 +641,7 @@ Your position is saved per cluster. Close a board deep in a corner of the canvas
 
 Come back to a cluster after a break of half an hour or more and it opens on the card you last worked on: the whole cluster shows for a moment, then the view glides to that card and selects it. Any click, scroll or key stops it where it is, and with reduced motion on it goes straight there. For a few seconds after you come back, beside the cluster's name it says when you last worked on it, on any of your devices: last worked Tuesday evening. On a phone those words show under the top bar instead, then go.
 
-If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — Settings → Appearance → Scroll wheel swaps the two, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. Pinching a trackpad zooms in either setting. See keyboard shortcuts.
+If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — Settings → Appearance → Scroll wheel swaps the two, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. Pinching a trackpad zooms in either setting. If the board notices you scrolling back and forth as if expecting zoom, a tip says so once, with a Zoom with the wheel button that switches it at once and an Undo. See keyboard shortcuts.
 
 If you would rather steer with the keyboard, Settings → Appearance → Move with W A S D lets you hold W, A, S or D to move around and Q or E to zoom in or out, with ⇧ to go faster. It is off until you turn it on, because A and D are also the Arrow and Free-draw keys — see moving with W A S D.
 
@@ -731,7 +734,7 @@ Every kind
 Card | What it holds
 Image | A picture, with non-destructive adjustments
 Note | Rich text — checklists, mentions, formatting
-Link | A URL, unfurled into a real preview with title and thumbnail
+Link | A URL, unfurled into a real preview with title and thumbnail. It says Getting preview… while that loads, and No preview when the site gives none
 Doc | A whole multi-page document
 PDF | Page one as a thumbnail, opening into a full viewer
 File | Any other file — type icon, size, download
@@ -750,7 +753,7 @@ Adding one
 Four ways, in rough order of speed:
 
 Drag a file in from your desktop. The type is detected and the right card kind is created — see Files and media.
-Paste. A URL becomes a link card, an image in your clipboard becomes an image card, text becomes a note.
+Paste. A picture's web address (one ending in .jpg, .png and the like, or from a picture host) becomes an image card; any other address becomes a link card. An image in your clipboard becomes an image card, and several pasted at once all come in, side by side. Text becomes a note, even text copied from Word or a web page that also carries a picture of itself.
 Double-click empty canvas for an add menu at your cursor.
 The tool rail or its + menu.
 
@@ -762,11 +765,13 @@ Move by dragging. Resize from the corners. Hold Alt while dragging to ignore sna
 
 Layer order — [ and ] send backward and forward. Also in the right-click menu, under Arrange ›.
 
+Open — double-click a card, or select it and press Enter. A note starts typing, a picture opens full size, and a cluster, doc or file opens. On an audio card Enter plays instead.
+
 Duplicate — ⌘D.
 
 Delete — ⌫. A toast offers undo; ⌘Z also works.
 
-Cut and paste — ⌘X / ⌘V, including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on.
+Cut and paste — ⌘X / ⌘V, including across clusters. Cut-paste keeps standard clipboard behavior: the cut is undoable on the board it happened on, the paste on the board it landed on. A cluster card can't be cut or pasted; use Move to… in the cluster's menu instead.
 
 Move to another cluster — drag cards onto a cluster card, or onto a cluster's name in the sidebar to put them in its Files, off its board, or right-click → Move to cluster to send them to any cluster in the workspace, including one that isn't on this canvas. A move is one action: its toast undoes both sides at once. Moving cards doesn't change how many you have.
 
@@ -776,7 +781,7 @@ Comment — right-click → Add comment, which puts a pin at the corner of that 
 
 Copy link — a deep link that opens the board with that card selected. Useful in a message or a doc.
 
-On a touch screen the selection carries a gold ⋯ at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it. One selected card also shows a dot above it to turn it and a round grip on its corner to resize it; see Turning and resizing a card.
+On a touch screen the selection carries a gold ⋯ at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. A card you've already tapped moves with a plain drag; on a card you haven't tapped, a drag moves the board, and touching and holding it picks it up to move it. One selected card also shows a dot above it to turn it and a round grip on its corner to resize it; see Turning and resizing a card.
 
 Info
 
@@ -797,7 +802,7 @@ Right-click a file — an image, video, audio clip, PDF, file, link, palette or 
 
 Titles
 
-Most cards have a title. Double-click it to edit. Titles are searchable in ⌘K and they are what shows in Files, so a card called "Untitled" is a card you will not find later.
+Most cards have a title. Double-click the title itself to edit it, or choose Rename… from the card's right-click menu — under Edit › on a picture, video, audio, PDF or file, and on the menu itself on a link, a schedule or a cluster card. Titles are searchable in ⌘K and they are what shows in Files, so a card called "Untitled" is a card you will not find later.
 
 Shape cards are the exception — they have no title. If you need a labelled shape, put a note on top of it or use a group, which does have a name.
 
@@ -834,7 +839,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 URL: https://clusters.soleilpictures.com/docs/canvas/images
 Updated: 2026-11-17
 
-Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
+Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Double-click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
 Images are the reason most boards exist. Getting them in is meant to be thoughtless: select the files you want and drop them where you are, and they upload in parallel and lay themselves out rather than landing in a heap. Drag a whole folder or a zip onto the canvas instead and it becomes a cluster of its own, with its files waiting in Files until you put them on the board. See importing folders and zips.
 
@@ -842,7 +847,7 @@ Adding images
 
 Drag from the desktop — many at once is fine.
 Drag from another tab — an image dragged off a web page is kept as a copy in your workspace (see below).
-Paste from the clipboard.
+Paste from the clipboard. Several pictures pasted at once all come in, side by side, and a picture's web address (one ending in .jpg, .png and the like, or from a picture host) becomes the picture itself.
 The image tool in the rail, for a file picker.
 Soleil Scout — text them from your phone.
 
@@ -884,7 +889,7 @@ Three ways in, depending on how much room you need:
 
 Edit popover — a compact panel beside the image with the essentials.
 Full screen editor — everything, with the image large.
-Lightbox — click an image to fill the screen; click again for 1:1 and drag to pan. Under it, More like this shows the pictures in your workspace that look most like it, matched by what is in them, and a click opens one there. It appears only when something is close, and not in a workspace whose AI for pictures and search is off.
+Lightbox — double-click an image, or select it and press Enter, to fill the screen; click it there for 1:1 and drag to pan. On a phone or tablet, double-tap it. To rename the picture, double-click its title instead, or choose Edit › Rename… from its right-click menu. Under it, More like this shows the pictures in your workspace that look most like it, matched by what is in them, and a click opens one there. It appears only when something is close, and not in a workspace whose AI for pictures and search is off.
 
 Adjustments are stored as settings on the card. The uploaded file is never touched, so Reset returns you to the original exactly, and a collaborator who downloads the image gets to choose whether your edits come with it.
 
@@ -945,9 +950,13 @@ For anything longer than a few paragraphs, use a document instead — it has pag
 
 Writing
 
-Double-click a note to start editing; the caret lands where you clicked. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up. Click or tap away — or press Esc — to finish; your edits are shared live with collaborators as you type, so there is no separate "cancel". ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it. Right after a colour, font, size or Center in the box from the toolbar, ⌘Z takes that back first.
+Double-click a note to start editing; the caret lands where you clicked. A click does the same on a note that is already the one selected card, as long as you don't drag it. With one note selected, Enter starts typing with the caret at the end. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up.
+
+Click or tap away — or press Esc — to finish. Your edits are shared live with collaborators as you type, so there is no separate "cancel". A new note you never typed in goes away when you click off it, with no undo toast, since there was nothing in it. ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it. Right after a colour, font, size or Center in the box from the toolbar, ⌘Z takes that back first.
 
 Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and Tx — clear formatting (⌘\), which strips the selection back to the note's own font and size while keeping links and comments. ⌥F10 (Alt+F10 on Windows) takes you from the note's text to that toolbar, and Esc brings you back.
+
+The size's − and + jump to the next size in its list rather than one point at a time. Typing a size in the box still sets exactly that size, and ↑ and ↓ in the box still go one point at a time.
 
 Lists come from the toolbar. In a bulleted or numbered list, Tab tucks an item under the one above and ⇧Tab brings it back out; outside a list, Tab types two spaces. Neither key takes you out of the note.
 
@@ -2030,6 +2039,12 @@ Moving a cluster: drag it in the sidebar tree (on a touch screen, hold the row f
 
 Linked clusters are different: a reference to a cluster that lives elsewhere, placed on this canvas. The board itself does not move. Use it when something belongs in two places.
 
+The cluster's menu
+
+Click the cluster's name in the top bar for its menu, the same one its row has in the sidebar: Send to…, Share…, Copy link, Rename…, Move to…, Star and the rest. Rename… turns the name into a field right there; Enter saves and Esc puts it back.
+
+A cluster can't be cut and pasted like a card. To put it somewhere else, use Move to… in its menu.
+
 Side by side
 
 Two clusters can be open at once, in a split view with a draggable divider.
@@ -3003,7 +3018,7 @@ Automatic links
 
 Two things happen without you asking.
 
-URLs typed or pasted become links, with previews on hover. Pasted onto an empty canvas, a URL becomes a full link card instead.
+URLs typed or pasted become links, with previews on hover. Pasted onto an empty canvas, a URL becomes a full link card instead, or an image card when it is a picture's address.
 
 Known names are detected. Once a cluster, card or document exists, later occurrences of its name in your writing are quietly underlined and connected. Writing "Diner" in a note after creating a Diner cluster links the two without any @.
 
@@ -4710,18 +4725,20 @@ Two ways to run it on a phone or tablet: the mobile browser, or the same app add
 Touch on the canvas
 
 Gesture | Does
-One finger drag | Pan
+One finger drag | Pan — on a card you've already tapped, move that card
 Two finger drag | Pan
 Pinch | Zoom, keeping the spot between your fingers under them
 Tap | Select a card; on empty canvas, clear the selection
 Tap a selected note | Type where you tapped, with the keyboard up
-Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped
+Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped; on a photo, see it full size
 Tap outside the note you are typing in | Finish; the keyboard goes down
 Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws
 Touch and hold empty canvas, then let go | The board's menu, with Select… in it
-Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu)
+Touch and hold a card | Pick it up to move it, tapped or not (on a cluster you can only view, its menu)
 Touch and hold anything else | Its menu: a group label's, an arrow's
 ⋯ on the selection | The menu for every selected card
+
+A card you've already tapped moves with a plain drag. On a card you haven't tapped, a drag moves the board, so you can pan across a board full of pictures without picking one up; holding still on it picks it up.
 
 While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was.
 
@@ -4739,7 +4756,7 @@ On a phone the menu is a sheet from the bottom. What you held is shown at its to
 
 On an iPad held sideways, a tap on a row with a › opens its list beside the menu and leaves it open. A list's own list, such as a group's Outline shape, opens beside it.
 
-On a touch screen, Delete is on the first screen of a card's menu. Selected drawings and arrows have Delete in the board's menu, and a toast offers Undo. A photo's menu has View full size. A hold on the title of a link, palette or picture card lifts it or opens its menu, like the rest of the card.
+On a touch screen, Delete is on the first screen of a card's menu. Selected drawings and arrows have Delete in the board's menu, and a toast offers Undo. A photo's menu has View full size, and a double-tap on the photo does the same. A hold on the title of a link, palette or picture card lifts it or opens its menu, like the rest of the card.
 
 In a document, a hold on a page in the page list opens its menu: rename, new sub-page, delete.
 

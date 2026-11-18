@@ -143,6 +143,10 @@ test('a group\'s Outline shape steps a level deeper, ‹ comes back a level at a
   // Group "Name" › (plan.md §3, Several cards), so the selection goes first.
   await page.keyboard.press('Escape');
   await expect(page.locator('.card.is-selected')).toHaveCount(0);
+  // The tap below lands where the first one did. Within a double tap's
+  // window that pair is a double tap, which opens the picture full size, so
+  // this lets the window close first: a fresh tap, as a person's would be.
+  await page.waitForTimeout(700);
   await openCardMenu(page, 'home-image');
 
   const groupRow = () => menu(page).locator('.ctx-has-submenu', { hasText: /^Group "/ });

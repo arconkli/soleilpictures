@@ -6331,6 +6331,7 @@ msgstr "{ws}의 클러스터"
 msgid "Cluster info"
 msgstr "클러스터 정보"
 
+#: src/App.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/NewClusterButton.jsx
@@ -6367,9 +6368,21 @@ msgstr "Clusters"
 msgid "Clusters and files go separately"
 msgstr "클러스터와 파일은 따로 옮겨요"
 
+#: src/components/CanvasSurface.jsx
+msgid "Clusters and files go separately. Drag the clusters, then the files."
+msgstr "클러스터와 파일은 따로 옮겨요. 클러스터를 먼저 드래그한 다음 파일을 드래그하세요."
+
 #: src/lib/billingCopyWords.js
 msgid "Clusters are free — they cost none of your cards"
 msgstr "클러스터는 무료예요 — 카드를 소모하지 않아요"
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be cut. Use Move to… in the cluster's menu instead."
+msgstr "클러스터는 잘라낼 수 없어요. 클러스터 메뉴의 이동 위치…를 사용하세요."
+
+#: src/components/CanvasSurface.jsx
+msgid "Clusters can't be pasted. Use Move to… in the cluster's menu instead."
+msgstr "클러스터는 붙여넣을 수 없어요. 클러스터 메뉴의 이동 위치…를 사용하세요."
 
 #: src/lib/importCopy.js
 msgid "Clusters don’t count as cards."
@@ -10368,6 +10381,10 @@ msgstr "Creator 시작하기"
 msgid "Gets it in Messages, or an email invite if they're new"
 msgstr "메시지로 받아요. 처음이면 이메일 초대를 받아요"
 
+#: src/components/cards.jsx
+msgid "Getting preview…"
+msgstr "미리보기 가져오는 중…"
+
 #: src/components/ShareModal.jsx
 msgid "Give {email} the whole workspace?"
 msgstr "{email}에게 워크스페이스 전체를 줄까요?"
@@ -13983,6 +14000,10 @@ msgstr "편집할 수 있는 사람을 위한 시트가 남아 있지 않아요.
 msgid "No places left for people who can edit."
 msgstr "편집할 수 있는 사람을 위한 시트가 남아 있지 않아요."
 
+#: src/components/cards.jsx
+msgid "No preview"
+msgstr "미리보기 없음"
+
 #: src/components/BacklinksList.jsx
 msgid "No references yet."
 msgstr "아직 참조가 없어요."
@@ -15185,6 +15206,10 @@ msgstr "OneDrive 열기"
 msgid "Open or close the full Files page"
 msgstr "전체 파일 페이지 열기 · 닫기"
 
+#: src/components/ShortcutsOverlay.jsx
+msgid "Open or edit the selected card"
+msgstr "선택한 카드 열기 또는 편집"
+
 #: src/components/cards.jsx
 msgid "Open original"
 msgstr "원본 열기"
@@ -16265,10 +16290,6 @@ msgstr "A를 누르세요. 화살표는 카드에 고정되고, 카드를 옮기
 #: src/components/comments/CanvasCommentsList.jsx
 msgid "Press and hold a card or the canvas to add one."
 msgstr "카드나 캔버스를 길게 눌러 추가하세요."
-
-#: src/components/CanvasSurface.jsx
-msgid "Press and hold a card to pick it up and move it."
-msgstr "카드를 길게 눌러 집어 올린 뒤 옮기세요."
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Press and hold the canvas or any card for more actions."
@@ -17757,8 +17778,8 @@ msgid "scroll, wheel, zoom, pan, mouse, trackpad"
 msgstr "스크롤, 휠, 확대, 축소, 이동, 마우스, 트랙패드"
 
 #: src/components/CanvasSurface.jsx
-msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms — or switch the wheel to zoom in Settings → Appearance."
-msgstr "스크롤하면 캔버스가 이동해요. {cmdKey}+스크롤하면 확대/축소돼요. 설정 → 모양에서 휠을 확대/축소로 바꿀 수도 있어요."
+msgid "Scrolling pans the canvas. {cmdKey}-scroll zooms."
+msgstr "스크롤하면 캔버스가 이동해요. {cmdKey}를 누른 채 스크롤하면 확대/축소돼요."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Scrolling pans the canvas. {WHEEL_CMD}-scroll zooms."
@@ -20826,6 +20847,10 @@ msgstr "올해 남은 기간에 해당하는 미사용 금액({credit})은 다�
 msgid "The version you restored didn’t have the page you were on."
 msgstr "복원한 버전에는 보고 있던 페이지가 없었어요."
 
+#: src/components/CanvasSurface.jsx
+msgid "The wheel zooms now. Change it back in Settings → Appearance."
+msgstr "이제 휠로 확대/축소해요. 설정 → 모양에서 되돌릴 수 있어요."
+
 #: src/components/HelpHub.jsx
 msgid "The whole handbook is at <0>/docs</0>, also readable as plain Markdown at <1>/docs/*.md</1>."
 msgstr "전체 안내서는 <0>/docs</0>에 있고, <1>/docs/*.md</1>에서 일반 Markdown으로도 읽을 수 있어요."
@@ -21628,6 +21653,10 @@ msgstr "받는 사람: {mailPeople}"
 msgid "To join that team, sign in again with a code sent to the address the invite went to."
 msgstr "그 팀에 참여하려면 초대가 전달된 주소로 보낸 코드로 다시 로그인하세요."
 
+#: src/components/CanvasSurface.jsx
+msgid "To move a card, tap it, then drag it."
+msgstr "카드를 옮기려면 탭한 다음 드래그하세요."
+
 #: src/auth/WelcomePage.jsx
 msgid "To report an issue or submit a suggestion please email us at: <0>clusters@soleilpictures.com</0>"
 msgstr "문제 신고나 제안은 이메일로 보내 주세요: <0>clusters@soleilpictures.com</0>"
@@ -21926,6 +21955,7 @@ msgstr "밑줄"
 
 #: src/App.jsx
 #: src/components/AppFeedback.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/FeedbackOverlay.jsx
 #: src/components/fileShare/FileShareDialog.jsx
@@ -24351,6 +24381,18 @@ msgstr "타임라인을 시작점과 종료점에 맞춰 확대"
 msgid "Zoom to in and out"
 msgstr "인과 아웃에 맞춰 확대"
 
+#: src/components/CanvasSurface.jsx
+msgid "Zoom with the wheel"
+msgstr "휠로 확대/축소"
+
 #: src/components/doc/DocFrameA.jsx
 msgid "Zoom, {pct}%"
 msgstr "확대/축소, {pct}%"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed in all the way"
+msgstr "최대로 확대됨"
+
+#: src/components/CanvasSurface.jsx
+msgid "Zoomed out all the way"
+msgstr "최대로 축소됨"

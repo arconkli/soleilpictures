@@ -37,7 +37,7 @@ function linkedCached(key) {
 
 export function CardContextMenu({
   open, x, y, above = false, items, onClose, workspaceId, boardId, card,
-  title, quick, label, preview, root = 'card', byKey = false, returnFocus,
+  title, quick, label, preview, root = 'card', byKey = false, returnFocus, anchor,
 }) {
   const { mobileShell } = shellOf(useBreakpoint());
   const sheet = mobileShell;
@@ -136,6 +136,10 @@ export function CardContextMenu({
   stepBackRef.current = step.back;
   const closeAllRef = useRef(closeAll);
   closeAllRef.current = closeAll;
+  // The control that opened the menu, when its own click toggles it: a press
+  // on it isn't outside (closing there made that click open it again).
+  const anchorRef = useRef(anchor);
+  anchorRef.current = anchor;
 
   useEffect(() => {
     if (!open) return;
@@ -144,7 +148,7 @@ export function CardContextMenu({
       // Flyouts portal to <body> with the same .ctx-menu class, so a class
       // check (not a ref contains) keeps a flyout tap from closing the menu.
       const inside = e.target.closest?.('.ctx-menu, .ctx-quick-tip');
-      if (!inside) onClose();
+      if (!inside && !anchorRef.current?.contains?.(e.target)) onClose();
     };
     // Escape: a search field with text clears first (its own handler); in a
     // stepped-in submenu it goes back a level first; then it closes the whole
@@ -186,8 +190,10 @@ export function CardContextMenu({
   useLayoutEffect(() => {
     if (!open) { returnRef.current = null; return; }
     const a = document.activeElement;
-    returnRef.current = returnFocus
-      || (a && a !== document.body && !a.closest?.('.ctx-menu') && a.isConnected ? a : null);
+    // returnFocus false: it goes back nowhere (a click opened the menu from a
+    // control that must not keep the focus).
+    returnRef.current = returnFocus === false ? null : (returnFocus
+      || (a && a !== document.body && !a.closest?.('.ctx-menu') && a.isConnected ? a : null));
     const el = menuRef.current;
     if (!el) return;
     const place = () => {

@@ -106,8 +106,10 @@ export function CanvasCommentsList({
   useEffect(() => {
     const el = popRef.current;
     if (!listOpen || !el) return undefined;
-    const keep = (e) => e.stopPropagation();
-    el.addEventListener('wheel', keep, { passive: true });
+    // Ctrl-wheel / a trackpad pinch would zoom the whole browser page here
+    // (the canvas never sees it), so it is cancelled; plain wheel scrolls as before.
+    const keep = (e) => { e.stopPropagation(); if (e.ctrlKey) e.preventDefault(); };
+    el.addEventListener('wheel', keep, { passive: false });
     return () => el.removeEventListener('wheel', keep);
   }, [listOpen, at, sheet]);
 

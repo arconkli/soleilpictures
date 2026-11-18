@@ -1,6 +1,6 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { Component, memo, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Component, memo, Suspense, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { lazyWithReload, looksLikeStaleChunk } from '../lib/lazyWithReload.js';
 import { reportError } from '../lib/errorReporting.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
@@ -25,6 +25,16 @@ import { holdTouchKeyboard, claimTouchKeyboard, dropTouchKeyboard } from '../lib
 const NOTE_TAP_SLOP_PX = 10;
 const NOTE_TAP_MAX_MS = 480;
 const fingerOrPen = (e) => e?.pointerType === 'touch' || e?.pointerType === 'pen';
+// A mouse click on a selected note types unless the press moved this far: the
+// canvas starts a card drag past 4px.
+const NOTE_CLICK_SLOP_PX = 4;
+// How long a note left 'away' waits after the window returns, for the click that brought it back.
+const NOTE_RETURN_WAIT_MS = 200;
+// The window or tab doesn't have the person's attention (switched away).
+const windowAway = () => {
+  try { return document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus()); }
+  catch (_) { return false; }
+};
 import { tlTip } from '../lib/looks.js';
 import './noteChecklist.css';
 // Lazy so Tiptap + y-prosemirror stay out of the canvas chunk and only load
@@ -59,7 +69,7 @@ import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/p
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { directedHtml } from '../lib/textDirection.js';
-import { noteSourceHtml } from '../lib/noteBody.js';
+import { noteSourceHtml, htmlHasContent } from '../lib/noteBody.js';
 import { noteFontStyle } from '../lib/noteFontSize.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
@@ -73,7 +83,7 @@ import { useFeedback, useOptionalFeedback, warmFeedbackOverlay } from './AppFeed
 import { undoToast } from '../lib/undoToast.js';
 import { detectEmbed, safeEmbed } from '../lib/oembed.js';
 import { inertContainer } from '../lib/inertHtml.js';
-import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
+import { fetchLinkPreview, previewPatch, isPreviewPending, subscribePreviewPending } from '../lib/linkPreview.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
@@ -642,8 +652,10 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
   // don't rebuild the style object on every pan/zoom tick.
   const imgStyle = useMemo(() => buildImgStyle(adjust, cardId), [adjust, cardId]);
   // Caption + title are hidden until a value exists OR the user opts in to
-  // edit. Double-click on the image area focuses the title editor (creating
-  // it on the fly). Hover affordance for adding a caption. Right-click in
+  // edit. Double-click on the picture opens it full size (onExpand), like
+  // every other card; a title that is showing edits on its own double-click,
+  // and Rename in the menu opens a hidden one. Hover affordance for adding a
+  // caption. Right-click in
   // canvas can also remote-trigger inline edit via editTitleAt / editCaptionAt
   // monotonic-counter signals — same UX as board-name editing, no popup.
   // Do NOT auto-open the title editor on paste/drop. Paste creates the
@@ -651,8 +663,8 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
   // mount the (empty, opacity-0) .ic-title row below the image —
   // invisibly stealing ~30px of vertical layout. That made object-fit:
   // cover crop the top/bottom of the image. Title editor now only
-  // opens via explicit user action (double-click image, editTitleAt
-  // signal from right-click) or when the card already has a title.
+  // opens via explicit user action (editTitleAt signal from Rename) or
+  // when the card already has a title.
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
 
@@ -675,10 +687,11 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 
   const onImgDblClick = (e) => {
     // Don't hijack a double-click that lands on the caption / an inner editor
-    // into "edit title" — mirrors LinkCard's guard.
+    // into the viewer — mirrors LinkCard's guard.
     if (e.target.closest && e.target.closest('.editable')) return;
+    if (!onExpand) return;
     e.stopPropagation();
-    setEditingTitle(true);
+    onExpand();
   };
 
   const showTitle = !!title || editingTitle;
@@ -727,7 +740,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
         )}
         {src && (onEdit || onDownload || onExpand) && (
           // A double-click anywhere in the action cluster must NOT bubble to the
-          // wrapper's onImgDblClick (which opens the title editor). The buttons
+          // wrapper's onImgDblClick (which opens the viewer). The buttons
           // only stop `click`/`pointerdown`; `dblclick` is a distinct event, so
           // stop it here once for the whole cluster.
           // The toolbar look's icons, its tooltips the glass one, and the look's
@@ -1113,6 +1126,31 @@ function noteCollabOn() {
   } catch (_) { return true; }
 }
 
+// True when a note holds nothing a reader could see: no text, no list or
+// checklist item, no picture, embed or link preview. Reads the live fragment
+// (the source of truth; duck-typed like noteDocState's getNoteFragment and
+// noteFragmentIsBlank, which would pull the editor's serializer into this
+// chunk) and the html cache the editor flushed on exit.
+function noteHoldsNothing(cardYMap, html, body) {
+  try {
+    const frag = cardYMap?.get?.('noteFragment');
+    if (frag && typeof frag.toArray === 'function') {
+      const blank = frag.toArray().every((n) => (
+        n?.nodeName === 'paragraph'
+        && n.toArray().every((c) => (
+          typeof c?.toDelta === 'function'
+          && c.toDelta().every((op) => typeof op.insert === 'string' && !op.insert.trim())
+        ))
+      ));
+      if (!blank) return false;
+    }
+    const src = noteSourceHtml(cardYMap?.get?.('html') ?? html, cardYMap?.get?.('body') ?? body) || '';
+    return !htmlHasContent(src) && !/<li\b|note-link-preview|data-url=/i.test(src);
+  } catch (_) {
+    return false;
+  }
+}
+
 // Flip the `index`-th .ck-box in a note's STORED html (never the rendered
 // display; see onBodyClick). Only for a note with no Y.Doc to toggle in.
 // Returns null when there is no such box.
@@ -1171,7 +1209,12 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
                           currentUser = null, isPublic = false,
                           // The canvas: this note is the only selected card and
                           // the Select tool is armed, so a tap on it types.
-                          tapToType = false }) {
+                          tapToType = false,
+                          // Bumped (non-zero) by the canvas to open the note
+                          // with the caret at the end (Enter on a selected note).
+                          editRequest = 0,
+                          // A note this person just made, left with nothing in it.
+                          onDiscardEmpty = null }) {
   const [editing, setEditing] = useState(autoFocus);
   // Where the gesture that opened editing landed (lib/noteEntryPoint.js): the
   // editor puts the caret, or the word, there. null = the end (a new note).
@@ -1214,6 +1257,18 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     return arm;
   };
   useEffect(() => () => { disarmTap(); }, []);
+  // Click it again: a mouse press on this note while it was already the only
+  // selected card, recorded at the press (the canvas selects on press, so a
+  // click that selects the note doesn't also type). Dropped once the pointer
+  // moves NOTE_CLICK_SLOP_PX, where a card drag would start. { x, y, off } | null.
+  const clickArmRef = useRef(null);
+  const disarmClick = () => {
+    const arm = clickArmRef.current;
+    clickArmRef.current = null;
+    arm?.off?.();
+    return arm;
+  };
+  useEffect(() => () => { disarmClick(); }, []);
   const theme = useThemeAttr();
   // null in the ?noteqa harness, which renders cards with no FeedbackProvider.
   const feedback = useOptionalFeedback();
@@ -1265,6 +1320,77 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     beginEdit(noteEntryFromEvent(e));
   };
 
+  // Enter on the selected note (the canvas bumps editRequest): type at the end.
+  // The value it mounted with is not a request.
+  const editRequestSeenRef = useRef(editRequest);
+  useEffect(() => {
+    if (!editRequest || editRequest === editRequestSeenRef.current) return;
+    editRequestSeenRef.current = editRequest;
+    if (isPublic || editing) return;
+    beginEdit(null);
+  }, [editRequest]);
+
+  // A note this person just made (autoFocus) that leaves its first editing
+  // session with nothing in it goes away (onDiscardEmpty), so a stray click of
+  // the note tool leaves no empty card behind. 'first' while that session
+  // runs; 'away' when it ended because the window or tab lost focus (the note
+  // waits, and the session picks up when the window comes back and nothing else
+  // took the focus; otherwise the note goes as if clicked away); 'done' once
+  // it was closed with something in it, opened again, or couldn't open.
+  const firstSessionRef = useRef(autoFocus ? 'first' : 'done');
+  const madeLookRef = useRef({ bgColor: bgColor || null, textColor: textColor || null, manuallyResized: !!manuallyResized });
+  const exitAwayRef = useRef(false);
+  const untouchedRef = useRef(() => false);
+  untouchedRef.current = () => {
+    const made = madeLookRef.current;
+    return (bgColor || null) === made.bgColor && (textColor || null) === made.textColor
+      && (made.manuallyResized || !manuallyResized)
+      && noteHoldsNothing(cardYMap, html, body);
+  };
+  const prevEditingRef = useRef(editing);
+  useEffect(() => {
+    const was = prevEditingRef.current;
+    prevEditingRef.current = editing;
+    if (editing) {
+      if (!was && firstSessionRef.current === 'away') firstSessionRef.current = 'done';
+      return;
+    }
+    const away = exitAwayRef.current || windowAway();
+    exitAwayRef.current = false;
+    if (!was || firstSessionRef.current !== 'first') return;
+    if (!untouchedRef.current()) { firstSessionRef.current = 'done'; return; }
+    if (away) { firstSessionRef.current = 'away'; return; }
+    firstSessionRef.current = 'done';
+    if (!isPublic) onDiscardEmpty?.();
+  }, [editing]);
+  const discardRef = useRef(onDiscardEmpty); discardRef.current = onDiscardEmpty;
+  const publicRef = useRef(isPublic); publicRef.current = isPublic;
+  const beginEditRef = useRef(beginEdit); beginEditRef.current = beginEdit;
+  useEffect(() => {
+    let timer = 0;
+    const onBack = () => {
+      if (firstSessionRef.current !== 'away' || windowAway()) return;
+      // The click that brought the window back lands a moment later: wait for it,
+      // and pick the session up only when nothing else took the focus.
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (firstSessionRef.current !== 'away' || windowAway()) return;
+        if (!untouchedRef.current()) { firstSessionRef.current = 'done'; return; }
+        const a = document.activeElement;
+        if (a && a !== document.body && !ref.current?.contains(a)) {
+          // They came back to something else: as a click away from the note.
+          firstSessionRef.current = 'done';
+          if (!publicRef.current) discardRef.current?.();
+          return;
+        }
+        firstSessionRef.current = 'first';
+        beginEditRef.current(null);
+      }, NOTE_RETURN_WAIT_MS);
+    };
+    window.addEventListener('focus', onBack);
+    return () => { window.removeEventListener('focus', onBack); clearTimeout(timer); };
+  }, []);
+
   // A link preview's remove (x), from the read-only note or from under the
   // editor. The fragment can't hold the old editor's hidden-marker spans, so
   // the dismissal is a card field (hiddenPreviews) that every write-through
@@ -1285,6 +1411,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
 
   // The editor couldn't open: back to reading, and say why.
   const onEditorFail = () => {
+    firstSessionRef.current = 'done';
     setEditEntry(null);
     setEditing(false);
     feedback?.toast({
@@ -1310,7 +1437,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
             manuallyResized={manuallyResized} autoFocus={autoFocus}
             entry={editEntry}
             onRemovePreview={removePreview}
-            onExitEdit={() => { setEditEntry(null); setEditing(false); }}
+            onExitEdit={() => { exitAwayRef.current = windowAway(); setEditEntry(null); setEditing(false); }}
           />
         </Suspense>
         </NoteEditorBoundary>
@@ -1322,7 +1449,20 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // edit; checklist toggle without entering edit). `safeDisplay` (computed
   // above) is `display` with colors made readable on this surface.
   const startEdit = (e) => { e?.stopPropagation?.(); beginEdit(noteEntryFromEvent(e, lastPointerTypeRef.current)); };
+  // A clean mouse click on the note itself: primary button, no modifier keys,
+  // still where it was pressed, and not on something with its own action (a
+  // link, a checkbox, a button, an open comment's words).
+  const clickTypes = (e, arm) => {
+    if (e.defaultPrevented) return false;
+    if (isPublic || e.button !== 0 || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
+    if (!ref.current?.contains(e.target)) return false;
+    if (Math.hypot(e.clientX - arm.x, e.clientY - arm.y) >= NOTE_CLICK_SLOP_PX) return false;
+    if (e.target.closest?.('a, button, input, label, .tt-link, .note-preview-remove, .ck-box, .note-more-chip')) return false;
+    const mark = e.target.closest?.('.tt-comment[data-comment-id]');
+    return !(mark && getComputedStyle(mark).cursor === 'pointer');
+  };
   const onBodyClick = (e) => {
+    const clickArm = disarmClick();
     // A link preview's remove (x). The fragment can't hold the old editor's
     // hidden-marker spans, so the dismissal is a card field (hiddenPreviews)
     // that every write-through honours; the cached html drops the block now.
@@ -1335,7 +1475,10 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       return;
     }
     const box = e.target.closest?.('.ck-box');
-    if (!box || !ref.current) return;
+    if (!box || !ref.current) {
+      if (clickArm && clickTypes(e, clickArm)) beginEdit(noteEntryFromEvent(e, 'mouse'));
+      return;
+    }
     // iPhone Safari: the tap landed on the haptic label (useHapticLabels). Let
     // its default action toggle the hidden switch, then tick the box on the
     // next task, as HapticTap does. No preventDefault, or the switch won't move.
@@ -1384,6 +1527,18 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const onPointerDown = (e) => {
     lastPointerTypeRef.current = e.pointerType || 'mouse';
     disarmTap();
+    disarmClick();
+    if (tapToType && !isPublic && e.pointerType === 'mouse' && e.isPrimary && e.button === 0
+        && ref.current?.contains(e.target)) {
+      const arm = { x: e.clientX, y: e.clientY, off: null };
+      const move = (ev) => {
+        if (clickArmRef.current === arm
+            && Math.hypot(ev.clientX - arm.x, ev.clientY - arm.y) >= NOTE_CLICK_SLOP_PX) disarmClick();
+      };
+      window.addEventListener('pointermove', move, true);
+      arm.off = () => { window.removeEventListener('pointermove', move, true); };
+      clickArmRef.current = arm;
+    }
     if (!(tapToType && fingerOrPen(e) && e.isPrimary && ref.current?.contains(e.target))) return;
     const arm = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, off: null };
     // A second finger anywhere (a pinch) means this press isn't a tap.
@@ -1409,7 +1564,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     // text and a tap on them is a tap on the note: only a thread a press
     // opens has the pointer (lib/commentMarkCss.js; its test holds that no
     // stylesheet gives a mark the pointer any other way).
-    if (e.target.closest?.('a, .note-preview-remove, .ck-box, .note-more-chip')) return;
+    if (e.target.closest?.('a, .tt-link, .note-preview-remove, .ck-box, .note-more-chip')) return;
     const mark = e.target.closest?.('.tt-comment[data-comment-id]');
     if (mark && getComputedStyle(mark).cursor === 'pointer') return;
     const again = !!arm && e.isPrimary && e.pointerId === arm.id
@@ -1423,7 +1578,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     <div ref={ref} className={cls} style={noteStyle}
          onPointerEnter={prefetchNoteEditor}
          onPointerDown={onPointerDown} onPointerMove={onPointerMove}
-         onPointerCancel={disarmTap}
+         onPointerCancel={() => { disarmTap(); disarmClick(); }}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
       <NoteAutoLinkBody html={safeDisplay} />
       {overflowing && (
@@ -1445,7 +1600,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
 }
 
 function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
-                           vAlign = null, tapToType = false,
+                           vAlign = null, tapToType = false, editRequest = 0, onDiscardEmpty = null,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null,
@@ -1492,6 +1647,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSi
         cardId={cardId} boardId={boardId} awareness={awareness}
         currentUser={currentUser} isPublic={isPublic}
         tapToType={tapToType}
+        editRequest={editRequest} onDiscardEmpty={onDiscardEmpty}
       />
     );
   }
@@ -1516,7 +1672,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSi
 }
 
 function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, imageKey = null, imageKeyOf = null, description, favicon, embed: storedEmbed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0,
-                    w, h, cardId = null, boardId = null, backfillEnabled = false }) {
+                    w, h, cardId = null, boardId = null, backfillEnabled = false, noPreview = false }) {
   // The app writes the address to `source` (and `link`); cards made through
   // /api/v1 or a manifest import carry it only as `url`. Reading just `source`
   // left those cards with no address, no open button and no way to fix it
@@ -1554,13 +1710,17 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
   // only onto what hasn't changed meanwhile (previewPatch). A title that was
   // just the old hostname follows the new one; a title someone typed stays.
   const liveRef = useRef(null);
-  liveRef.current = { source, title, image, description, favicon };
+  liveRef.current = { source, title, image, description, favicon, noPreview };
+  // While this card's preview is on its way the card says so, and when none
+  // came (noPreview, written by whoever fetched it) it says that instead.
+  const previewPending = useSyncExternalStore(subscribePreviewPending,
+    () => !!source && isPreviewPending(source), () => false);
   const changeSource = (v) => {
     const next = (v || '').trim();
     if (next === (source || '')) return;
     const host = (u) => { try { return new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ''); } catch (_) { return null; } };
     const nextEmbed = next ? detectEmbed(next) : null;
-    const patch = { source: next, link: next, image: null, description: null, favicon: null, embed: nextEmbed || null };
+    const patch = { source: next, link: next, image: null, description: null, favicon: null, embed: nextEmbed || null, noPreview: null };
     if (title && title === host(source || '')) patch.title = nextEmbed ? '' : (host(next) || next);
     onUpdate(patch);
     if (!next || nextEmbed) return;
@@ -1568,6 +1728,10 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
     fetchLinkPreview(next).then((p) => {
       const np = previewPatch(p, liveRef.current, created);
       if (patch.title === undefined) delete np.title;   // a kept title is the user's
+      // Nothing came: the card says "No preview" (as the canvas's own fetch does).
+      const live = liveRef.current;
+      const got = !!(p && (p.image || p.description));
+      if (live && (live.source || '') === next && got === !!live.noPreview) np.noPreview = got ? null : true;
       if (Object.keys(np).length) onUpdate(np, { silent: true });
     });
   };
@@ -1754,6 +1918,8 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
                           autoFocus={autoFocus}
                           selectAllOnFocus={autoFocus || editTitleAt > 0} />
           : <div className="lc-title">{title}</div>}
+        {!hasPreview && previewPending && <div className="lc-note">{tr`Getting preview…`}</div>}
+        {!hasPreview && !previewPending && noPreview && <div className="lc-note">{tr`No preview`}</div>}
         {description && <div className="lc-desc">{description}</div>}
         <div className="lc-src">
           {favicon

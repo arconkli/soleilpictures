@@ -1060,7 +1060,7 @@ export function ListSurface({
       message: tr`${plural(list.length, { one: 'Delete this card?', other: 'Delete # cards?' })}`,
     });
     if (!ok) return false;
-    const deleted = await mutators.deleteCards?.(list);
+    const deleted = await mutators.deleteCards?.(list, { via: 'list' });
     setSelectedCards(new Set());
     setSelectedGroupId(null);
     // null is the host saying nothing was deleted (a collaborator got there
@@ -1106,7 +1106,7 @@ export function ListSurface({
     if (!ok) return;
     if (bIds.length) mutators.deleteBoardsById?.(bIds); // has its own Undo toast
     if (cIds.length) {
-      const deleted = await mutators.deleteCards?.(cIds);
+      const deleted = await mutators.deleteCards?.(cIds, { via: 'list' });
       // null: nothing was deleted, so no Undo (see onDeleteItems).
       if (deleted !== null) undoToast(feedback, {
         message: tr`${plural(cIds.length, { one: 'Card deleted', other: '# cards deleted' })}`,

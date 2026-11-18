@@ -33,18 +33,22 @@ added to your home screen. They are the same app.
 
 | Gesture | Does |
 |---|---|
-| One finger drag | Pan |
+| One finger drag | Pan — on a card you've already tapped, move that card |
 | Two finger drag | Pan |
 | Pinch | Zoom, keeping the spot between your fingers under them |
 | Tap | Select a card; on empty canvas, clear the selection |
 | Tap a selected note | Type where you tapped, with the keyboard up |
-| Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped |
+| Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped; on a photo, see it full size |
 | Tap outside the note you are typing in | Finish; the keyboard goes down |
 | Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws |
 | Touch and hold empty canvas, then let go | The board's menu, with **Select…** in it |
-| Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu) |
+| Touch and hold a card | Pick it up to move it, tapped or not (on a cluster you can only view, its menu) |
 | Touch and hold anything else | Its menu: a group label's, an arrow's |
 | **⋯** on the selection | The menu for every selected card |
+
+A card you've already tapped moves with a plain drag. On a card you haven't
+tapped, a drag moves the board, so you can pan across a board full of pictures
+without picking one up; holding still on it picks it up.
 
 While you hold empty canvas, a ring fills under your finger; once it is full,
 the press is a hold, and moving draws the box instead of panning. The menu
@@ -88,7 +92,8 @@ opens beside it.
 
 On a touch screen, **Delete** is on the first screen of a card's menu. Selected
 drawings and arrows have **Delete** in the board's menu, and a toast offers
-**Undo**. A photo's menu has **View full size**. A hold on the title of a link,
+**Undo**. A photo's menu has **View full size**, and a double-tap on the photo
+does the same. A hold on the title of a link,
 palette or picture card lifts it or opens its menu, like the rest of the card.
 
 In a document, a hold on a page in the page list opens its menu: rename, new

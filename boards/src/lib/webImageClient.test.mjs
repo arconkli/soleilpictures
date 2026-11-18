@@ -79,7 +79,10 @@ test('a response that is not an r2 source is not trusted onto a card', async () 
 
 test('the canvas paints the hotlink first and moves the card only onto a copy, on the same board', () => {
   const canvas = readFileSync(resolve(SRC, 'components/CanvasSurface.jsx'), 'utf8');
-  const fn = canvas.slice(canvas.indexOf('const placeRemoteImage = () => {'), canvas.indexOf('const placeLinkCard = () => {'));
+  // One body for every web picture (a dropped one, a pasted address), since
+  // the drop's placeRemoteImage became a call to placeRemoteImageAt.
+  const start = canvas.indexOf('const placeRemoteImageAt = (url, placeAt');
+  const fn = canvas.slice(start, canvas.indexOf('placeRemoteImageRef.current = placeRemoteImageAt;', start));
   const add = fn.indexOf("kind: 'image', src: url,");
   const ask = fn.indexOf('saveWebImageCopy({');
   assert.ok(add > 0 && ask > add, 'the card exists before the copy is asked for');

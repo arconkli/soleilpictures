@@ -776,7 +776,7 @@ export function ClusterSidebar({
       const ids = items.map((x) => x.cardId);
       const what = plural(ids.length, { one: '# file', other: '# files' });
       if (boardId === liveBoardId && liveMutators?.deleteCards) {
-        const deleted = await liveMutators.deleteCards(ids);
+        const deleted = await liveMutators.deleteCards(ids, { via: 'files' });
         gone({ n: ids.length, done: deleted !== null ? ids.length : 0, outcome: deleted !== null ? 'ok' : 'failed', live: true });
         if (deleted !== null) undoToast(feedback, {
           message: tr`Deleted ${what}`,

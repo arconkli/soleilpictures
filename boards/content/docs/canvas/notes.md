@@ -29,12 +29,17 @@ instead — it has pages, a proper toolbar and export.
 
 ## Writing
 
-Double-click a note to start editing; the caret lands where you clicked. On a
-phone or tablet, tap the note to select it, then tap it again where you want to
-type, or double-tap it, and the keyboard comes up. Click or tap away — or press
-`Esc` — to finish; your edits are shared live with collaborators as you type, so
-there is no separate "cancel". `⌘Z` undoes inside the note, and the note's undo
-history survives closing and reopening it. Right after a colour, font, size or
+Double-click a note to start editing; the caret lands where you clicked. A
+click does the same on a note that is already the one selected card, as long as
+you don't drag it. With one note selected, `Enter` starts typing with the caret
+at the end. On a phone or tablet, tap the note to select it, then tap it again
+where you want to type, or double-tap it, and the keyboard comes up.
+
+Click or tap away — or press `Esc` — to finish. Your edits are shared live with
+collaborators as you type, so there is no separate "cancel". A new note you
+never typed in goes away when you click off it, with no undo toast, since there
+was nothing in it. `⌘Z` undoes inside the note, and the note's undo history
+survives closing and reopening it. Right after a colour, font, size or
 **Center in the box** from the toolbar, `⌘Z` takes that back first.
 
 Formatting works as you would expect: `⌘B`, `⌘I`, `⌘U` for bold, italic and
@@ -43,6 +48,10 @@ focused, carrying colour, size, font and alignment, and **Tx** — clear
 formatting (`⌘\`), which strips the selection back to the note's own font and
 size while keeping links and comments. `⌥F10` (`Alt+F10` on Windows) takes you
 from the note's text to that toolbar, and `Esc` brings you back.
+
+The size's **−** and **+** jump to the next size in its list rather than one
+point at a time. Typing a size in the box still sets exactly that size, and `↑`
+and `↓` in the box still go one point at a time.
 
 Lists come from the toolbar. In a bulleted or numbered list, `Tab` tucks an item
 under the one above and `⇧Tab` brings it back out; outside a list, `Tab` types

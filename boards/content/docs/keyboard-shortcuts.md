@@ -11,7 +11,7 @@ faq:
   - q: How do I see shortcuts without leaving what I am doing?
     a: Press ? on any canvas, or click the help button in the corner of the canvas. The overlay lists every shortcut grouped by what it affects.
   - q: Can the scroll wheel zoom instead of scrolling the board around?
-    a: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel". Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
+    a: Yes. Settings → Appearance → Scroll wheel, or Cmd-K and type "scroll wheel", or Zoom with the wheel on the tip that appears when you scroll as if expecting zoom. Scrolling pans by default and Cmd-scroll zooms; switching to Zoom trades them over. Pinching a trackpad zooms either way.
   - q: Can I move around a board with W, A, S and D?
     a: Yes, once you turn it on in Settings → Appearance → Move with W A S D. Hold a key to move that way, hold Q or E to zoom in or out, and add Shift to go faster. It is off by default because A and D also pick the Arrow and Free-draw tools, which they stop doing while it is on.
   - q: Do these work on Windows?
@@ -87,7 +87,8 @@ In the [sidebar](/docs/clusters/sidebar): its cluster tree and its Files.
 | Key | Action |
 |---|---|
 | `⌘Z` / `⌘⇧Z` | Undo · redo |
-| `⌘C` / `⌘X` / `⌘V` | Copy · cut · paste |
+| `⌘C` / `⌘X` / `⌘V` | Copy · cut · paste — not a cluster card; use Move to… in its menu |
+| `Enter` | Open or edit the one selected card, as a double-click does — a note starts typing at the end, a picture opens full size, a cluster, doc or file opens. On audio it plays |
 | `⌘D` | Duplicate |
 | `⌘A` | Select all |
 | `⌘G` | Group selection |
@@ -116,7 +117,7 @@ With one [grid](/docs/canvas/grids) selected and a box in it clicked:
 | `F` | Open or close the [full Files page](/docs/clusters/list-view) |
 | `⌘I` | [Info](/docs/canvas/cards#info) — the selection, or the cluster when nothing is selected |
 | `⌘0` | Reset zoom |
-| `⌘+` / `⌘−` | Zoom in · out |
+| `⌘+` / `⌘−` | Zoom in · out — the on-screen − and + dim at the limits |
 | `⇧1` | Fit everything |
 | `⇧2` | Fit selection |
 | `Space`-drag | Pan with any tool active |
@@ -134,7 +135,9 @@ on the card you last worked on instead.
 **Settings → Appearance → Scroll wheel.** Scrolling pans by default and `⌘`-scroll
 zooms; set it to **Zoom** and they trade places, so a plain scroll zooms at the
 pointer and `⌘`, `Alt` or `Shift` pans. `⌘K` → "scroll wheel" flips it without
-opening settings.
+opening settings. Scroll back and forth as if expecting zoom and a tip says
+"Scrolling pans the canvas. `⌘`-scroll zooms." once, with a **Zoom with the
+wheel** button that switches it there and then, and **Undo**.
 
 Which one is right depends on what you came from — PureRef and Miro zoom on
 scroll, Figma and Milanote pan — which is why it is a setting and not a default
@@ -269,7 +272,9 @@ Words you leave unsent are kept, so clicking away never loses them.
 
 | Key | Action |
 |---|---|
-| Double-click | Edit a note or a title |
+| Double-click | Edit a note or a title — on a picture, double-click its title; the picture itself opens full size |
+| Click a selected note | Start typing where you clicked, when it is the only card selected |
+| `Enter` | With one note selected, start typing at the end |
 | `⌘Z` / `⌘⇧Z` | Undo · redo text — history survives closing the note; right after a colour, font, size or Center in the box from the note bar, that change first |
 | `⌘B` / `⌘I` / `⌘U` | Bold · italic · underline |
 | `⌘\` | Clear formatting — links and comments stay |
@@ -326,5 +331,5 @@ Not keys, but worth knowing:
 - **Right-click** anything for its full menu — cards, groups, and the canvas background each have their own.
 - **Hold `Alt` while dragging** to bypass [snapping](/docs/canvas/snapping-and-alignment).
 - **Hold `⌥` while dragging files** to another cluster to [copy them instead of moving them](/docs/clusters/sidebar#moving-and-copying-files) — `Ctrl` on Windows.
-- **Paste a URL** onto the canvas to create a link card that unfurls its preview.
+- **Paste a URL** onto the canvas to create a link card that unfurls its preview — or, for a picture's address, the picture itself.
 - **Drag files from your desktop** straight onto the canvas.

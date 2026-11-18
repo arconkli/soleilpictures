@@ -384,7 +384,10 @@ function useNoteFormatState(active, noteBase = '') {
         // With nothing selected, − / + set the whole note's base size, so
         // show that, not a heading's scaled size: in an h1 on a 15px note the
         // box read 20 and + set the whole note to 21.
-        let sizeSrc = ts.fontSize;
+        // A caret inside a word with its own size shows the note's base, not
+        // that word's: −/+ change the base, so the box must read it.
+        const caret = editor.state.selection.empty;
+        let sizeSrc = caret ? null : ts.fontSize;
         if (!sizeSrc) {
           try {
             sizeSrc = editor.state.selection.empty
@@ -392,7 +395,9 @@ function useNoteFormatState(active, noteBase = '') {
               : cs?.fontSize;
           } catch (_) { sizeSrc = cs?.fontSize; }
         }
-        const familySrc = ts.fontFamily || cs?.fontFamily;
+        let baseFamily = null;
+        if (caret) { try { baseFamily = window.getComputedStyle(editor.view.dom).fontFamily; } catch (_) { /* noop */ } }
+        const familySrc = caret ? (baseFamily || cs?.fontFamily || ts.fontFamily) : (ts.fontFamily || cs?.fontFamily);
         const fontSize = sizeSrc ? Math.round(parseFloat(sizeSrc)) || null : null;
         const fontFamily = familySrc
           ? familySrc.split(',')[0].trim().replace(/^["']|["']$/g, '') || null : null;

@@ -217,8 +217,10 @@ test('a card still uploading never leaves the card its upload will land in', () 
   const pane = canvas.slice(canvas.indexOf("const onDrop = (e) => {\n      const { sourceBoardId, isCopy, clientX, clientY } = e.detail || {};"));
   assert.match(pane.slice(0, 2500), /payload = payload\.filter\(\(c\) => !isStillUploading\(c\)\);/, 'across panes');
   const cut = canvas.slice(canvas.indexOf('const doCut = useCallback('), canvas.indexOf('const doPaste = useCallback('));
-  assert.match(cut, /const items = keepUploadsInPlace\(all\) \? all\.filter\(\(c\) => !isStillUploading\(c\)\) : all;/, 'cut and paste');
-  assert.match(cut, /await doDeleteIds\(items\.map\(\(c\) => c\.id\)\);/, 'and only what was cut is deleted');
+  // (Clusters are then left out of a cut too, so `kept` narrows to `items`.)
+  assert.match(cut, /const kept = keepUploadsInPlace\(all\) \? all\.filter\(\(c\) => !isStillUploading\(c\)\) : all;\s*[\s\S]*?const items = kept\.filter\(/, 'cut and paste');
+  assert.match(cut, /setClipboard\(items, /, 'only what is cut is on the clipboard');
+  assert.match(cut, /await doDeleteIds\(items\.map\(\(c\) => c\.id\)(, \{ via: 'cut' \})?\);/, 'and only what was cut is deleted');
   const cell = canvas.slice(canvas.indexOf('const routeCardIntoCell = useCallback('));
   assert.match(cell.slice(0, 600), /if \(isStillUploading\(card\)\) return false;/, 'into a grid cell');
   assert.match(canvas, /const soloCellable = CELL_DROP_KINDS\.has\(soloKind\) && !isStillUploading\(cardById\[dragIds\[0\]\]\);/);

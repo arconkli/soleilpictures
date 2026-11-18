@@ -39,7 +39,8 @@ Clicking navigates.
 Two things happen without you asking.
 
 **URLs** typed or pasted become links, with previews on hover. Pasted onto an
-empty canvas, a URL becomes a full [link card](/docs/canvas/cards) instead.
+empty canvas, a URL becomes a full [link card](/docs/canvas/cards) instead, or
+an image card when it is a picture's address.
 
 **Known names** are detected. Once a cluster, card or document exists, later
 occurrences of its name in your writing are quietly underlined and connected.

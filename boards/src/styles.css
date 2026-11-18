@@ -2464,6 +2464,24 @@ body {
 .crumb.clk:hover { background: var(--bg-hov); color: var(--ink-0); }
 .crumb.here { color: var(--ink-0); cursor: default; }
 .crumb.here:hover { background: transparent; }
+/* The current cluster's name opens its menu (App.jsx crumbProps). */
+.crumb.here[role="button"] { cursor: pointer; }
+.crumb.here[role="button"]:hover,
+.crumb.here[aria-expanded="true"] { background: var(--bg-hov); }
+.crumb.here[role="button"]:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+/* Rename in place: the name turns into a field the same size as the crumb. */
+.crumb.crumb-edit {
+  border: 0; outline: none; margin: 0;
+  background: var(--bg-hov);
+  box-shadow: var(--shadow-glow);
+  cursor: text;
+  field-sizing: content;
+  min-width: 6ch;
+  max-width: min(40ch, 50vw);
+}
+@supports not (field-sizing: content) {
+  .crumb.crumb-edit { width: 20ch; }
+}
 .crumb-sep { color: var(--ink-3); font: 400 14px/1 var(--font-sans); flex-shrink: 0; padding: 0 4px; }
 
 /* The slate beside a cluster's name (ClusterSlate.jsx): for a few seconds after you
@@ -3477,6 +3495,10 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   border-radius: 4px;
 }
 .cnv-zoom button:hover { background: var(--bg-hov); color: var(--ink-0); }
+/* − / + at the zoom limit: dimmed, no hover (aria-disabled, so it keeps its
+   tooltip and focus). Specific enough to beat toolbarLook.css's hover. */
+.cnv-zoom button[aria-disabled='true'] { opacity: .4; cursor: default; }
+:root .canvas-wrap .cnv-zoom button[aria-disabled='true']:hover { background: transparent; color: var(--ink-1); }
 .cnv-zoom-val {
   font-family: var(--font-mono); font-size: 10.5px;
   color: var(--ink-2);
@@ -4302,6 +4324,13 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   margin-top: 6px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
+}
+/* "Getting preview…" / "No preview" under the title of a card with no
+   preview: a quiet ink line, never gold. One line, so the card keeps its size. */
+.lc-note {
+  font-size: 11px; line-height: 1.4; color: var(--ink-3);
+  margin-top: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lc-src {
   display: flex; align-items: center; gap: 5px;
@@ -6532,6 +6561,9 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   font: 400 11.5px/1 var(--font-mono, monospace);
   margin-left: 2px;
 }
+/* Refused drop (clusters mixed with other cards): neutral, no gold. */
+.board-drop-label.is-no { border-color: var(--line-2, rgba(128,128,134,.4)); }
+.board-drop-label-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-2); }
 
 /* Link-hover target — fires when the user hovers an EntityLink
    anywhere in the app that points at this card. Soleil ring + soft
@@ -6626,6 +6658,10 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   z-index: 999995;
   pointer-events: none;
 }
+/* The point itself takes no pointer; its handle does. Under a mouse this is
+   the desktop rotate dot as drawn above (the coarse block sizes it for a
+   finger only where isTouch is true, the same media query). */
+.sel-handle > .card-rotate { pointer-events: auto; }
 .card-menu-btn {
   display: none;
   position: absolute;

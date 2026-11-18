@@ -177,6 +177,16 @@ rather than creating a loop. Cards move the same way — see
 placed on this canvas. The board itself does not move. Use it when something
 belongs in two places.
 
+## The cluster's menu
+
+Click the cluster's name in the top bar for its menu, the same one its row has
+in the [sidebar](/docs/clusters/sidebar): **Send to…**, **Share…**, **Copy
+link**, **Rename…**, **Move to…**, **Star** and the rest. **Rename…** turns the
+name into a field right there; `Enter` saves and `Esc` puts it back.
+
+A cluster can't be cut and pasted like a card. To put it somewhere else, use
+**Move to…** in its menu.
+
 ## Side by side
 
 Two clusters can be open at once, in a split view with a draggable divider.

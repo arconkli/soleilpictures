@@ -137,9 +137,12 @@ test('the + sheet closes on the turn to landscape and stays closed on the turn b
   await boot(page);
   await upright(page);
   // A board with a card on it: on an empty one the + adds a note itself.
+  // The note holds words, or leaving it (the + tap) would discard it as empty.
   await page.locator('.cnv-empty-tile', { hasText: 'Note' }).tap();
   await expect(page.locator('.cards-layer .card[data-card-id]')).toHaveCount(1);
   await page.waitForTimeout(1200);
+  await page.keyboard.type('Opening shot');
+  await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'Add a card' }).tap();
   await expect(page.locator('.mobile-add-grid')).toBeVisible();
   await turn(page, LANDSCAPE, sideways);

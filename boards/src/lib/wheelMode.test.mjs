@@ -14,7 +14,59 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveWheelIntent, WHEEL_MODES, DEFAULT_WHEEL_MODE } from './wheelMode.js';
+import { resolveWheelIntent, WHEEL_MODES, DEFAULT_WHEEL_MODE, latchWheelIntent, WHEEL_GESTURE_GAP_MS } from './wheelMode.js';
+
+// ── latchWheelIntent: one gesture keeps one intent ──────────────────────────
+
+test('latch: the first event of a gesture takes its own intent', () => {
+  assert.deepEqual(latchWheelIntent(null, 'zoom', 1000), { intent: 'zoom', t: 1000 });
+  assert.deepEqual(latchWheelIntent(null, 'pan', 1000), { intent: 'pan', t: 1000 });
+});
+
+test('latch: momentum after ⌘ is let go keeps zooming', () => {
+  let s = latchWheelIntent(null, 'zoom', 0);          // ⌘-wheel in pan mode
+  for (let t = 16; t <= 400; t += 16) {
+    s = latchWheelIntent(s, 'pan', t);                // ⌘ released, the tail keeps coming
+    assert.equal(s.intent, 'zoom');
+  }
+});
+
+test('latch: a diagonal swipe in zoom mode does not alternate', () => {
+  let s = latchWheelIntent(null, 'zoom', 0);
+  const seen = new Set();
+  for (let i = 1; i < 30; i++) {
+    s = latchWheelIntent(s, i % 2 ? 'pan' : 'zoom', i * 10);
+    seen.add(s.intent);
+  }
+  assert.deepEqual([...seen], ['zoom']);
+});
+
+test('latch: a gap longer than the window starts a new gesture', () => {
+  const s = latchWheelIntent(null, 'zoom', 0);
+  assert.equal(latchWheelIntent(s, 'pan', WHEEL_GESTURE_GAP_MS).intent, 'zoom');
+  assert.equal(latchWheelIntent(s, 'pan', WHEEL_GESTURE_GAP_MS + 1).intent, 'pan');
+});
+
+test('latch: the gap is measured from the previous event, not the first', () => {
+  let s = latchWheelIntent(null, 'pan', 0);
+  s = latchWheelIntent(s, 'zoom', 140);
+  s = latchWheelIntent(s, 'zoom', 280);
+  assert.equal(s.intent, 'pan');
+  assert.equal(s.t, 280);
+});
+
+test('latch: ctrlKey (a pinch) always zooms, even mid-pan', () => {
+  const s = latchWheelIntent(null, 'pan', 0);
+  assert.equal(latchWheelIntent(s, 'pan', 10, { ctrlKey: true }).intent, 'zoom');
+  assert.equal(latchWheelIntent(s, 'zoom', 10, { ctrlKey: true }).intent, 'zoom');
+});
+
+test('latch: a clock that went backwards or a junk prev starts fresh', () => {
+  const s = latchWheelIntent(null, 'zoom', 500);
+  assert.equal(latchWheelIntent(s, 'pan', 400).intent, 'pan');
+  assert.equal(latchWheelIntent({ intent: 'spin', t: 0 }, 'pan', 10).intent, 'pan');
+  assert.equal(latchWheelIntent(undefined, 'whatever', 10).intent, 'pan');
+});
 
 const wheel = (over = {}) => ({
   ctrlKey: false, metaKey: false, altKey: false, shiftKey: false,

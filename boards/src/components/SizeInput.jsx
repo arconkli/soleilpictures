@@ -28,13 +28,16 @@ import { t } from '@lingui/core/macro';
 //   onCommit   — (px:number) => void, called with the clamped integer size
 //   className  — extra class for per-toolbar styling
 //   min / max  — clamp bounds (default 6–200)
+//   onSettle   — optional, () => void: Escape, or Enter on a size that changed
+//                nothing, blurred the field to <body>; the bar hands the focus
+//                back to the text it works on
 //   disabled   — boolean
 //   dropUp     — open the preset list above the field (bottom-docked bars)
 //   placeholder — what the field shows with no size (default "Size")
 //   look       — in the toolbar look (the doc look's bar, components/doc/
 //                DocBarA.jsx): Phosphor's caret, and the presets a list in the
 //                look's menu (components/toolbar/toolbar.css)
-export function SizeInput({ value = null, presets = [], onCommit, className = '', min = 6, max = 200, disabled = false, dropUp = false, look = false, placeholder }) {
+export function SizeInput({ value = null, presets = [], onCommit, className = '', min = 6, max = 200, onSettle, disabled = false, dropUp = false, look = false, placeholder }) {
   const [draft, setDraft] = useState(() => (value ? String(value) : ''));
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
@@ -61,19 +64,32 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
   // the TYPED draft still in its closure (the revert's setDraft hasn't
   // rendered yet), so Escape used to apply the value it meant to throw away.
   const cancelRef = useRef(false);
+  // The blur came from Escape or Enter (not a click elsewhere), so onSettle may
+  // take the focus; and a size TYPED this focus, which commits even when it
+  // equals the one shown (a mixed selection shows its first mark's size).
+  const keyBlurRef = useRef(false);
+  const typedRef = useRef(false);
   const commitDraft = () => {
     setFocused(false);
+    const keyed = keyBlurRef.current;
+    keyBlurRef.current = false;
+    const typed = typedRef.current;
+    typedRef.current = false;
     if (cancelRef.current) {
       cancelRef.current = false;
       setDraft(value ? String(value) : '');
+      if (keyed) onSettle?.();
       return;
     }
     const n = parseInt(draft, 10);
     // Only a size that was changed: arrowing through the bar passes through
     // this field, and setting the size it already shows marked the selection
     // with it and took the focus back into the editor.
-    if (Number.isFinite(n) && n > 0 && n !== value) commitPx(n);
-    else setDraft(value ? String(value) : '');
+    if (Number.isFinite(n) && n > 0 && (typed || n !== value)) commitPx(n);
+    else {
+      setDraft(value ? String(value) : '');
+      if (keyed) onSettle?.();
+    }
   };
 
   // preventDefault on press so the editor's focus/selection survives the
@@ -92,12 +108,12 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
         {...(look ? tlTip(t`Font size`) : null)}
         aria-label={t`Font size`}
         disabled={disabled}
-        onFocus={(e) => { setFocused(true); e.target.select(); }}
-        onChange={(e) => { const v = e.target.value; if (/^\d{0,3}$/.test(v)) setDraft(v); }}
+        onFocus={(e) => { typedRef.current = false; setFocused(true); e.target.select(); }}
+        onChange={(e) => { const v = e.target.value; if (/^\d{0,3}$/.test(v)) { typedRef.current = true; setDraft(v); } }}
         onBlur={commitDraft}
         onKeyDown={(e) => {
           if (isComposingKey(e)) return;
-          if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
+          if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); keyBlurRef.current = true; e.currentTarget.blur(); }
           else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             e.preventDefault();
             e.stopPropagation();
@@ -107,6 +123,7 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
           } else if (e.key === 'Escape') {
             e.stopPropagation();
             cancelRef.current = true;
+            keyBlurRef.current = true;
             e.currentTarget.blur();
           }
         }}
