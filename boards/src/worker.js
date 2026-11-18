@@ -30,7 +30,7 @@ import { publicCover, readPublicCover } from './lib/publicCover.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { runDraftReap } from './worker-drafts.js';
-import { runImageDescribe, runImageEmbedLane } from './worker-vision.js';
+import { IMAGE_EMBED_LANE_LIMIT, runImageDescribe, runImageEmbedLane } from './worker-vision.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleMediaRoute } from './worker-media.js';
 import { handlePlayCopyRoute, tickPlayCopies, forgetPlayCopies } from './worker-playCopy.js';
@@ -59,6 +59,7 @@ import { ogTargetProblem } from './lib/safeUrl.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
 import { runAeoRetrievalProbe } from './worker-aeo.js';
 import { runAiModelDigest, runAiModelWatch } from './worker-aiwatch.js';
+import { runDbMemoryWatch } from './worker-dbmemory.js';
 // Self-authored SEO landing pages (tool / "alternative to" / hub). Pure-data
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
@@ -1275,10 +1276,25 @@ const worker = {
       // One indexed count when the queue is empty.
       ctx.waitUntil(watch('play_copies', tickPlayCopies(env)));
       // Pictures described by a vision model (worker-vision.js, 0593): every
-      // other minute a few, newest first, then the image cards whose embedding
-      // is missing or stale. A couple of reads when nothing waits.
-      if (new Date(event.scheduledTime).getUTCMinutes() % 2 === 0) {
-        ctx.waitUntil(watch('image_describe', runImageDescribe(env).then(() => runImageEmbedLane(env))));
+      // other minute a few, newest first. The lane that embeds image cards
+      // whose embedding is missing or stale runs right after a run that
+      // described something, after a run that took a full batch (more is
+      // waiting), and otherwise only every tenth minute: its "what is due"
+      // query usually finds nothing and costs the database.
+      const minute = new Date(event.scheduledTime).getUTCMinutes();
+      if (minute % 2 === 0) {
+        ctx.waitUntil(watch('image_describe', runImageDescribe(env).then(async (r) => {
+          if (!(minute % 10 === 0 || r?.claimed > 0 || embedLaneFull)) return null;
+          embedLaneFull = false; // a run that throws must not keep the lane on every other minute
+          const result = await runImageEmbedLane(env);
+          embedLaneFull = (result?.due ?? 0) >= IMAGE_EMBED_LANE_LIMIT;
+          return result;
+        })));
+      }
+      // Reads the database server's memory from outside it and pages before it
+      // runs out; see worker-dbmemory.js.
+      if (minute % 5 === 0) {
+        ctx.waitUntil(watch('db_memory', runDbMemoryWatch(env)));
       }
     } else if (which === '15 * * * *') {
       ctx.waitUntil(watch('compaction', runCompactionJob1(env)));
@@ -1673,12 +1689,17 @@ function fetchShareMeta(env, token, boardId) {
 // ── Public marketing boards (migration 0136) ────────────────────────────────
 // Anon RPC helpers. All SECURITY DEFINER + gated on published_at + not-deleted.
 
+// The last embed-lane run took a full batch, so more is waiting. Module state
+// lasts only as long as the isolate, which is enough for a heuristic.
+let embedLaneFull = false;
+
 // Sentinel distinguishing "this slug definitively has no published board" from
 // a transient RPC failure. get_public_board_meta RAISES errcode P0002 for a
-// missing/unpublished slug, which PostgREST surfaces as HTTP 500 with
-// {"code":"P0002"} in the body (verified against prod). Matching the errcode —
-// never the message or bare status — means outages/timeouts still throw →
-// callers fail OPEN (200 + default meta), while true misses can 404.
+// missing/unpublished slug, which PostgREST surfaces with {"code":"P0002"} in
+// the body: HTTP 404 since 0907, a 500 before. Matching the errcode — never
+// the message or the status (PostgREST's own PGRST202 "function not found" is
+// a 404 too) — means outages/timeouts still throw → callers fail OPEN (200 +
+// default meta), while true misses can 404.
 const PUB_NOT_FOUND = Object.freeze({ notFound: true });
 async function fetchPublicBoardMeta(env, slug) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/get_public_board_meta`, {

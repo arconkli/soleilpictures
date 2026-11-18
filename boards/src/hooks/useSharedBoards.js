@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabase.js';
 import { takeBootResponse, peekBootRows } from '../lib/bootPrefetch.js';
 import { afterBoot } from '../lib/afterBoot.js';
 import { sharedMetaMap, patchSharedMeta } from '../lib/sharedList.js';
+import { sharedBoardUpdateNeedsRefetch } from '../lib/boardEventGates.js';
 
 const rootsKey = (rows) => (rows || [])
   .filter((r) => r && r.is_shared_root !== false)
@@ -26,11 +27,15 @@ const rootsKey = (rows) => (rows || [])
   .sort()
   .join(',');
 
-export function useSharedBoards(userId) {
+export function useSharedBoards(userId, memberWorkspaceIds) {
   // The read bootPrefetch started at sign-in: held from the first render when
   // it has landed, and taken by the first fetch either way.
   const [seed] = useState(() => (userId ? peekBootRows('shared', userId) : null));
   const [shared, setShared] = useState(() => seed || []);
+  const sharedRef = useRef(shared);       // the list as last rendered, for the realtime check
+  sharedRef.current = shared;
+  const memberWsRef = useRef(memberWorkspaceIds); // your workspaces, kept current without resubscribing
+  memberWsRef.current = memberWorkspaceIds;
   const [loading, setLoading] = useState(false);
   // True once the first fetch has settled (either way). App prunes its
   // navigation stack of ids it can't find; before this, a reload inside a
@@ -183,7 +188,15 @@ export function useSharedBoards(userId) {
     const sfx = Math.random().toString(36).slice(2, 9);
     const ch = supabase
       .channel(`shared-boards:${userId}:${sfx}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, schedule)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards' }, (payload) => {
+        // An UPDATE that changes nothing the list shows needs no read. `old`
+        // holds only the key here, so compare the new row to the cached one.
+        if (payload?.eventType === 'UPDATE') {
+          const cached = (sharedRef.current || []).find((r) => r.board_id === payload.new?.id);
+          if (!sharedBoardUpdateNeedsRefetch(cached, payload.new, memberWsRef.current)) return;
+        }
+        schedule();
+      })
       .subscribe();
     return () => {
       clearTimeout(timerRef.current);

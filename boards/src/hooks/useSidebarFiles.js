@@ -21,6 +21,7 @@ import { countsFromRows, countsFromItems, rollupCounts, withLive } from '../lib/
 import { searchEntities } from '../lib/entitySearch.js';
 import { searchKey } from '../lib/textFold.js';
 import { STARS_CHANGED, announceStars } from '../lib/starsChanged.js';
+import { makeTabReturnGate } from '../lib/tabReturnGap.js';
 import { t } from '@lingui/core/macro';
 
 const PEEK_PER_SHELF = 12;
@@ -249,9 +250,13 @@ export function useSidebarFiles({
     return () => window.removeEventListener(STARS_CHANGED, onChanged);
   }, [fetchStarred]);
 
+  const returnGate = useRef(null);
+  if (!returnGate.current) returnGate.current = makeTabReturnGate();
   useEffect(() => {
     if (!enabled) return undefined;
-    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    // A tab return refreshes at most once a minute; the interval is not gated.
+    const mayRun = returnGate.current;
+    const onVisible = () => { if (document.visibilityState === 'visible' && mayRun()) refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     const t = setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, REFRESH_MS);
     return () => { document.removeEventListener('visibilitychange', onVisible); clearInterval(t); };

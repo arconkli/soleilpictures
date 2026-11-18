@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 import { isCompactScriptName, longEnoughToSpread } from '../lib/tagWordMatch.js';
 import * as perf from '../lib/perf.js';
+import { trieBoardEventNeedsReload } from '../lib/boardEventGates.js';
 
 // Context lets any surface read the workspace-scoped trie without
 // prop-drilling. App.jsx publishes it once; renderMessageBody, note
@@ -90,6 +91,8 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
   useEffect(() => {
     if (!workspaceId || !supabase) { setReady(false); return; }
     let cancelled = false;
+    // board id -> the name the trie was last built with (for the boards check below)
+    const boardNames = new Map();
     versionRef.current++;
     const myVersion = versionRef.current;
 
@@ -115,6 +118,8 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
         ]);
         if (cancelled || versionRef.current !== myVersion) return;
         const rows = r1.data || [];
+        boardNames.clear();
+        for (const r of rows) if (r.kind === 'board') boardNames.set(r.board_id || r.id, r.title);
         const aliases = r2.data || [];
         const fromDb = (r3.data || []).map(r => r.term);
         const allIgnored = [...(ignoredTerms || []), ...fromDb];
@@ -174,7 +179,12 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     // join + heartbeat slot per workspace instead of five.
     const ch = supabase.channel(`trie:${workspaceId}:${sfx}`);
     for (const table of ['boards', 'card_index', 'entity_aliases', 'entity_ignore_terms']) {
-      ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `workspace_id=eq.${workspaceId}` }, schedule);
+      ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
+        // A boards UPDATE that leaves the name alone changes nothing in the
+        // trie. `old` holds only the key, so compare with the names it holds.
+        if (table === 'boards' && !trieBoardEventNeedsReload(payload?.eventType, payload?.new, boardNames)) return;
+        schedule();
+      });
     }
     ch.subscribe();
 

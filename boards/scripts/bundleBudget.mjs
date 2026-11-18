@@ -556,7 +556,15 @@ export const CEILINGS = {
   // loaded on demand, leave LAZY_IN_APP. CI-style builds read 833,820 B on main
   // 0b2d33f9 and 803,767 B with it; the ceiling moves by the difference,
   // 30,053 B, rounded up.
-  appJs: 803_900,
+  // 2026-11-17: +0.9 KB for asking the database less after its 17 Nov
+  // restart: which realtime cluster changes are worth a re-read
+  // (lib/boardEventGates.js, hooks/useSharedBoards.js,
+  // hooks/useEntityNameTrie.js), at most one check a minute on coming back to
+  // a tab (lib/tabReturnGap.js, hooks/usePresenceHeartbeat.js, useMyTier.js,
+  // useSidebarFiles.js) and the cover's last redraw (lib/yboard.js).
+  // CI-style builds read 803,767 B on main 02a5a753 and 804,634 B with it;
+  // the ceiling moves by the difference, 867 B, rounded up.
+  appJs: 804_800,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

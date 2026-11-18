@@ -13,6 +13,7 @@
 
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { makeTabReturnGate } from '../lib/tabReturnGap.js';
 
 export function usePresenceHeartbeat(user) {
   useEffect(() => {
@@ -28,7 +29,13 @@ export function usePresenceHeartbeat(user) {
     };
     beat();
     const interval = setInterval(beat, 240_000);
-    const onVis = () => beat();
+    // Tab returns beat at most once a minute; the mount beat and the interval
+    // are not gated.
+    const mayRun = makeTabReturnGate();
+    const onVis = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      if (mayRun()) beat();
+    };
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVis);
     return () => {
       alive = false;

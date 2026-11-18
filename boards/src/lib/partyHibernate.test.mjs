@@ -38,8 +38,10 @@ test('a connecting tab is told the edge answers its PING', () => {
 test('a woken room gets its save baseline back and does not reload', () => {
   const start = between('async onStart()', 'async onLoad()');
   assert.match(start, /this\.remote\.restoreBaseline\(/);
+  assert.match(start, /if \(!this\.woke\) this\.remote\.carryUnsaved\(saved\.get\(BASELINE_KEY\)\);/);
   assert.match(start, /onBaseline: \(b: unknown\) => \{ this\.put\(BASELINE_KEY, b\);/);
-  assert.match(start, /if \(!this\.woke && this\.localHeldContent\) void this\.remote\.flush\(\{ force: true \}\)/);
+  assert.match(start, /if \(!this\.woke && this\.localHeldContent\) void this\.remote\.flush\(\)/);
+  assert.doesNotMatch(start, /localHeldContent\) void this\.remote\.flush\(\{ force/, 'a cold start saves only what the row lacks');
   const load = between('async onLoad()', 'async onSave()');
   assert.match(load, /if \(this\.woke && applied > 0\) \{[\s\S]*?return doc;\n    \}/);
   assert.match(load, /this\.woke = false;/, 'a wake with nothing local is a cold start');
@@ -143,4 +145,12 @@ test('a failed local append survives a nap', () => {
 test('the pings hello goes out only when the edge answers PING', () => {
   assert.match(board, /this\.pingsAnswered = true;/);
   assert.match(board, /if \(this\.pingsAnswered\) this\.sendCustomMessage\(conn, PINGS_HELLO\)/);
+});
+
+test('an empty room\'s alarm ends with its save done before it arms the next', () => {
+  const alarm = board.slice(board.indexOf('async onAlarm()'), board.indexOf('private async armNext()'));
+  const retry = alarm.indexOf('await this.remote.retryIfDirty()');
+  const settle = alarm.indexOf('await this.remote.settle()');
+  const arm = alarm.indexOf('await this.armNext()');
+  assert.ok(retry > -1 && settle > retry && arm > settle);
 });

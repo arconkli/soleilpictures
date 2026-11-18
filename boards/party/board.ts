@@ -235,6 +235,8 @@ export class BoardParty extends YServer<Env> {
     if (saved.get(UNLOGGED_KEY)) this.unlogged = true;
     this.woke = held.length > 0 && !this.unlogged && saved.get(BASELINE_KEY) != null
       && this.remote.restoreBaseline(saved.get(BASELINE_KEY));
+    // A cold start keeps only the unsaved state, so an empty room's retry window survives it.
+    if (!this.woke) this.remote.carryUnsaved(saved.get(BASELINE_KEY));
     this.lastCheckAt = Number(saved.get(CHECKED_KEY)) || 0;
     this.lastActivityAt = Number(saved.get(ACTIVE_KEY)) || 0;
     this.activitySavedAt = this.lastActivityAt;
@@ -301,8 +303,12 @@ export class BoardParty extends YServer<Env> {
       });
     // The local copy held something: make sure the database gets it now
     // rather than at the next edit. The write is a compare-and-set, so this can
-    // only add to what is stored.
-    if (!this.woke && this.localHeldContent) void this.remote.flush({ force: true });
+    // only add to what is stored. Not forced: loadInto noted the row's bytes, so
+    // this writes only when the merged doc differs from the row (the local copy
+    // holds something the row lacks). Forced, it wrote the same doc back on every
+    // cold start, and an empty cluster's alarm woke it every minute to do it
+    // again (the 17 Nov 2026 database restart).
+    if (!this.woke && this.localHeldContent) void this.remote.flush();
     for (const state of held) {
       const ws = state.workspaceId;
       if (ws) { this.wireOpLog(ws); break; }
@@ -597,7 +603,12 @@ export class BoardParty extends YServer<Env> {
   async onAlarm() {
     if (this.resetting) return;
     if ([...this.getConnections()].length) await this.runCheck();
-    else await this.remote.retryIfDirty();
+    else {
+      await this.remote.retryIfDirty();
+      // A save still running (the cold start's, or the retry) ends inside this
+      // alarm, so the next alarm is armed only if it failed.
+      await this.remote.settle();
+    }
     await this.armNext();
   }
 

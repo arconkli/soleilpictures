@@ -44,7 +44,7 @@ const LS_VERIFIED = 'admin.analytics.verifiedOnly';
 export const POLL_MS = {
   overview: 300_000,
   funnel: 120_000,
-  retention: 120_000,
+  retention: 600_000,
   // Money's reads scan every price event since the first one, and what they
   // count moves a few times a day.
   money: 300_000,

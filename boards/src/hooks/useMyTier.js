@@ -37,11 +37,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { makeTabReturnGate } from '../lib/tabReturnGap.js';
 import { qaTierOverride } from '../lib/localMode.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 import { bootMark } from '../lib/bootMarks.js';
 import { takeBoot } from '../lib/bootStore.js';
 import { tierQuery } from '../lib/bootQueries.js';
+import { listenBillingChange } from '../lib/heldUploads.js';
 
 const EMPTY = Object.freeze({
   tier: null,
@@ -190,7 +192,9 @@ const INDEX_SYNC_REFETCH_MS = 600;
 const READ_REARM_MS = 15000;
 let _focusAttached = false;
 let _indexSyncTimer = null;
-function _onFocus() { if (_store.userId) _fetchTier(); }
+// A focus re-reads at most once a minute; other triggers are not gated.
+const _focusMayRun = makeTabReturnGate();
+function _onFocus() { if (_store.userId && _focusMayRun()) _fetchTier(); }
 // An invite reward paid server-side (its bell note arriving, useNotifications)
 // re-reads at once, so the new limit and its toast don't wait for a focus.
 export function refreshMyTier() { if (_store.userId) _fetchTier(); }
@@ -221,17 +225,22 @@ function _onIndexSynced() {
 // short of the server's, admitted, and then taken back behind the wall.
 export function expectIndexChange() { _store.lastReadAt = Date.now(); }
 
+let _unlistenBilling = null;
 function _syncFocusListener() {
   const want = _store.subs.size > 0;
   if (want && !_focusAttached) {
     window.addEventListener('focus', _onFocus);
     window.addEventListener('soleil:card-index-synced', _onIndexSynced);
+    // A plan bought in another tab is read at once, not at the next focus the
+    // one-minute gate lets through.
+    _unlistenBilling = listenBillingChange(() => { if (_store.userId) _fetchTier(); });
     _focusAttached = true;
   }
   if (!want && _focusAttached) {
     window.removeEventListener('focus', _onFocus);
     window.removeEventListener('soleil:card-index-synced', _onIndexSynced);
     if (_indexSyncTimer) { clearTimeout(_indexSyncTimer); _indexSyncTimer = null; }
+    if (_unlistenBilling) { _unlistenBilling(); _unlistenBilling = null; }
     _focusAttached = false;
   }
 }

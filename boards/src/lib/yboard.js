@@ -13,7 +13,7 @@
 // onto the undo stack. Restores use 'restore'.
 
 import * as Y from 'yjs';
-import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardBgColor, getChildBoardThumbs, isBoardThumbCustom } from './boardsApi.js';
+import { loadBoardSnapshot, saveBoardSnapshot, saveBoardVersion, updateBoardThumb, getBoardThumbState, getChildBoardThumbs } from './boardsApi.js';
 import { b64ToBytes, bytesToB64, readCards } from './yhelpers.js';
 import { invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 // Round 23: render each board's preview ONCE on the editing client and
@@ -124,9 +124,10 @@ async function _writePreviewToLS(boardId, ydoc) {
 // ── Stored board preview (thumbnail) generation ───────────────────────────
 // Min gap between regen attempts per board (the on-edit path is also gated
 // by PREVIEW_LS_THROTTLE_MS upstream; this caps actual render+upload work).
-const THUMB_THROTTLE_MS = 8000;
+const THUMB_THROTTLE_MS = 30_000;
 const _lastThumbHash = new Map();    // boardId -> last uploaded visual hash (this session)
 const _lastThumbAttempt = new Map(); // boardId -> Date.now() of last attempt
+const _thumbTrailing = new Map();    // boardId -> trailing re-run timer for edits made inside the throttle window
 const _thumbInFlight = new Set();    // boardId currently generating
 
 // Render already-extracted board data to a WebP, upload it to R2, and stamp
@@ -140,12 +141,16 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
     // funnel for BOTH the on-edit (maybeGenerateThumbnail) and share-link
     // (forceBoardThumbnail) paths, so one authoritative DB check here guards
     // both. Failure → fall through (default false) rather than block forever.
-    try { if (await isBoardThumbCustom(boardId)) return; } catch (_) {}
-    // Re-read bg_color live (the yboard handle outlives the board row it
-    // was opened with, so a passed-in value would go stale if the user
-    // repaints the canvas mid-session). Failure → default canvas bg.
+    // The same read gives bg_color, re-read live (the yboard handle outlives
+    // the board row it was opened with, so a passed-in value would go stale if
+    // the user repaints the canvas mid-session). Failure → not custom, default
+    // canvas bg.
     let bgColor = null;
-    try { bgColor = await getBoardBgColor(boardId); } catch (_) {}
+    try {
+      const state = await getBoardThumbState(boardId);
+      if (state.custom) return;
+      bgColor = state.bgColor;
+    } catch (_) {}
     // If this board contains nested boards, fetch their stored thumbnails so
     // each renders the child's real preview instead of a flat rectangle. The
     // long-lived yboard handle has no React `boards` map, so we self-fetch —
@@ -173,7 +178,21 @@ async function _renderUploadStampThumb({ boardId, cards, arrows, strokes, hash, 
 function maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId }) {
   if (!workspaceId || !boardId || ydoc.isDestroyed) return;
   const now = Date.now();
-  if (now - (_lastThumbAttempt.get(boardId) || 0) < THUMB_THROTTLE_MS) return;
+  const last = _lastThumbAttempt.get(boardId) || 0;
+  if (now - last < THUMB_THROTTLE_MS) {
+    // Edits made inside the window would stay off the cover once the editing
+    // stops, so run once more when it ends. The re-run keeps the destroyed,
+    // hash and empty checks, so it does nothing if nothing changed.
+    if (!_thumbTrailing.has(boardId)) {
+      const timer = setTimeout(() => {
+        _thumbTrailing.delete(boardId);
+        maybeGenerateThumbnail(boardId, ydoc, { workspaceId, userId });
+      }, THUMB_THROTTLE_MS - (now - last) + 50);
+      timer?.unref?.();
+      _thumbTrailing.set(boardId, timer);
+    }
+    return;
+  }
   let cards, arrows, strokes;
   try {
     cards = readCards(ydoc);
@@ -856,6 +875,8 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         // edits this session showed, so drop it.
         try { invalidatePrefetch(`board:${boardId}`); } catch (_) {}
       }
+      clearTimeout(_thumbTrailing.get(boardId));
+      _thumbTrailing.delete(boardId);
       if (dirty) {
         if (canWrite !== false) saveBoardVersion(boardId, ydoc, {
           label: 'close',

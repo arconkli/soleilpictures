@@ -44,7 +44,10 @@ export function checkDue(now, lastCheckAt) {
 // roomEmptied), so a save that failed while people worked still gets its full
 // window once they leave; an empty room with a save
 // or a merge still running (busy) is checked again soon, because that work can
-// fail after this was asked.
+// fail after this was asked. It gets the same window as a failed save, counted
+// from the room's last activity; past it the local copy keeps the doc and the
+// next open's cold start saves it. Without that limit an empty room whose every
+// wake starts a save re-armed itself forever (17 Nov 2026).
 export function nextAlarmIn({ now, sockets, lastActivityAt, dirty, dirtySince, busy }) {
   const active = now - (Number(lastActivityAt) || 0) < ACTIVE_FOR_MS;
   if (sockets > 0) return dirty || active ? ACTIVE_ALARM_MS : QUIET_ALARM_MS;
@@ -52,7 +55,8 @@ export function nextAlarmIn({ now, sockets, lastActivityAt, dirty, dirtySince, b
     const since = Math.max(Number(dirtySince) || now, Number(lastActivityAt) || 0);
     return now - since < EMPTY_RETRY_FOR_MS ? ACTIVE_ALARM_MS : null;
   }
-  return busy ? ACTIVE_ALARM_MS : null;
+  if (!busy) return null;
+  return now - (Number(lastActivityAt) || 0) < EMPTY_RETRY_FOR_MS ? ACTIVE_ALARM_MS : null;
 }
 
 // The latest of several times, each a number of ms or a Date; 0 when none is.

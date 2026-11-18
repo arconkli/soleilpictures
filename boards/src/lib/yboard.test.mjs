@@ -30,7 +30,7 @@ import * as Y from 'yjs';
 // ── module hook ─────────────────────────────────────────────────────────────
 const fn = (mod, name) => `export const ${name} = (...a) => globalThis.__yb.call(${JSON.stringify(mod)}, ${JSON.stringify(name)}, a);`;
 const STUBS = {
-  '/src/lib/boardsApi.js': ['loadBoardSnapshot', 'saveBoardSnapshot', 'saveBoardVersion', 'updateBoardThumb', 'getBoardBgColor', 'getChildBoardThumbs', 'isBoardThumbCustom'].map((n) => fn('boardsApi', n)).join('\n'),
+  '/src/lib/boardsApi.js': ['loadBoardSnapshot', 'saveBoardSnapshot', 'saveBoardVersion', 'updateBoardThumb', 'getBoardBgColor', 'getBoardThumbState', 'getChildBoardThumbs', 'isBoardThumbCustom'].map((n) => fn('boardsApi', n)).join('\n'),
   '/src/hooks/useBoardPreview.js': fn('useBoardPreview', 'invalidateBoardPreview'),
   '/src/lib/renderThumbnail.js': [fn('renderThumbnail', 'renderThumbnailBlob'), fn('renderThumbnail', 'quickVisualHash'), 'export const RENDER_VERSION = 1;'].join('\n'),
   '/src/lib/uploads.js': fn('uploads', 'uploadBoardThumbnail'),
@@ -127,6 +127,7 @@ const impl = {
     saveBoardVersion: async () => {},
     updateBoardThumb: async () => {},
     getBoardBgColor: async () => null,
+    getBoardThumbState: async () => ({ custom: false, bgColor: null }),
     getChildBoardThumbs: async () => ({}),
     isBoardThumbCustom: async () => false,
   },
@@ -459,6 +460,24 @@ test('PERF-02: a local edit regenerates the thumbnail once; the open backfill as
   addCard(writer.ydoc, 'b');
   await advance(3000);
   assert.equal(env.renders, 1, 'own edit renders the thumbnail');
+  writer.destroy();
+});
+
+test('an edit made inside the thumbnail throttle window still reaches the cover after the window', async () => {
+  const boardId = newBoardId();
+  seedServer(boardId, ['a']);
+  env.canWrite = true;
+  const writer = loadYBoard(boardId, { userId: 'w', workspaceId: 'ws1', hasThumb: true });
+  await writer.ready;
+  await advance(50);
+  addCard(writer.ydoc, 'b');
+  await advance(3000);
+  assert.equal(env.renders, 1);
+  addCard(writer.ydoc, 'c');
+  await advance(3000);
+  assert.equal(env.renders, 1, 'inside the window: no render yet');
+  await advance(32000);
+  assert.equal(env.renders, 2, 'a trailing render once the window ends');
   writer.destroy();
 });
 
