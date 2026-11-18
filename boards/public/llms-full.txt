@@ -4871,7 +4871,7 @@ A: Nothing that matters is removed, but dense surfaces like long documents are m
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-11-17
+Updated: 2026-11-18
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -4894,7 +4894,7 @@ Pictures and AI
 
 When a picture is added to a cluster, Clusters asks an AI model what is in it: a short description, a few search words, and labels such as the kind of picture, the shot, the light and the main colours. People are never named.
 
-This runs on Cloudflare Workers AI, the provider that already stores your files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models (Cloudflare's policy).
+This runs on Cloudflare Workers AI, from the provider that already runs the Clusters website. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models (Cloudflare's policy).
 
 The description is stored beside the picture, and Clusters doesn't show it on screen: it finds the picture in search and in More like this, and screen readers read it. Only people who can see the picture can reach it, and an app you connect through the API or MCP reads them as you would. On a published cluster a picture's description is its alt text, the words search engines and screen readers read, unless someone wrote alt text for it, so anyone can read it there; a browser also shows alt text when a picture fails to load. A description is never written into the cluster itself and never sent with errors or usage events.
 
@@ -5101,9 +5101,9 @@ A: Export boards and documents, download original files, or read everything prog
 ========================================================================
 # Security
 URL: https://clusters.soleilpictures.com/docs/security
-Updated: 2026-11-17
+Updated: 2026-11-18
 
-Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.
+Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, live editing, files moving to Backblaze B2), all encrypting stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.
 
 Clusters keeps film and creative work: scripts, references, cuts in progress. This page says how that work is protected, in plain words, and only what is true today. Where a protection belongs to one of our providers, it says so and links to theirs.
 
@@ -5125,11 +5125,11 @@ We read every report and reply from the same address. There is no paid bug bount
 
 Where your data lives
 
-Clusters is run from the United States. Each part runs on one provider:
+Clusters is run from the United States, on these providers:
 
 What | Provider
 Your account, clusters, cards, documents, comments and messages | Supabase (Postgres database and sign-in), in AWS us-west-2, Oregon
-Uploaded files, and their backup copy | Cloudflare R2. Some message attachments and a few older card pictures are in Supabase storage
+Uploaded files, and their backup copy | Cloudflare R2, moving to Backblaze B2 (US East); during the move both hold a copy. Some message attachments and a few older card pictures are in Supabase storage
 The website, the API and the MCP server | Cloudflare Workers
 Live editing: who's here, and changes as they happen | Cloudflare Durable Objects
 Picture descriptions for search | Cloudflare Workers AI, which doesn't keep the picture or train on it
@@ -5142,7 +5142,7 @@ The full list, including the Meta measurement used on public pages, is in the Pr
 Encryption
 
 On the way. Every connection uses HTTPS. A plain http address is sent to HTTPS, and browsers are told to use only HTTPS for this site and every address under it.
-At rest. Stored data is encrypted by the provider that holds it: Supabase encrypts the database with AES-256 (Supabase security), Cloudflare R2 encrypts files with AES-256 (R2 data security), and Durable Objects are encrypted at rest (Durable Objects data security). Stripe encrypts card numbers with AES-256 and is certified PCI Service Provider Level 1 (Stripe security).
+At rest. Stored data is encrypted by the provider that holds it: Supabase encrypts the database with AES-256 (Supabase security), Cloudflare R2 encrypts files with AES-256 (R2 data security), Backblaze B2, where files are moving, encrypts them with AES-256 as well (B2 server-side encryption), and Durable Objects are encrypted at rest (Durable Objects data security). Stripe encrypts card numbers with AES-256 and is certified PCI Service Provider Level 1 (Stripe security).
 Keys and tokens. API keys and connected-app tokens are kept only as a one-way hash. A key is shown once, when you make it, and can't be read back, even by us.
 
 Signing in
@@ -5184,7 +5184,7 @@ See Authentication and OAuth.
 Backups and deleting your data
 
 The database is backed up every night. The backup is encrypted before it leaves the backup job, stored apart from the live database, and then read back to check it arrived whole. The database provider keeps its own backups as well.
-Files uploaded to clusters are copied by an hourly job to a separate backup store. Message attachments kept in Supabase storage aren't part of that copy.
+Files uploaded to clusters are copied to a separate backup store. Message attachments kept in Supabase storage aren't part of that copy.
 Deleted clusters stay in Trash for 30 days, then are deleted for good.
 Deleting your account in Settings › Profile takes effect at once and can't be undone. A file's backup copy isn't removed when you delete it yet, and the database provider's backups can hold deleted information until they are replaced. The Privacy Policy has the details, and Data and privacy says how to get everything out first.
 
@@ -5197,18 +5197,18 @@ The site can't be framed by another site, and browsers are told not to guess fil
 
 Certifications
 
-Clusters has no SOC 2, ISO 27001 or similar certification of its own, and has not had a third-party penetration test. The providers it runs on publish theirs: Supabase, Cloudflare and Stripe.
+Clusters has no SOC 2, ISO 27001 or similar certification of its own, and has not had a third-party penetration test. The providers it runs on publish theirs: Supabase, Cloudflare, Backblaze and Stripe.
 
 ## Frequently asked questions
 
 Q: Is Soleil Clusters SOC 2 certified?
-A: No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare and Stripe, publish their own certifications. This page says what is in place instead.
+A: No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare, Backblaze and Stripe, publish their own certifications. This page says what is in place instead.
 
 Q: How do I report a security problem?
 A: Email security@soleilpictures.com with what you found and how to reproduce it. The same address is in /.well-known/security.txt.
 
 Q: Where is my data stored?
-A: The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare, which also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters.
+A: The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare and are moving to Backblaze B2 (US East); Cloudflare also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters.
 
 Q: Can an AI app I connect delete my clusters?
 A: Only if you let it. The approval screen lists what an app may do. An app that asks to read and write can't delete unless you also tick Allow deleting, and an app that asks to delete shows Delete there before you approve. You can disconnect an app at any time and it stops working at once.

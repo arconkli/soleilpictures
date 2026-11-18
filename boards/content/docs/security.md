@@ -5,15 +5,15 @@ h1: Security
 navLabel: Security
 section: account
 order: 5.5
-updated: 2026-11-17
-answer: Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.
+updated: 2026-11-18
+answer: Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, live editing, files moving to Backblaze B2), all encrypting stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.
 faq:
   - q: Is Soleil Clusters SOC 2 certified?
-    a: No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare and Stripe, publish their own certifications. This page says what is in place instead.
+    a: No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare, Backblaze and Stripe, publish their own certifications. This page says what is in place instead.
   - q: How do I report a security problem?
     a: Email security@soleilpictures.com with what you found and how to reproduce it. The same address is in /.well-known/security.txt.
   - q: Where is my data stored?
-    a: The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare, which also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters.
+    a: The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare and are moving to Backblaze B2 (US East); Cloudflare also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters.
   - q: Can an AI app I connect delete my clusters?
     a: Only if you let it. The approval screen lists what an app may do. An app that asks to read and write can't delete unless you also tick Allow deleting, and an app that asks to delete shows Delete there before you approve. You can disconnect an app at any time and it stops working at once.
   - q: Do you offer two-step sign-in or single sign-on (SSO)?
@@ -52,12 +52,12 @@ bounty, but we're glad to credit you when the fix ships, if you'd like. Our
 
 ## Where your data lives
 
-Clusters is run from the United States. Each part runs on one provider:
+Clusters is run from the United States, on these providers:
 
 | What | Provider |
 |---|---|
 | Your account, clusters, cards, documents, comments and messages | Supabase (Postgres database and sign-in), in AWS us-west-2, Oregon |
-| Uploaded files, and their backup copy | Cloudflare R2. Some message attachments and a few older card pictures are in Supabase storage |
+| Uploaded files, and their backup copy | Cloudflare R2, moving to Backblaze B2 (US East); during the move both hold a copy. Some message attachments and a few older card pictures are in Supabase storage |
 | The website, the API and the MCP server | Cloudflare Workers |
 | Live editing: who's here, and changes as they happen | Cloudflare Durable Objects |
 | Picture descriptions for search | Cloudflare Workers AI, which doesn't keep the picture or train on it |
@@ -77,6 +77,8 @@ The full list, including the Meta measurement used on public pages, is in the
   Supabase encrypts the database with AES-256
   ([Supabase security](https://supabase.com/security)), Cloudflare R2 encrypts
   files with AES-256 ([R2 data security](https://developers.cloudflare.com/r2/reference/data-security/)),
+  Backblaze B2, where files are moving, encrypts them with AES-256 as well
+  ([B2 server-side encryption](https://www.backblaze.com/docs/cloud-storage-server-side-encryption)),
   and Durable Objects are encrypted at rest
   ([Durable Objects data security](https://developers.cloudflare.com/durable-objects/reference/data-security/)).
   Stripe encrypts card numbers with AES-256 and is certified PCI Service
@@ -177,9 +179,8 @@ See [Authentication](/docs/api/authentication) and [OAuth](/docs/api/oauth).
   leaves the backup job, stored apart from the live database, and then read
   back to check it arrived whole. The database provider keeps its own backups
   as well.
-- **Files uploaded to clusters** are copied by an hourly job to a separate
-  backup store. Message attachments kept in Supabase storage aren't part of
-  that copy.
+- **Files uploaded to clusters** are copied to a separate backup store.
+  Message attachments kept in Supabase storage aren't part of that copy.
 - **Deleted clusters** stay in [Trash](/docs/clusters/trash-and-recovery) for
   {{fact:trashDays}} days, then are deleted for good.
 - **Deleting your account** in **Settings › Profile** takes effect at once and
@@ -207,5 +208,6 @@ See [Authentication](/docs/api/authentication) and [OAuth](/docs/api/oauth).
 Clusters has no SOC 2, ISO 27001 or similar certification of its own, and has
 not had a third-party penetration test. The providers it runs on publish
 theirs: [Supabase](https://supabase.com/security),
-[Cloudflare](https://www.cloudflare.com/trust-hub/compliance-resources/) and
+[Cloudflare](https://www.cloudflare.com/trust-hub/compliance-resources/),
+[Backblaze](https://www.backblaze.com/cloud-storage/compliance) and
 [Stripe](https://docs.stripe.com/security).

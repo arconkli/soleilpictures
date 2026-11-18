@@ -8,6 +8,7 @@
 //
 // The text describes how the app works today: Supabase (auth, database,
 // storage), Stripe billing, Cloudflare (hosting, files, live sync, Workers AI),
+// Backblaze B2 (files and their backups, moving there from Cloudflare R2),
 // Fly.io (media conversion, Scout), Resend email, Meta Pixel + Conversions API,
 // our own first-party analytics, the REST API, the MCP server and OAuth apps.
 // Every retention period in the Privacy Policy is held to the purge the
@@ -31,7 +32,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: 'November 17, 2026',
+  updated: 'November 18, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com, including through our API, our MCP server, and the AI assistants and other apps you connect to it. By using the Service, you agree to this Policy.",
   sections: [
@@ -124,6 +125,7 @@ const privacy = {
             'Stripe — payment processing and subscription billing.',
             'Resend — sending transactional, lifecycle, and product emails, and telling us whether they were delivered, opened or clicked.',
             'Cloudflare — hosting, content delivery, file storage and backups, live multi-user editing and presence, bot checks, and the AI features in section 3 (Workers AI).',
+            'Backblaze — file storage and backups.',
             'Fly.io — converting uploaded video and audio into versions every browser can play, and running Scout.',
             'Our text-messaging provider — sending and receiving Scout messages, where Scout is offered.',
             'Meta Platforms (Facebook and Instagram) — advertising measurement and optimization through the Meta Pixel and Conversions API.',

@@ -7,7 +7,7 @@
 // and the test says which of these to change. Every document has one, so every
 // legal page gets a lastmod.
 export const LEGAL_UPDATED = {
-  privacy: '2026-11-17',
+  privacy: '2026-11-18',
   terms: '2026-11-17',
   cookies: '2026-11-05',
 };

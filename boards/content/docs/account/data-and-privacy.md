@@ -5,7 +5,7 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-11-17
+updated: 2026-11-18
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
   - q: How do I delete my account?
@@ -48,8 +48,8 @@ When a picture is added to a cluster, Clusters asks an AI model what is in it:
 a short description, a few search words, and labels such as the kind of
 picture, the shot, the light and the main colours. People are never named.
 
-This runs on Cloudflare Workers AI, the provider that already stores your
-files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's
+This runs on Cloudflare Workers AI, from the provider that already runs the
+Clusters website. A small copy of the picture goes to Google's Gemma 4 model (or Meta's
 Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters.
 Cloudflare doesn't keep the picture after answering and doesn't use it to
 train models ([Cloudflare's policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/)).

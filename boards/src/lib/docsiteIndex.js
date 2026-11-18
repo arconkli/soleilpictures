@@ -3081,7 +3081,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Data and privacy",
     "headings": [
       {
@@ -3163,10 +3163,10 @@ export const DOCS_PAGES = [
     "title": "Security — Soleil Clusters",
     "metaDescription": "How Soleil Clusters protects your work: where data lives, encryption, sign-in, who can see what, AI app access, backups, and how to report a vulnerability.",
     "h1": "Security",
-    "answer": "Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.",
+    "answer": "Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, live editing, files moving to Backblaze B2), all encrypting stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.",
     "section": "account",
     "order": 5.5,
-    "updated": "2026-11-17",
+    "updated": "2026-11-18",
     "navLabel": "Security",
     "headings": [
       {
@@ -3215,7 +3215,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters SOC 2 certified?",
-        "a": "No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare and Stripe, publish their own certifications. This page says what is in place instead."
+        "a": "No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare, Backblaze and Stripe, publish their own certifications. This page says what is in place instead."
       },
       {
         "q": "How do I report a security problem?",
@@ -3223,7 +3223,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where is my data stored?",
-        "a": "The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare, which also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters."
+        "a": "The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare and are moving to Backblaze B2 (US East); Cloudflare also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters."
       },
       {
         "q": "Can an AI app I connect delete my clusters?",
