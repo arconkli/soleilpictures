@@ -2,7 +2,7 @@
 
 > Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-11-15_
+_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-11-17_
 
 Images are the reason most boards exist. Getting them in is meant to be
 thoughtless: select the files you want and drop them where you are, and they
@@ -112,7 +112,7 @@ Three ways in, depending on how much room you need:
   Under it, **More like this** shows the pictures in your workspace that look
   most like it, matched by what is in them, and a click opens one there. It
   appears only when something is close, and not in a workspace whose
-  [AI suggestions](/docs/account/data-and-privacy#pictures-and-ai) are off.
+  [AI for pictures and search](/docs/account/data-and-privacy#pictures-and-ai) is off.
 
 Adjustments are stored as settings on the card. The uploaded file is never
 touched, so **Reset** returns you to the original exactly, and a collaborator

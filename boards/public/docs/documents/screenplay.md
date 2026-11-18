@@ -2,7 +2,7 @@
 
 > Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/screenplay · Updated 2026-10-24_
+_Source: https://clusters.soleilpictures.com/docs/documents/screenplay · Updated 2026-11-17_
 
 A [document](/docs/documents) in screenplay mode behaves like script software:
 Courier, industry margins, and the element model everyone writing a script
@@ -73,9 +73,8 @@ surrounds it: the [references](/docs/canvas/images), the
 [shot list](/docs/clusters/list-view) are all on the same board, and the document
 can be [docked beside the canvas](/docs/documents) while you work.
 
-Scene headings can be [tagged](/docs/organize/tags) and locations
-[mentioned](/docs/organize/links-and-mentions), which connects a scene in the
-script to the reference wall for that location.
+Locations can be [mentioned](/docs/organize/links-and-mentions), which
+connects a scene in the script to the reference wall for that location.
 
 ---
 

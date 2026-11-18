@@ -52,7 +52,7 @@ const TIME_MAP = {
 // remains). Cards flow one at a time in small SCENES: each info note rides in
 // with the one or two media cards it describes, and a line/arrow points AT the
 // note to pull the eye to it. Scenes alternate left/right so only a couple of
-// cards share the screen at once. The 8 cards marked stay (the finale, mid-array)
+// cards share the screen at once. The 6 cards marked stay (the finale, mid-array)
 // settle into the resolved "live board"; the three fact scenes (HOME_FACT_NOTES)
 // are appended at the very end so every index above is unchanged. mSlot drives the mobile-only top/bottom note layout (alternated
 // in time so each note lands alone in its slot and is fully readable).
@@ -68,9 +68,9 @@ const CARDS = [
   { kind:'note', mSlot:'top', head:'LIVE CANVAS', text:'Your whole team on one infinite canvas — live cursors, comments, and presence, no refresh.', dot:'#f59e0b', x:-340,y:-195,r:-3,w:212,h:138, in:0.088,out:0.263 },
   // idx3 — filler: Lost Time palette (balances scene B, top-centre)
   { kind:'palette', cols:['#222a4e','#f8ebce','#ff7720'], label:'Lost Time', dot:'#34d399', x:-30,y:-250,r:4,w:196,h:100, in:0.227,out:0.373 },
-  // scene B → BOTTOM-RIGHT: Lost Time still → TAGS note
+  // scene B → BOTTOM-RIGHT: Lost Time still → SEARCH note
   { kind:'image', img:'/signin-losttime-still1.webp', label:'losttime_int_07.jpg', dot:'#3b82f6', x:450,y:55,r:-5,w:240,h:152, in:0.161,out:0.344 },
-  { kind:'note', mSlot:'bottom', head:'TAGS', text:'Tag a card, a group or a whole cluster — every tag gathers its references from across the workspace.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.205,out:0.38 },
+  { kind:'note', mSlot:'bottom', head:'SEARCH', text:'Search every cluster at once — find a note, a card or a picture by what is in it.', dot:'#f59e0b', x:375,y:235,r:4,w:224,h:142, in:0.205,out:0.38 },
   // scene C → BOTTOM-LEFT: MoodBoard → DOCS note
   { kind:'board', name:'MoodBoard', count:36, mini:[ {t:'img',src:'/signin-losttime-still1.webp',l:5,tp:8,w:46,h:50,r:-4}, {t:'img',src:'/signin-losttime-still2.webp',l:50,tp:30,w:46,h:52,r:4}, {t:'pal',cols:['#222a4e','#f8ebce','#ff7720'],l:8,tp:60,w:38,h:20,r:2} ], x:-455,y:25,r:-3,w:196,h:142, in:0.307,out:0.483 },
   { kind:'note', mSlot:'top', head:'DOCS, BUILT IN', text:'Write briefs right beside the canvas — rich docs with @mentions and screenplay mode.', dot:'#f59e0b', x:-360,y:215,r:3,w:214,h:134, in:0.351,out:0.512 },
@@ -86,9 +86,7 @@ const CARDS = [
   { kind:'palette', cols:['#FFA500','#FFFAF0','#272727','#EF7300'], label:'Clusters', dot:'#34d399', x:475,y:160,r:3,w:188,h:104, in:0.898, stay:true },
   { kind:'board', name:'Clusters Logo', count:32, mini:[ {t:'img',src:'/signin-logo-mark.webp',l:8,tp:12,w:42,h:54,r:-3,fit:'contain',bg:'#0a0a0c'}, {t:'pal',cols:['#FFA500','#FFFAF0','#272727','#EF7300'],l:54,tp:16,w:40,h:24,r:3}, {t:'note',l:48,tp:50,w:46,h:38,r:-2} ], x:230,y:295,r:-3,w:196,h:142, in:0.92, stay:true },
   { kind:'note', mSlot:'top', head:'RELATIONSHIP GRAPH', text:'Every card connects. Jump between boards through a living graph of how your ideas link up.', dot:'#f59e0b', x:-345,y:235,r:4,w:218,h:142, in:0.949, stay:true },
-  { kind:'tag', text:'needs-review', dot:'#f59e0b', x:40,y:-315,r:0, in:0.963, stay:true },
-  { kind:'tag', text:'approved', dot:'#34d399', x:160,y:-300,r:0, in:0.978, stay:true },
-  // ── the fact scenes (idx19–25), appended so no index above moved. They fly in
+  // ── the fact scenes (idx17–23), appended so no index above moved. They fly in
   // between SHARE OR LOCK and the finale, one quadrant each (TL, BR, BL), and
   // are gone before the finale's cards reach their corner. Their words are
   // HOME_FACT_NOTES — the same lines as index.html's plain-text fallback.
@@ -115,7 +113,7 @@ const LINKS = [
   [8,6],   // Yahweh score filler → MoodBoard
   // settled-board relationship graph (the note→board arrow is separate)
   [16,15], [12,13],
-  [20,19],   // fact scene E: teaser → still
+  [18,17],   // fact scene E: teaser → still
 ];
 
 // hand-annotation arrows that draw IN slowly, like a teammate circling a note to
@@ -125,13 +123,13 @@ const LINKS = [
 // draw window (win is wide so the stroke draws gently).
 const ARROWS = [
   { from:1,  to:2,  color:'#f59e0b', bow:26,  in:0.117, win:0.08 },  // Yahweh board → LIVE CANVAS note (TL)
-  { from:4,  to:5,  color:'#10b981', bow:-26, in:0.234, win:0.08 },  // Lost Time still → TAGS note (BR)
+  { from:4,  to:5,  color:'#10b981', bow:-26, in:0.234, win:0.08 },  // Lost Time still → SEARCH note (BR)
   { from:6,  to:7,  color:'#f59e0b', bow:26,  in:0.38, win:0.08 },  // MoodBoard → DOCS note (BL)
   { from:9,  to:10, color:'#3b82f6', bow:-26, in:0.468, win:0.073 },  // dailies reel → SHARE OR LOCK note (TR)
   { from:11, to:16, color:'#10b981', bow:-34, in:0.963, win:0.073 },  // diner still → RELATIONSHIP GRAPH note
-  { from:19, to:21, color:'#f59e0b', bow:26,  in:0.535, win:0.08 },   // still → ANY FILE note (TL)
-  { from:22, to:23, color:'#10b981', bow:-26, in:0.62, win:0.08 },  // keyart → FREE TO START note (BR)
-  { from:24, to:25, color:'#3b82f6', bow:26,  in:0.70, win:0.075 },  // board → IN CHATGPT AND CLAUDE note (BL)
+  { from:17, to:19, color:'#f59e0b', bow:26,  in:0.535, win:0.08 },   // still → ANY FILE note (TL)
+  { from:20, to:21, color:'#10b981', bow:-26, in:0.62, win:0.08 },  // keyart → FREE TO START note (BR)
+  { from:22, to:23, color:'#3b82f6', bow:26,  in:0.70, win:0.075 },  // board → IN CHATGPT AND CLAUDE note (BL)
 ];
 const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -145,26 +143,26 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 // (out + PH_OUT ≤ next in). The last row of a group is dropped when the band
 // is too short for it, and a group that still can't fit is hidden — a short
 // screen shows less, never a crammed or clipped card. The finale (no `out`)
-// is a small resolved board: the graph note + tags on top, two cards below.
+// is a small resolved board: the graph note on top, two cards below.
 // A screen whose bottom band can't hold a card (an iPhone SE) keeps the pitch:
 // the bottom band's notes move up and take the top media's turn (every note
 // window starts exactly as the previous top window has finished).
 const PHONE_GROUPS = [
   { band:'bot', in:0.019, out:0.118, rows:[[1,0]] },     // Yahweh board + keyart
   { band:'top', in:0.031, out:0.131, rows:[[2]] },       // LIVE CANVAS
-  { band:'bot', in:0.162, out:0.243, rows:[[5]] },       // TAGS
+  { band:'bot', in:0.162, out:0.243, rows:[[5]] },       // SEARCH
   { band:'top', in:0.168, out:0.256, rows:[[4,3]] },     // Lost Time still + palette
   { band:'bot', in:0.28,  out:0.368, rows:[[6,8]] },     // MoodBoard + score
   { band:'top', in:0.293, out:0.38,  rows:[[7]] },       // DOCS, BUILT IN
   { band:'top', in:0.411, out:0.505, rows:[[9]] },       // dailies reel
   { band:'bot', in:0.411, out:0.505, rows:[[10]] },      // SHARE OR LOCK
-  { band:'bot', in:0.538, out:0.629, rows:[[20,19]] },   // teaser + still
-  { band:'top', in:0.545, out:0.636, rows:[[21]] },      // ANY FILE, ANY SIZE
-  { band:'top', in:0.669, out:0.76,  rows:[[23]] },      // FREE TO START (too tall for a short bottom band)
-  { band:'bot', in:0.669, out:0.76,  rows:[[22]] },      // keyart (hidden where the bottom band can't hold it)
-  { band:'bot', in:0.792, out:0.883, rows:[[24]] },      // Pitch refs board
-  { band:'top', in:0.792, out:0.883, rows:[[25]] },      // IN CHATGPT AND CLAUDE
-  { band:'top', in:0.915, rows:[[16],[17,18]] },         // finale: RELATIONSHIP GRAPH + tags
+  { band:'bot', in:0.538, out:0.629, rows:[[18,17]] },   // teaser + still
+  { band:'top', in:0.545, out:0.636, rows:[[19]] },      // ANY FILE, ANY SIZE
+  { band:'top', in:0.669, out:0.76,  rows:[[21]] },      // FREE TO START (too tall for a short bottom band)
+  { band:'bot', in:0.669, out:0.76,  rows:[[20]] },      // keyart (hidden where the bottom band can't hold it)
+  { band:'bot', in:0.792, out:0.883, rows:[[22]] },      // Pitch refs board
+  { band:'top', in:0.792, out:0.883, rows:[[23]] },      // IN CHATGPT AND CLAUDE
+  { band:'top', in:0.915, rows:[[16]] },                  // finale: RELATIONSHIP GRAPH
   { band:'bot', in:0.914, rows:[[15,14]] },              // finale: Clusters Logo board + palette
 ];
 const PH_IN = 0.037, PH_OUT = 0.0315, PH_STAGGER = 0.0125;   // = the old 0.06 / 0.05 / 0.02 × 4.8/7.7
@@ -231,7 +229,6 @@ function cardInner(c) {
   if (c.kind === 'audio') return `<div class="sb-ac-cover"><img class="sb-media" src="${c.cover}" alt="" loading="lazy"></div><div class="sb-ac-body"><div class="sb-ac-meta"><div class="sb-ac-title">${c.title}</div><div class="sb-ac-artist">${c.artist || ''}</div></div>${waveBars(c.title)}<div class="sb-ac-ctrl"><span class="sb-ac-play">${PLAY_SVG}</span><span class="sb-ac-time">0:00 <i>/</i> ${c.dur || '3:12'}</span></div></div>`;
   if (c.kind === 'video') return `<div class="sb-vc-thumb"><img class="sb-media" src="${c.thumb}" alt="" loading="lazy"><span class="sb-vc-play">${PLAY_SVG}</span><span class="sb-vc-dur">${c.dur || ''}</span></div><div class="sb-vc-title">${c.title}</div>`;
   if (c.kind === 'board') return `<div class="sb-bp-canvas">${(c.mini || []).map(miniCard).join('')}</div><span class="sb-bp-badge">Board</span><div class="sb-bp-meta"><span class="sb-bp-name">${c.name}</span><span class="sb-bp-count">${c.count} cards</span></div>`;
-  if (c.kind === 'tag') return `<span class="sb-chip"><span class="sb-dot" style="background:${c.dot}"></span>${c.text}</span>`;
   return '';
 }
 
@@ -280,12 +277,12 @@ export function SignInBackdrop({ children, exploreHref }) {
     const cardEls = CARDS.map((c, i) => {
       const el = document.createElement('div');
       el.className = 'sb-card sb-' + c.kind + (c.logo ? ' sb-logo sb-logo-' + c.logo : '');
-      if (c.kind !== 'tag') { el.style.width = c.w + 'px'; el.style.height = c.h + 'px'; }
+      el.style.width = c.w + 'px'; el.style.height = c.h + 'px';
       el.innerHTML = cardInner(c);
       // On touch, notes are force-stacked above/below the box and share the top/
-      // bottom strips with the finale's tags + media — lift notes above every
+      // bottom strips with the finale's media — lift notes above every
       // other card so they're the readable foreground, never covered by a card.
-      el.style.zIndex = (coarse && c.kind === 'note') ? 8 : (c.kind === 'tag') ? 4 : (i % 3) + 1;
+      el.style.zIndex = (coarse && c.kind === 'note') ? 8 : (i % 3) + 1;
       cardsEl.appendChild(el);
       c.phase = i * 1.3;
       return el;
@@ -324,7 +321,7 @@ export function SignInBackdrop({ children, exploreHref }) {
 
     // Phone layout state. PHONE_OF[i] = the card's group and its stagger slot;
     // PS[i] = its unscaled size (notes are re-flowed to one wide, short banner
-    // and measured; tags are measured), refreshed in measure(), never per frame.
+    // and measured), refreshed in measure(), never per frame.
     const PHONE_OF = CARDS.map(() => null);
     PHONE_GROUPS.forEach((g) => { let k = 0; g.rows.forEach(row => row.forEach(i => { PHONE_OF[i] = { g, k: k++ }; })); });
     const PS = CARDS.map(c => ({ w: c.w || 116, h: c.h || 34 }));
@@ -343,8 +340,6 @@ export function SignInBackdrop({ children, exploreHref }) {
           el.style.width = (phone ? noteW : c.w) + 'px';
           el.style.height = phone ? 'auto' : c.h + 'px';
           PS[i] = phone ? { w: noteW, h: el.offsetHeight || c.h } : { w: c.w, h: c.h };
-        } else if (c.kind === 'tag') {
-          PS[i] = { w: el.offsetWidth || 100, h: el.offsetHeight || 26 };
         }
       });
       plKey = '';
@@ -367,23 +362,21 @@ export function SignInBackdrop({ children, exploreHref }) {
         const H = y1 - y0;
         let rows = g.rows, s = 0;
         for (;;) {
-          let fixedH = 0, varH = 0, sW = Infinity;
+          let varH = 0, sW = Infinity;
           for (const row of rows) {
             const rh = Math.max(...row.map(i => PS[i].h));
-            if (row.every(i => CARDS[i].kind === 'tag')) { fixedH += rh; continue; }
             varH += rh;
             sW = Math.min(sW, (W - PH_GAP * (row.length - 1)) / row.reduce((a, i) => a + PS[i].w, 0));
           }
-          s = Math.min(isNote ? 1 : PH_MEDIA_MAX, sW, (H - fixedH - PH_GAP * (rows.length - 1)) / (varH || 1));
+          s = Math.min(isNote ? 1 : PH_MEDIA_MAX, sW, (H - PH_GAP * (rows.length - 1)) / (varH || 1));
           if (s >= (isNote ? PH_NOTE_MIN : PH_MEDIA_MIN)) break;
           if (rows.length > 1) rows = rows.slice(0, -1); else { rows = null; break; }
         }
         if (!rows) continue;
-        const rs = (row) => row.every(i => CARDS[i].kind === 'tag') ? 1 : s;
-        const total = rows.reduce((a, row) => a + Math.max(...row.map(i => PS[i].h)) * rs(row), 0) + PH_GAP * (rows.length - 1);
+        const total = rows.reduce((a, row) => a + Math.max(...row.map(i => PS[i].h)) * s, 0) + PH_GAP * (rows.length - 1);
         let y = y0 + (H - total) / 2;
         for (const row of rows) {
-          const k = rs(row);
+          const k = s;
           const rh = Math.max(...row.map(i => PS[i].h)) * k;
           let x = (vw - (row.reduce((a, i) => a + PS[i].w * k, 0) + PH_GAP * (row.length - 1))) / 2;
           for (const i of row) { const w = PS[i].w * k; Object.assign(PL[i], { x: x + w / 2, y: y + rh / 2, s: k, on: true, band }); x += w + PH_GAP; }
@@ -434,7 +427,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       if (phone){
         const b = bands[phoneBand(i)];
         const cands = CARDS.map((c, idx) => ({ c, s: S[idx], idx }))
-          .filter(({ c, s, idx }) => c.stay && c.kind !== 'note' && c.kind !== 'tag' && s._v > 0.6 && !s._grab
+          .filter(({ c, s, idx }) => c.stay && c.kind !== 'note' && s._v > 0.6 && !s._grab
             && PL[idx].on && PL[idx].band === phoneBand(i));
         if (cands.length && Math.random() < 0.5){
           cu.held = cands[(Math.random() * cands.length) | 0];
@@ -511,12 +504,12 @@ export function SignInBackdrop({ children, exploreHref }) {
           }
         }
         // on a phone the notes span their band: step the cursor (and its name
-        // flag, which hangs below it) off a note's or a tag's words, above or below it
+        // flag, which hangs below it) off a note's words, above or below it
         let cuHide = false;
         if (phone){
           for (let k = 0; k < CARDS.length; k++){
             const s = S[k];
-            if ((CARDS[k].kind !== 'note' && CARDS[k].kind !== 'tag') || s._v < 0.3) continue;
+            if (CARDS[k].kind !== 'note' || s._v < 0.3) continue;
             const t0 = s._y - s._hh - 36, t1 = s._y + s._hh + 4;
             if (X > s._x - s._hw - 4 && X < s._x + s._hw + 4 && Y > t0 && Y < t1){
               // nearest side, unless that side would put it on the box
@@ -638,7 +631,7 @@ export function SignInBackdrop({ children, exploreHref }) {
             ox = pl.x - cxv + (s.dragX || 0);
             oy = pl.y - cyv + away * (10 * (1 - pe) + 8 * po) + pwob + (s.dragY || 0);
             sc = pl.s * (0.94 + 0.06 * pe - 0.06 * po + (s._grab ? 0.03 : 0));
-            rot = c.kind === 'note' || c.kind === 'tag' ? 0 : c.r * 0.4;
+            rot = c.kind === 'note' ? 0 : c.r * 0.4;
           }
         } else if (coarse && c.kind === 'note' && br) {
           // mobile: notes are the pitch — stack them tight to the box but ALWAYS

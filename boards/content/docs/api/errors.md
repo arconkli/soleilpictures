@@ -5,7 +5,7 @@ h1: Errors and status codes
 navLabel: Errors
 section: developers
 order: 11
-updated: 2026-10-25
+updated: 2026-11-17
 answer: Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
 faq:
   - q: Should I branch on the code or the message?
@@ -42,6 +42,7 @@ be reworded; the code is the contract.
 | `409` | `conflict` | Idempotency key in flight, a refused reparent, a doc page from an older layout, or a [comment thread](/docs/api/comments)'s state | Sometimes |
 | `409` | `page_changed` | A [doc page](/docs/api/docs) changed after you read it; read it again | No |
 | `409` | `identifier_conflict` | An [identifier](/docs/api/metadata) already belongs to something else | No |
+| `410` | `gone` | The endpoint was removed — the tag endpoints answer this with "Tags were removed from Clusters." | No |
 | `413` | `payload_too_large` | An [image](/docs/api/images) over {{fact:maxUploadMb}}, or more Markdown than a [doc write](/docs/api/docs) takes | No |
 | `415` | `unsupported_media_type` | Upload with a missing or unrecognised `Content-Type` | No |
 | `429` | — | [Rate limited](/docs/api/authentication) | Yes, after `retry-after` |
@@ -69,6 +70,9 @@ see. Do not retry it and do not treat it as transient.
 **`409`** — two causes. An `Idempotency-Key` whose first attempt is still in
 flight, in which case waiting briefly and retrying **with the same key** is
 correct; or a reparent that would create a cycle, which is permanent.
+
+**`410`** — the endpoint no longer exists and will not come back. Do not
+retry it; stop calling it.
 
 **`429`** — respect the `retry-after` header, in seconds. Every response carries
 `x-ratelimit-remaining` and `x-ratelimit-reset`, so a well-behaved client never

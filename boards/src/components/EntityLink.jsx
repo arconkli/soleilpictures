@@ -133,6 +133,12 @@ export function EntityLink({
   };
 
   const Tag = asTag;
+  // An old @-mention of a tag (tags are gone) keeps its stored name as plain
+  // text: no link look, hover or click.
+  if (refs?.length && refs.every((r) => r?.kind === 'tag')) {
+    const plain = className.split(/\s+/).filter((c) => c && !c.startsWith('tt-link')).join(' ');
+    return <Tag className={plain || undefined} dir={rest.dir}>{children}</Tag>;
+  }
   const variantClass = isManual ? 'tt-link tt-link-manual' : 'tt-link tt-link-auto';
   // Tint by kind on hover. The kind comes from the first manual ref or
   // is left blank for auto-detected links (which can match many kinds at

@@ -48,7 +48,7 @@ export function recordToRef(rec) {
     case 'doc':     return { kind: 'doc', docCardId: rec.docCardId || rec.cardId, boardId: rec.boardId };
     case 'user':    return { kind: 'user', id: rec.id };
     case 'url':     return { kind: 'url', href: rec.name };
-    case 'tag':     return { kind: 'tag', id: rec.id };
+    case 'tag':     return null; // tags are gone; an old record resolves to nothing, not a card
     case 'card':    return { kind: 'card', boardId: rec.boardId, cardId: rec.cardId };
     case 'note':    return { kind: 'card', boardId: rec.boardId, cardId: rec.cardId };
     default:        return { kind: 'card', boardId: rec.boardId, cardId: rec.cardId };

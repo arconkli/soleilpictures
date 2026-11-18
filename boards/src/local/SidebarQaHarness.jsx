@@ -1024,7 +1024,6 @@ export function SidebarQaHarness() {
             {!mobileShell && (
               <>
                 <button type="button" className="cnv-comments-eye" aria-label="Comments">◉</button>
-                <div className="board-tags-strip"><span className="sbqa-tag">#location</span></div>
                 <div className="canvas-presence-roster"><span className="sbqa-tag">2 here</span></div>
                 <div className="cnv-hint">Drop files anywhere</div>
               </>

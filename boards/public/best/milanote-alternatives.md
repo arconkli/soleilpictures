@@ -2,7 +2,7 @@
 
 > Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to 25 cards or 5GB of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.
 
-_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-11-17_
 
 Twelve tools, ranked by the only question that matters: what does your board have to become next?
 
@@ -143,7 +143,7 @@ The honest limits: Clusters is browser-only — no offline mode, no always-on-to
 
 - Real-time multiplayer canvas with live cursors, presence, and pinned comments
 - Boards hold images, video, audio, PDFs, links, notes, docs, palettes, grids, and vote cards
-- Tags on cards, groups and boards; a relationship graph connects the project
+- A relationship graph connects the project
 - Screenplay mode in docs; non-destructive photo adjustments
 - One-link sharing — viewers need no account; free editors can collaborate
 - Nested boards with live thumbnails; published template boards open live

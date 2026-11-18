@@ -30,7 +30,7 @@ export const TREATMENT_SECTIONS = Object.freeze([
   },
   {
     t: 'Casting',
-    d: 'Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.',
+    d: 'Faces and types, with a note on each. Put each character’s name on its reference so search finds every image of them.',
     prompt: 'Faces and types, with a line on each.',
   },
   {

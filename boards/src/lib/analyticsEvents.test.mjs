@@ -50,6 +50,25 @@ const SERVER_EMITTED = new Map([
   ['TOGETHER_ENDED', '0862_live_together.sql (live_together_tick)'],
 ]);
 
+// Events nothing sends any more, because the feature they measured was removed.
+// They stay in EV so older analytics_events rows keep their names and props on
+// record, and the tag work events stay in WORK_EVENTS, which must match the SQL
+// work list in _admin_engaged_visits (engagedVisitsMigration.test.mjs): a day
+// someone tagged things before tags went was still a working day.
+const TAGS_REMOVED = 'tags removed 2026-11-17';
+const RETIRED = new Map([
+  ['TAG_COLLECTION_OPEN',    TAGS_REMOVED],
+  ['TAG_HOVER_OPEN',         TAGS_REMOVED],
+  ['TAG_MANUAL_APPLY',       TAGS_REMOVED],
+  ['TAG_CONFIRM',            TAGS_REMOVED],
+  ['TAG_MERGE',              TAGS_REMOVED],
+  ['TAG_CANDIDATE_PROMOTE',  TAGS_REMOVED],
+  ['TAG_CANDIDATE_DISMISS',  TAGS_REMOVED],
+  ['TAG_SET_TYPE',           TAGS_REMOVED],
+  ['TAG_SPOTLIGHT',          TAGS_REMOVED],
+  ['TAG_SUGGESTION_DISMISS', TAGS_REMOVED],
+]);
+
 // Comments are documentation, not wiring. This file's own header shows a
 // `logEvent('pricing_view', …)` example, and several modules document the
 // events they emit — counting those as emission sites would report violations
@@ -107,11 +126,11 @@ test('every catalog entry has an emission site', () => {
     for (const m of f.text.matchAll(/\bEV\.([A-Z0-9_]+)\b/g)) used.add(m[1]);
   }
 
-  const dead = Object.keys(EV).filter((k) => !used.has(k) && !SERVER_EMITTED.has(k));
+  const dead = Object.keys(EV).filter((k) => !used.has(k) && !SERVER_EMITTED.has(k) && !RETIRED.has(k));
   assert.deepEqual(dead, [],
     `these EV entries are declared but never emitted, so querying them returns zero rows and reads as "nobody does this":\n` +
     dead.map((k) => `  EV.${k} = '${EV[k]}'`).join('\n') +
-    `\n\nWire each one up, delete it, or add it to SERVER_EMITTED with the migration that fires it.`);
+    `\n\nWire each one up, delete it, add it to SERVER_EMITTED with the migration that fires it, or to RETIRED if it only names older rows.`);
 });
 
 test('SERVER_EMITTED lists only entries the client really does not emit', () => {
@@ -126,6 +145,19 @@ test('SERVER_EMITTED lists only entries the client really does not emit', () => 
 
   const unknown = [...SERVER_EMITTED.keys()].filter((k) => !(k in EV));
   assert.deepEqual(unknown, [], 'SERVER_EMITTED names an entry that is not in EV');
+});
+
+test('RETIRED lists only entries nothing sends any more', () => {
+  const used = new Set();
+  for (const f of FILES) {
+    for (const m of f.text.matchAll(/\bEV\.([A-Z0-9_]+)\b/g)) used.add(m[1]);
+  }
+  const live = [...RETIRED.keys()].filter((k) => used.has(k) || SERVER_EMITTED.has(k));
+  assert.deepEqual(live, [],
+    `these are in RETIRED but something still sends them, so the allowlist is hiding a real check:\n` +
+    live.map((k) => `  EV.${k}`).join('\n'));
+  const unknown = [...RETIRED.keys()].filter((k) => !(k in EV));
+  assert.deepEqual(unknown, [], 'RETIRED names an entry that is not in EV');
 });
 
 test('no emission site uses a raw literal that already has a constant', () => {

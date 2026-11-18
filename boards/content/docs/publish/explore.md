@@ -5,7 +5,7 @@ h1: Publishing to Explore
 navLabel: Explore
 section: publish
 order: 0
-updated: 2026-10-11
+updated: 2026-11-17
 answer: Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.
 faq:
   - q: How is publishing different from a share link?
@@ -54,7 +54,7 @@ again later, and it goes back through review.
 | **Indexable** | Search engines may index it — unlike a plain [share link](/docs/collaborate/sharing) |
 | **Listed** | Appears in the directory with a thumbnail |
 | **Link previews** | Unfurls with its own name and a thumbnail of its contents |
-| **Alt text** | Each picture carries alt text: yours if you wrote some, otherwise a short [AI description](/docs/account/data-and-privacy#pictures-and-ai) of what is in it, unless the workspace's AI suggestions are off |
+| **Alt text** | Each picture carries alt text: yours if you wrote some, otherwise a short [AI description](/docs/account/data-and-privacy#pictures-and-ai) of what is in it, unless the workspace's AI for pictures and search is off |
 
 The board renders in a real canvas — visitors pan, zoom and open images at full
 size — with no account required. A cluster you have set to

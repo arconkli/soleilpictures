@@ -121,13 +121,8 @@ function savedBoard(cards) {
   return bytesToB64(Y.encodeStateAsUpdate(doc));
 }
 
-const TAGS = [
-  { id: '66666666-6666-4666-8666-666666666661', workspace_id: WS_ID, name: 'Night', color: '#5b8def', created_at: created },
-  { id: '66666666-6666-4666-8666-666666666662', workspace_id: WS_ID, name: 'Wardrobe', color: '#d9822b', created_at: created },
-];
-
 // Strings the stubs serve as user content: the diff's pseudo mode does not count them as English the app left unwrapped.
-const FIXTURE_STRINGS = new Set(['Sam Rivera', 'sam@example.com', 'Studio work', 'Studio', 'Locations', 'Wardrobe', 'Night']);
+const FIXTURE_STRINGS = new Set(['Sam Rivera', 'sam@example.com', 'Studio work', 'Studio', 'Locations', 'Wardrobe']);
 for (const c of Object.values(CARDS)) {
   for (const k of ['title', 'body', 'label', 'caption', 'source', 'fileName']) if (typeof c[k] === 'string') FIXTURE_STRINGS.add(c[k]);
   for (const s of c.swatches || []) FIXTURE_STRINGS.add(s.name);
@@ -153,7 +148,6 @@ function stub(extra = {}) {
         if (id === CHILD_ID) return { doc: savedBoard({ 'loc-note-1': { kind: 'note', x: 120, y: 120, w: 240, h: 160, title: 'Shinjuku', body: 'Under the tracks, after midnight.' } }) };
         return { doc: savedBoard({}) };
       },
-      tags: TAGS,
       profiles: (url, method) => (method === 'GET' ? [profileRow] : []),
       ...rest,
     },
@@ -392,10 +386,6 @@ const SCREENS = [
         await sel('card-note-1').click({ button: 'right' });
         await clickText(page, L('Add comment'));
       }, closeAll);
-      await ctx.step('tag-card-picker', async () => {
-        await sel('card-note-1').click({ button: 'right' });
-        await clickText(page, L('Tag…'));
-      }, closeAll);
       await ctx.step('doc-open', async () => { await sel('card-doc-1').getByText(L('Open'), { exact: true }).click(); await page.waitForTimeout(1500); });
       // The doc's own bar: its comments button, the insert menu and the more menu (a fixed 1280x800 window).
       await ctx.step('doc-insert-menu', async () => { await page.mouse.click(1170, 109); }, closeMenu);
@@ -407,9 +397,6 @@ const SCREENS = [
         await key(page, 'Delete');
         await page.locator('.toast-msg').first().waitFor({ timeout: 4000 });
       }, async () => { await page.waitForTimeout(100); });
-      await ctx.step('tag-detail', async () => { await page.locator('.sb-tags-head ~ * >> text=Night').first().click(); }, async () => {
-        await page.locator('.sb-tree-row, .sb-tree-item', { hasText: 'Studio' }).first().click();
-      });
       await ctx.step('files-page', async () => { await page.locator(`[aria-label="${L('Open in the full Files page')}"]`).click(); });
     },
   },

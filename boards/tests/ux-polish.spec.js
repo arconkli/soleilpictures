@@ -74,7 +74,7 @@ test('inputs use :focus-visible (not bare :focus) for the focus ring', async ({ 
     for (const sheet of document.styleSheets) {
       try {
         for (const r of sheet.cssRules) {
-          if (r.selectorText === '.share-input:focus-visible' || r.selectorText === '.sb-tag-create-input:focus-visible') ok = true;
+          if (r.selectorText === '.share-input:focus-visible') ok = true;
         }
       } catch {}
     }

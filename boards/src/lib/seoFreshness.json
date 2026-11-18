@@ -1,16 +1,16 @@
 {
   "pages": {
     "/best/milanote-alternatives": {
-      "hash": "7c3c3a26909dc69bba47",
-      "updated": "2026-11-14"
+      "hash": "876d701f2ad0192bf6ab",
+      "updated": "2026-11-17"
     },
     "/best/mood-board-apps": {
-      "hash": "aca4ed0f073fb1a684bb",
-      "updated": "2026-11-14"
+      "hash": "9017f6496cd9697c5b8e",
+      "updated": "2026-11-17"
     },
     "/best/pureref-alternatives": {
-      "hash": "7e90f94d847412cc6301",
-      "updated": "2026-10-05"
+      "hash": "40f7ce29ad046f5ee6c3",
+      "updated": "2026-11-17"
     },
     "/best/storyboard-software": {
       "hash": "95124c27a2f557537b98",
@@ -37,12 +37,12 @@
       "updated": "2026-11-04"
     },
     "/tools/costume-design-mood-board": {
-      "hash": "28e64449748aa1415c96",
-      "updated": "2026-11-04"
+      "hash": "b7c749d801841473081c",
+      "updated": "2026-11-17"
     },
     "/tools/directors-treatment": {
-      "hash": "6eea96a69920f263f8b4",
-      "updated": "2026-11-14"
+      "hash": "ba4ca2db418e426dafcb",
+      "updated": "2026-11-17"
     },
     "/tools/free-mood-board-maker": {
       "hash": "8e5db610d2bf912d7d65",
@@ -53,20 +53,20 @@
       "updated": "2026-11-04"
     },
     "/tools/mood-board-maker": {
-      "hash": "7963ceb82c90318487de",
-      "updated": "2026-11-04"
+      "hash": "1aca16ef1b4954112a8e",
+      "updated": "2026-11-17"
     },
     "/tools/production-design-mood-board": {
-      "hash": "d0d55f5b6391ebe0d7c2",
-      "updated": "2026-11-04"
+      "hash": "1718c075fb461d56ccfe",
+      "updated": "2026-11-17"
     },
     "/tools/reference-board-maker": {
-      "hash": "af901e248a830041b863",
-      "updated": "2026-11-04"
+      "hash": "0151328e65e3877a54a4",
+      "updated": "2026-11-17"
     },
     "/tools/shared-reference-board": {
-      "hash": "190d2d57974675cb81d5",
-      "updated": "2026-11-04"
+      "hash": "61fc2339a763789192f1",
+      "updated": "2026-11-17"
     },
     "/tools/shot-list-maker": {
       "hash": "ee467adc5dd4fda375e7",
@@ -85,28 +85,28 @@
       "updated": "2026-10-02"
     },
     "/vs/eagle": {
-      "hash": "5d562c440b20458c1d50",
-      "updated": "2026-11-04"
+      "hash": "0ac0ecbee60905c757da",
+      "updated": "2026-11-17"
     },
     "/vs/google-drive": {
-      "hash": "200f9f5d3da5a8f21aad",
-      "updated": "2026-10-02"
+      "hash": "9ed1a6babe04d89718fc",
+      "updated": "2026-11-17"
     },
     "/vs/milanote": {
       "hash": "46d0cbaa6467c3197317",
       "updated": "2026-10-02"
     },
     "/vs/miro": {
-      "hash": "b1f2bba2b1ae0e78270d",
-      "updated": "2026-11-04"
+      "hash": "176d218fb34404793df2",
+      "updated": "2026-11-17"
     },
     "/vs/pureref": {
-      "hash": "1c0801c8ec1ef0a0dd6d",
-      "updated": "2026-10-02"
+      "hash": "e98330b99eedeb3f1f6b",
+      "updated": "2026-11-17"
     },
     "/vs/storyflow": {
-      "hash": "82b65aaefe162ef223bf",
-      "updated": "2026-11-14"
+      "hash": "24a57815f1f14ea98653",
+      "updated": "2026-11-17"
     }
   },
   "log": [
@@ -199,6 +199,26 @@
         "/pricing"
       ],
       "reason": "2026-11-14: /pricing holds back its new link to /vs/milanote until that page's title test is graded (through 11-19); the link returns 11-20. Same day, so the date stays."
+    },
+    {
+      "date": "2026-11-17",
+      "paths": [
+        "/best/milanote-alternatives",
+        "/best/mood-board-apps",
+        "/best/pureref-alternatives",
+        "/tools/costume-design-mood-board",
+        "/tools/directors-treatment",
+        "/tools/mood-board-maker",
+        "/tools/production-design-mood-board",
+        "/tools/reference-board-maker",
+        "/tools/shared-reference-board",
+        "/vs/eagle",
+        "/vs/google-drive",
+        "/vs/miro",
+        "/vs/pureref",
+        "/vs/storyflow"
+      ],
+      "reason": "tags removed 2026-11-17: 14 pages no longer claim tags (search, nesting and the relationship graph named instead)"
     }
   ]
 }

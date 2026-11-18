@@ -75,3 +75,8 @@ test('every operation has an operationId, and they are unique', () => {
     }
   }
 });
+
+test("tags are gone from the spec, and gone is a listed error code", () => {
+  assert.deepEqual(Object.keys(doc.paths).filter((p) => /tags?\b/.test(p)), []);
+  assert.ok(doc.components.schemas.Error.properties.code.enum.includes("gone"));
+});

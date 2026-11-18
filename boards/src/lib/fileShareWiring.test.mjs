@@ -141,15 +141,6 @@ test('Quick look asks edit rights per file where it can cross clusters', () => {
   assert.match(app, /setShareRightsResolver\(canEditBoard\);/);
 });
 
-test('viewers opened far from a pane share through shareTargetForRef', () => {
-  for (const rel of ['../components/TagDetailView.jsx', '../components/EntityHoverPopover.jsx', '../components/TagRangeHoverPopover.jsx']) {
-    const s = src(rel);
-    assert.match(s, /<ImageLightbox[\s\S]{0,400}shareTarget=\{shareTargetForRef\(/, rel);
-  }
-  const tv = src('./tagVisuals.js');
-  assert.match(tv, /boardId: hit2\.board_id \|\| r\.source_board_id \|\| null,/);
-});
-
 test('a plain file opens Quick look on the board instead of downloading', () => {
   const s = src('../components/CanvasSurface.jsx');
   assert.match(s, /if \(c\.kind === 'file'\) \{\s+if \(!c\.fileSrc \|\| c\.pending\) return;\s+e\.stopPropagation\(\);\s+setFileView\(\{ cardId: c\.id \}\);/);

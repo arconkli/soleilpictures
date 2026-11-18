@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  TOOLS, ADD_LAYS_OUT_FROM, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
+  TOOLS, ADD_LAYS_OUT_FROM, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, REMOVED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
   parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW, boardOutline, OUTLINE, describeApiError,
 } from './mcpTools.js';
 import {
@@ -196,11 +196,10 @@ test('anything that removes or writes over something is marked destructive, and 
   // edit_doc_page can take a page's words away (Version history first);
   // update_boards and update_cards overwrite (a rename, a new body);
   // arrange_board writes over where cards were; move_cards takes cards off
-  // the source; tag_cards can take tags off; resolve_comments puts threads
-  // away. What only adds (create_boards, add_cards, write_doc, import_urls,
+  // the source; resolve_comments puts threads away. What only adds (create_boards, add_cards, write_doc, import_urls,
   // add_comment, share_board, restore_board, …) stays false.
   assert.deepEqual(destructive,
-    ['arrange_board', 'delete_board', 'delete_cards', 'edit_doc_page', 'move_cards', 'resolve_comments', 'tag_cards', 'unshare_board', 'update_boards', 'update_cards']);
+    ['arrange_board', 'delete_board', 'delete_cards', 'edit_doc_page', 'move_cards', 'resolve_comments', 'unshare_board', 'update_boards', 'update_cards']);
   // And a read-only tool must not also claim to write.
   for (const t of TOOLS) {
     if (t.annotations.readOnlyHint) {
@@ -214,7 +213,7 @@ test('every read tool is marked read-only', () => {
   // will ask the user to confirm reading a board — which trains them to
   // click through confirmations.
   const reads = ['whoami', 'search', 'fetch', 'list_boards', 'resolve_identifier', 'read_board',
-    'view_board', 'list_comments', 'list_tags', 'list_audit'];
+    'view_board', 'list_comments', 'list_audit'];
   for (const name of reads) {
     const t = TOOLS.find((x) => x.name === name);
     assert.ok(t, `${name} is missing from the registry`);
@@ -344,6 +343,18 @@ test('a tool folded into another in 3.0 says which one, and how', async () => {
   }
   // A name that only looks like a key of the map is still just unknown.
   assert.equal((await rpc('tools/call', { name: 'constructor' })).error.message, 'unknown tool: constructor');
+});
+
+test('a call to a tool that was removed is told why', async () => {
+  for (const name of ['list_tags', 'tag_cards']) {
+    const r = await rpc('tools/call', { name, arguments: { board_id: BOARD_ID } });
+    assert.equal(r.error.code, -32602);
+    assert.equal(r.error.message, `${name} is gone: Tags were removed from Clusters.`);
+    assert.equal(r.error.data.removed, true);
+    assert.ok(r.error.data.available.includes('read_board'));
+  }
+  const names = new Set(TOOLS.map((t) => t.name));
+  for (const old of Object.keys(REMOVED)) assert.ok(!names.has(old), `${old} is still a tool`);
 });
 
 test('a local-only tool is not callable over the hosted transport', async () => {
@@ -1307,7 +1318,7 @@ test('every summary reads an answer missing its fields without throwing, in one 
   const argsSeen = [{}, { depth: 2 }, { deleted: true }, { dry_run: true }, { status: 'all' }, { format: 'omc' }];
   for (const t of TOOLS.filter((x) => x.summary)) {
     for (const a of argsSeen) {
-      for (const o of [{}, { boards: [], cards: [], tags: [], items: [], threads: [], entries: [] }]) {
+      for (const o of [{}, { boards: [], cards: [], items: [], threads: [], entries: [] }]) {
         const line = t.summary(o, a);
         assert.ok(line === null || typeof line === 'string', `${t.name}: a string or nothing`);
         if (line) assert.doesNotMatch(line, /\n|undefined|NaN|\[object/, `${t.name}: "${line}"`);
@@ -1335,10 +1346,6 @@ test('summaries say what happened, with the link and the way on', () => {
     '3 boards: 2 created, 1 updated, each with its url below');
   assert.equal(say('share_board', { created: false, link: { url: 'https://x/c/abc', include_subboards: false } }),
     'Its view-only link: https://x/c/abc');
-  assert.equal(say('tag_cards', {
-    added: [{ name: 'Diner', card_ids: ['c1', 'c2'] }], removed: [{ name: 'Day', card_ids: ['c1'] }],
-    not_found: { card_ids: ['zz'], tags: [] },
-  }), 'Tagged "Diner" (2 cards); Took off "Day" (1 card); 1 not found (see not_found)');
   assert.equal(say('delete_cards', { deleted: 2, not_restorable: ['g1'] }),
     'Deleted 2 cards; 1 come back only from Version history in the app');
   assert.equal(say('whoami', { display_name: 'Ana', scopes: ['read', 'write'], workspaces: [{}, {}] }),

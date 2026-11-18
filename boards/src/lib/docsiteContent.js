@@ -2006,7 +2006,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Two things look like containers and are not:"
+     "v": "One thing looks like a container and is not:"
     }
    ]
   },
@@ -2025,26 +2025,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are a selection on a canvas given a name and an outline. They travel together and can be commented on and tagged as a unit, but they do not have their own inside — the cards remain cards on the same board."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "Tags"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " cut across everything. A tag is not a location; the same card can carry several, and a tag's detail view gathers every board, group and card that carries it from anywhere in the workspace."
+     "v": " are a selection on a canvas given a name and an outline. They travel together and can be commented on as a unit, but they do not have their own inside — the cards remain cards on the same board."
     }
    ]
   }
@@ -2556,7 +2537,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — \"share\", \"trash\", \"theme\", \"invite\" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you."
+     "v": " is the fastest way to get anywhere. It searches cluster names, card contents, notes and docs, and it also runs commands — \"share\", \"trash\", \"theme\", \"invite\" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you."
     }
    ]
   },
@@ -6335,35 +6316,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Tag / label"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A "
-      },
-      {
-       "t": "link",
-       "v": "tag",
-       "href": "/docs/organize/tags",
-       "children": [
-        {
-         "t": "text",
-         "v": "tag"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": ", which can also be a typed entity"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
        "v": "Comment"
       }
      ],
@@ -8120,7 +8072,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a row of buttons on top that add a note, a picture, a cluster, a doc or a link; then Add › (everything else you can add), Paste here, Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy link, Tag cluster…, Cluster info, and Clear all drawings when there are drawings. "
+     "v": " a row of buttons on top that add a note, a picture, a cluster, a doc or a link; then Add › (everything else you can add), Paste here, Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy link, Cluster info, and Clear all drawings when there are drawings. "
     },
     {
      "t": "code",
@@ -8147,7 +8099,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " a row of icon buttons on top — Cut, Copy, Duplicate, Delete — then everything specific to that card kind, plus the universal operations — layer order, tag, comment, copy link, and "
+     "v": " a row of icon buttons on top — Cut, Copy, Duplicate, Delete — then everything specific to that card kind, plus the universal operations — layer order, comment, copy link, and "
     },
     {
      "t": "strong",
@@ -8187,7 +8139,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Rename group…, Add comment, Tag group…, Outline, Label, Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup."
+     "v": " Rename group…, Add comment, Outline, Label, Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup."
     }
    ]
   },
@@ -8680,7 +8632,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Everything on a canvas is a card. They differ in what they hold and nothing else — position, size, stacking order, selection, grouping, tagging, commenting and duplication work identically on all of them."
+     "v": "Everything on a canvas is a card. They differ in what they hold and nothing else — position, size, stacking order, selection, grouping, commenting and duplication work identically on all of them."
     }
    ]
   },
@@ -9605,40 +9557,6 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Groups"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Tag",
-     "children": [
-      {
-       "t": "text",
-       "v": "Tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — right-click → tag. See "
-    },
-    {
-     "t": "link",
-     "v": "Tags",
-     "href": "/docs/organize/tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "Tags"
       }
      ]
     },
@@ -10985,18 +10903,18 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "link",
-      "v": "AI suggestions",
+      "v": "AI for pictures and search",
       "href": "/docs/account/data-and-privacy#pictures-and-ai",
       "children": [
        {
         "t": "text",
-        "v": "AI suggestions"
+        "v": "AI for pictures and search"
        }
       ]
      },
      {
       "t": "text",
-      "v": " are off."
+      "v": " is off."
      }
     ]
    ]
@@ -11768,7 +11686,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to mention another cluster, document, card, tag or person. The mention becomes a real link with a hover preview, and it registers as a backlink on the thing you mentioned — so that item's panel can show everywhere it is referenced."
+     "v": " to mention another cluster, document, card or person. The mention becomes a real link with a hover preview, and it registers as a backlink on the thing you mentioned — so that item's panel can show everywhere it is referenced."
     }
    ]
   },
@@ -11822,7 +11740,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Names that match an existing tag or entity are also detected and quietly underlined, so a note that says \"Diner\" connects itself to the Diner entity you already created elsewhere."
+     "v": "Names that match an existing cluster, card or document are also detected and quietly underlined, so a note that says \"Diner\" connects itself to the Diner cluster you already created elsewhere."
     }
    ]
   },
@@ -12323,7 +12241,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Eight kinds: rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star. Each is a real card, so it moves, resizes, layers, groups and gets tagged like anything else."
+     "v": "Eight kinds: rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star. Each is a real card, so it moves, resizes, layers and groups like anything else."
     }
    ]
   },
@@ -12809,7 +12727,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " with a drawing surface inside it. Unlike free-draw, it has edges, and it behaves like every other card — move it, resize it, group it, tag it, put it in a "
+     "v": " with a drawing surface inside it. Unlike free-draw, it has edges, and it behaves like every other card — move it, resize it, group it, put it in a "
     },
     {
      "t": "link",
@@ -13723,35 +13641,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Group tag"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A "
-      },
-      {
-       "t": "link",
-       "v": "tag",
-       "href": "/docs/organize/tags",
-       "children": [
-        {
-         "t": "text",
-         "v": "tag"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " applied to the group as a unit"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "text",
        "v": "Group info"
       }
      ],
@@ -13826,45 +13715,21 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Comments and tags on a group",
+   "text": "Comments on a group",
    "inline": [
     {
      "t": "text",
-     "v": "Comments and tags on a group"
+     "v": "Comments on a group"
     }
    ],
-   "id": "comments-and-tags-on-a-group"
+   "id": "comments-on-a-group"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Both attach to the group rather than to any one card. A comment on a group reads as being about the set — \"this sequence runs long\" — which is usually what someone reviewing a board wants to say."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag on a group means the "
-    },
-    {
-     "t": "link",
-     "v": "tag's detail view",
-     "href": "/docs/organize/tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "tag's detail view"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " lists the group as a unit, rather than listing eight cards individually."
+     "v": "A comment attaches to the group rather than to any one card. It reads as being about the set — \"this sequence runs long\" — which is usually what someone reviewing a board wants to say."
     }
    ]
   },
@@ -18319,7 +18184,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The card behaves like any other — move, resize, group, tag, comment, put it in a "
+     "v": "The card behaves like any other — move, resize, group, comment, put it in a "
     },
     {
      "t": "link",
@@ -22803,21 +22668,6 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " and your "
-     },
-     {
-      "t": "link",
-      "v": "tags",
-      "href": "/docs/organize/tags",
-      "children": [
-       {
-        "t": "text",
-        "v": "tags"
-       }
-      ]
-     },
-     {
-      "t": "text",
       "v": " below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu: "
      },
      {
@@ -24311,7 +24161,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " takes the file's name, tags, comments, star and share link with it. The toast that follows says where it went, offers "
+      "v": " takes the file's name, comments, star and share link with it. The toast that follows says where it went, offers "
      },
      {
       "t": "strong",
@@ -27035,18 +26885,18 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "link",
-     "v": "AI suggestions",
+     "v": "AI for pictures and search",
      "href": "/docs/account/data-and-privacy#pictures-and-ai",
      "children": [
       {
        "t": "text",
-       "v": "AI suggestions"
+       "v": "AI for pictures and search"
       }
      ]
     },
     {
      "t": "text",
-     "v": " are off."
+     "v": " is off."
     }
    ]
   },
@@ -28627,23 +28477,6 @@ export const DOCS_CONTENT = {
        }
       ]
      }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Finding everything on a theme — "
-     },
-     {
-      "t": "link",
-      "v": "tags",
-      "href": "/docs/organize/tags",
-      "children": [
-       {
-        "t": "text",
-        "v": "tags"
-       }
-      ]
-     }
     ]
    ]
   }
@@ -29798,7 +29631,7 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "comment",
-     "href": "#comments-tags-and-links",
+     "href": "#comments-and-links",
      "children": [
       {
        "t": "text",
@@ -31208,14 +31041,14 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Comments, tags and links",
+   "text": "Comments and links",
    "inline": [
     {
      "t": "text",
-     "v": "Comments, tags and links"
+     "v": "Comments and links"
     }
    ],
-   "id": "comments-tags-and-links"
+   "id": "comments-and-links"
   },
   {
    "type": "para",
@@ -31233,12 +31066,12 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "[Inline comments](/docs/documents/comments-and-tags)",
+      "v": "[Inline comments](/docs/documents/comments-and-backlinks)",
       "children": [
        {
         "t": "link",
         "v": "Inline comments",
-        "href": "/docs/documents/comments-and-tags",
+        "href": "/docs/documents/comments-and-backlinks",
         "children": [
          {
           "t": "text",
@@ -31251,45 +31084,6 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " on a text range, with dots in the right margin, and every one of them in the side panel"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "[Tag ranges](/docs/documents/comments-and-tags)",
-      "children": [
-       {
-        "t": "link",
-        "v": "Tag ranges",
-        "href": "/docs/documents/comments-and-tags",
-        "children": [
-         {
-          "t": "text",
-          "v": "Tag ranges"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " underlining text, with dots in the left margin"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Suggested entities",
-      "children": [
-       {
-        "t": "text",
-        "v": "Suggested entities"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — names the app noticed, with a tick or a cross in the margin to confirm or dismiss"
      }
     ],
     [
@@ -32145,22 +31939,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Scene headings can be "
-    },
-    {
-     "t": "link",
-     "v": "tagged",
-     "href": "/docs/organize/tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "tagged"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and locations "
+     "v": "Locations can be "
     },
     {
      "t": "link",
@@ -32684,7 +32463,7 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
- "/docs/documents/comments-and-tags": [
+ "/docs/documents/comments-and-backlinks": [
   {
    "type": "para",
    "inline": [
@@ -33056,205 +32835,6 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Tags on a range",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Tags on a range"
-    }
-   ],
-   "id": "tags-on-a-range"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A "
-    },
-    {
-     "t": "link",
-     "v": "tag",
-     "href": "/docs/organize/tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " can apply to a passage rather than the whole document: select the words, right-click and choose "
-    },
-    {
-     "t": "strong",
-     "v": "Tag selection…",
-     "children": [
-      {
-       "t": "text",
-       "v": "Tag selection…"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". Tagged text is underlined, with dots in the "
-    },
-    {
-     "t": "strong",
-     "v": "left margin",
-     "children": [
-      {
-       "t": "text",
-       "v": "left margin"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag chip in a document has its own menu, with "
-    },
-    {
-     "t": "strong",
-     "v": "Open tag",
-     "children": [
-      {
-       "t": "text",
-       "v": "Open tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "strong",
-     "v": "Remove tag",
-     "children": [
-      {
-       "t": "text",
-       "v": "Remove tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". "
-    },
-    {
-     "t": "code",
-     "v": "⇧F10"
-    },
-    {
-     "t": "text",
-     "v": " opens it from the keyboard."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Words that clearly refer to one of your tags are underlined on their own, marked "
-    },
-    {
-     "t": "em",
-     "v": "auto",
-     "children": [
-      {
-       "t": "text",
-       "v": "auto"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Suggested entities",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Suggested entities"
-    }
-   ],
-   "id": "suggested-entities"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "As you write, names that look like entities — characters, locations, organizations — are detected and offered in the margin with a tick and a cross."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "strong",
-     "v": "Nothing is applied until you accept it.",
-     "children": [
-      {
-       "t": "text",
-       "v": "Nothing is applied until you accept it."
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " A suggested name is a suggestion; it does not become a tag behind you."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Accepting one creates or links the entity, so the next occurrence anywhere is recognised automatically."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Names are found without AI. With the workspace's AI suggestions on, the AI also guesses what kind of name each one is; with them off (Settings → Workspace), that guess is left out and no text is sent."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
    "text": "Links and mentions",
    "inline": [
     {
@@ -33277,7 +32857,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to reference a cluster, document, card, tag or person. Mentions render as links with hover previews and register as backlinks on the target."
+     "v": " to reference a cluster, document, card or person. Mentions render as links with hover previews and register as backlinks on the target."
     }
    ]
   },
@@ -33354,7 +32934,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Backlinks are the reason mentioning things is worth the keystroke: a location's entity page ends up listing the script scene, the reference board and the message thread that all pointed at it, without anybody maintaining an index."
+     "v": "Backlinks are the reason mentioning things is worth the keystroke: a location's cluster ends up listing the script scene, the reference board and the message thread that all pointed at it, without anybody maintaining an index."
     }
    ]
   },
@@ -33376,1012 +32956,6 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Not annotation but adjacent: bookmarks are durable anchors into specific places in a document, listed under the page tree. They survive edits around them, so a bookmark on \"the end of act two\" stays there as the act changes length."
-    }
-   ]
-  }
- ],
- "/docs/organize/tags": [
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you everything that does not fit a hierarchy."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Tagging",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Tagging"
-    }
-   ],
-   "id": "tagging"
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "text",
-      "v": "A "
-     },
-     {
-      "t": "strong",
-      "v": "[card](/docs/canvas/cards)",
-      "children": [
-       {
-        "t": "link",
-        "v": "card",
-        "href": "/docs/canvas/cards",
-        "children": [
-         {
-          "t": "text",
-          "v": "card"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — right-click it and choose "
-     },
-     {
-      "t": "strong",
-      "v": "Tag…",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tag…"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ". The picker suggests as you type, and "
-     },
-     {
-      "t": "code",
-      "v": "Enter"
-     },
-     {
-      "t": "text",
-      "v": " creates a tag that does not exist yet."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Several cards at once",
-      "children": [
-       {
-        "t": "text",
-        "v": "Several cards at once"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — select them and press "
-     },
-     {
-      "t": "strong",
-      "v": "Tag",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tag"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " in the selection bar (or right-click one and choose "
-     },
-     {
-      "t": "strong",
-      "v": "Tag…",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tag…"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": "). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "A "
-     },
-     {
-      "t": "strong",
-      "v": "[group](/docs/canvas/groups)",
-      "children": [
-       {
-        "t": "link",
-        "v": "group",
-        "href": "/docs/canvas/groups",
-        "children": [
-         {
-          "t": "text",
-          "v": "group"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ", as a unit — right-click its label and choose "
-     },
-     {
-      "t": "strong",
-      "v": "Tag group…",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tag group…"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": "."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "A whole "
-     },
-     {
-      "t": "strong",
-      "v": "[cluster](/docs/clusters)",
-      "children": [
-       {
-        "t": "link",
-        "v": "cluster",
-        "href": "/docs/clusters",
-        "children": [
-         {
-          "t": "text",
-          "v": "cluster"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — right-click an empty part of it and choose "
-     },
-     {
-      "t": "strong",
-      "v": "Tag cluster…",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tag cluster…"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ", or drag a tag from the sidebar onto it."
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "A "
-     },
-     {
-      "t": "strong",
-      "v": "passage of text",
-      "children": [
-       {
-        "t": "text",
-        "v": "passage of text"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — in a "
-     },
-     {
-      "t": "link",
-      "v": "document",
-      "href": "/docs/documents/comments-and-tags",
-      "children": [
-       {
-        "t": "text",
-        "v": "document"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ", select the words, right-click and choose "
-     },
-     {
-      "t": "strong",
-      "v": "Tag selection…",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tag selection…"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": "; a name the app has noticed can also become a tag right where it appears."
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "An item can carry several tags. A card's show as chips just under it (four, then a +N for the rest). A tag is "
-    },
-    {
-     "t": "strong",
-     "v": "not a location",
-     "children": [
-      {
-       "t": "text",
-       "v": "not a location"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". Tagging moves nothing."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Lighting a tag up on a cluster",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Lighting a tag up on a cluster"
-    }
-   ],
-   "id": "lighting-a-tag-up-on-a-cluster"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Click a tag chip — on a card, on a group's label, or on the cluster's own strip at the top — and the cluster lights up that tag: its cards stay as they are and everything else recedes. Nothing moves and nothing is hidden. A pill at the top says what is showing and how many cards carry it (\"Showing Onyx · 6 of 14 cards\"); "
-    },
-    {
-     "t": "code",
-     "v": "Esc"
-    },
-    {
-     "t": "text",
-     "v": ", the ×, or clicking the same chip again ends it. A card in a tagged group counts."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "The tag page",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The tag page"
-    }
-   ],
-   "id": "the-tag-page"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu ("
-    },
-    {
-     "t": "strong",
-     "v": "Open tag",
-     "children": [
-      {
-       "t": "text",
-       "v": "Open tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: \"12 tagged · 40 inside\" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "This is the payoff. \"Show me everything about the diner\" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Entity types",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Entity types"
-    }
-   ],
-   "id": "entity-types"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A tag can be typed:"
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Type"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "For"
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Character",
-       "children": [
-        {
-         "t": "text",
-         "v": "Character"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "People in the work"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Setting",
-       "children": [
-        {
-         "t": "text",
-         "v": "Setting"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Locations"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Organization",
-       "children": [
-        {
-         "t": "text",
-         "v": "Organization"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Companies, departments, crews"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Topic",
-       "children": [
-        {
-         "t": "text",
-         "v": "Topic"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Themes, ideas, looks"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
-       "v": "Thing",
-       "children": [
-        {
-         "t": "text",
-         "v": "Thing"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Objects, props, assets"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The type shows on a tag's hover card and its page, the sidebar groups tags by it, and it drives the hover previews and backlinks in "
-    },
-    {
-     "t": "link",
-     "v": "links and mentions",
-     "href": "/docs/organize/links-and-mentions",
-     "children": [
-      {
-       "t": "text",
-       "v": "links and mentions"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Automatic tagging",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Automatic tagging"
-    }
-   ],
-   "id": "automatic-tagging"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Automatic tagging works from "
-    },
-    {
-     "t": "strong",
-     "v": "text",
-     "children": [
-      {
-       "t": "text",
-       "v": "text"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — card titles, notes, documents, and the names of groups and clusters — and only uses tags you have already made, so a workspace with no tags gets none. Pictures are read too, but they only ever get suggestions (see below)."
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "An exact name match is applied",
-      "children": [
-       {
-        "t": "text",
-        "v": "An exact name match is applied"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ", marked "
-     },
-     {
-      "t": "em",
-      "v": "auto",
-      "children": [
-       {
-        "t": "text",
-        "v": "auto"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ". Tag names can be in any script: where the script puts spaces between words a name matches whole words only, in Korean it also matches with a particle after it ("
-     },
-     {
-      "t": "code",
-      "v": "서울"
-     },
-     {
-      "t": "text",
-      "v": " in "
-     },
-     {
-      "t": "code",
-      "v": "서울에서"
-     },
-     {
-      "t": "text",
-      "v": "), and in Chinese, Japanese and Thai it is found inside running text. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called \"Diner stills\". Creating a tag applies it straight away to what already says its name."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "In documents, clear mentions are underlined",
-      "children": [
-       {
-        "t": "text",
-        "v": "In documents, clear mentions are underlined"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ", marked "
-     },
-     {
-      "t": "em",
-      "v": "auto",
-      "children": [
-       {
-        "t": "text",
-        "v": "auto"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ": the AI underlines words that clearly refer to one of your tags, even when they are not its exact name."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Anything looser is only suggested.",
-      "children": [
-       {
-        "t": "text",
-        "v": "Anything looser is only suggested."
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under "
-     },
-     {
-      "t": "strong",
-      "v": "Manage",
-      "children": [
-       {
-        "t": "text",
-        "v": "Manage"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": "."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Pictures are suggested, never tagged.",
-      "children": [
-       {
-        "t": "text",
-        "v": "Pictures are suggested, never tagged."
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " Each picture added to a cluster is "
-     },
-     {
-      "t": "link",
-      "v": "described by an AI model",
-      "href": "/docs/account/data-and-privacy#pictures-and-ai",
-      "children": [
-       {
-        "t": "text",
-        "v": "described by an AI model"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ". When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands, without a reload; hover the chip and it says it came from the picture. A picture is never tagged on its own."
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The owner or a co-owner can turn "
-    },
-    {
-     "t": "strong",
-     "v": "AI suggestions",
-     "children": [
-      {
-       "t": "text",
-       "v": "AI suggestions"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " off in "
-    },
-    {
-     "t": "strong",
-     "v": "Settings → Workspace",
-     "children": [
-      {
-       "t": "text",
-       "v": "Settings → Workspace"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". Then Clusters sends no card or document text and no picture to a model: there are no suggestions or underlines, the workspace's "
-    },
-    {
-     "t": "link",
-     "v": "picture descriptions",
-     "href": "/docs/account/data-and-privacy#pictures-and-ai",
-     "children": [
-      {
-       "t": "text",
-       "v": "picture descriptions"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " are deleted, and exact-name matches and the tags you add work as before. An AI app you connect yourself, through the API or MCP, still reads what you ask it to."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Nothing applied automatically is hidden. Open the tag, press "
-    },
-    {
-     "t": "strong",
-     "v": "Manage",
-     "children": [
-      {
-       "t": "text",
-       "v": "Manage"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and filter to "
-    },
-    {
-     "t": "strong",
-     "v": "Auto",
-     "children": [
-      {
-       "t": "text",
-       "v": "Auto"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for "
-    },
-    {
-     "t": "strong",
-     "v": "Confirm tag",
-     "children": [
-      {
-       "t": "text",
-       "v": "Confirm tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " or "
-    },
-    {
-     "t": "strong",
-     "v": "Remove tag",
-     "children": [
-      {
-       "t": "text",
-       "v": "Remove tag"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Removing, deleting and merging — all reversible",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Removing, deleting and merging — all reversible"
-    }
-   ],
-   "id": "removing-deleting-and-merging-all-reversible"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Removing a tag from one item shows an undo toast; undoing also lifts the \"don't suggest this again\" that a removal writes, so the matcher behaves as if the removal never happened."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for "
-    },
-    {
-     "t": "strong",
-     "v": "30 days",
-     "children": [
-      {
-       "t": "text",
-       "v": "30 days"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — from the undo toast, or by recreating a tag with the same name, which revives the old one intact."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns. Anything you had taken the merged tag off stays off under the tag it merged into."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Finding by tag",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Finding by tag"
-    }
-   ],
-   "id": "finding-by-tag"
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "text",
-      "v": "The "
-     },
-     {
-      "t": "strong",
-      "v": "sidebar",
-      "children": [
-       {
-        "t": "text",
-        "v": "sidebar"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " lists workspace tags, grouped by type; the arrow keys walk them and "
-     },
-     {
-      "t": "code",
-      "v": "Enter"
-     },
-     {
-      "t": "text",
-      "v": " opens one. A tag's ⋯ (or right-click) renames, recolors, merges, types or deletes it"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "[`⌘K`](/docs/organize/search)",
-      "children": [
-       {
-        "t": "link",
-        "v": "`⌘K`",
-        "href": "/docs/organize/search",
-        "children": [
-         {
-          "t": "code",
-          "v": "⌘K"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " finds tags by name, and "
-     },
-     {
-      "t": "code",
-      "v": "#"
-     },
-     {
-      "t": "text",
-      "v": " with a tag's name lists everything carrying it"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "The "
-     },
-     {
-      "t": "strong",
-      "v": "tag page",
-      "children": [
-       {
-        "t": "text",
-        "v": "tag page"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " is the full browse"
-     }
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Scripts and AI assistants read and apply tags the same way, through the "
-    },
-    {
-     "t": "link",
-     "v": "Tags API",
-     "href": "/docs/api/tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "Tags API"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " and the "
-    },
-    {
-     "t": "link",
-     "v": "MCP server",
-     "href": "/docs/mcp",
-     "children": [
-      {
-       "t": "text",
-       "v": "MCP server"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "."
     }
    ]
   }
@@ -34475,7 +33049,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "You can mention a cluster, document, card, note, image, palette, group, tag, URL or person."
+     "v": "You can mention a cluster, document, card, note, image, palette, group, URL or person."
     }
    ]
   },
@@ -34558,7 +33132,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are detected. Once a tag or entity exists, later occurrences of its name in your writing are quietly underlined and connected. Writing \"Diner\" in a note after creating a Diner entity links the two without any "
+     "v": " are detected. Once a cluster, card or document exists, later occurrences of its name in your writing are quietly underlined and connected. Writing \"Diner\" in a note after creating a Diner cluster links the two without any "
     },
     {
      "t": "code",
@@ -34619,7 +33193,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A location entity ends up listing the script scene, the reference wall and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally."
+     "v": "A location cluster ends up listing the script scene, the reference wall and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally."
     }
    ]
   },
@@ -35127,39 +33701,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". Not in a workspace whose AI suggestions are off"
-     }
-    ],
-    [
+      "v": ". Not in a workspace whose "
+     },
      {
       "t": "strong",
-      "v": "Tags",
+      "v": "AI for pictures and search",
       "children": [
        {
         "t": "text",
-        "v": "Tags"
+        "v": "AI for pictures and search"
        }
       ]
      },
      {
       "t": "text",
-      "v": " — by name. Type "
-     },
-     {
-      "t": "code",
-      "v": "#"
-     },
-     {
-      "t": "text",
-      "v": " and a tag's name, as in "
-     },
-     {
-      "t": "code",
-      "v": "#diner"
-     },
-     {
-      "t": "text",
-      "v": ", to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place"
+      "v": " is off"
      }
     ],
     [
@@ -35239,7 +33795,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": the words are put into English to match the descriptions. They go to an AI model for that, so it is off in a workspace whose AI suggestions are off."
+     "v": ": the words are put into English to match the descriptions. They go to an AI model for that, so it is off in a workspace whose "
+    },
+    {
+     "t": "strong",
+     "v": "AI for pictures and search",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI for pictures and search"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is off."
     }
    ]
   },
@@ -35624,23 +34194,6 @@ export const DOCS_CONTENT = {
        {
         "t": "text",
         "v": "Files"
-       }
-      ]
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": "Everything on a theme, across the workspace — "
-     },
-     {
-      "t": "link",
-      "v": "tags",
-      "href": "/docs/organize/tags",
-      "children": [
-       {
-        "t": "text",
-        "v": "tags"
        }
       ]
      }
@@ -41875,7 +40428,7 @@ export const DOCS_CONTENT = {
       {
        "t": "link",
        "v": "document",
-       "href": "/docs/documents/comments-and-tags",
+       "href": "/docs/documents/comments-and-backlinks",
        "children": [
         {
          "t": "text",
@@ -42870,7 +41423,7 @@ export const DOCS_CONTENT = {
     {
      "t": "link",
      "v": "comments in documents",
-     "href": "/docs/documents/comments-and-tags",
+     "href": "/docs/documents/comments-and-backlinks",
      "children": [
       {
        "t": "text",
@@ -45516,7 +44069,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " of what is in it, unless the workspace's AI suggestions are off"
+       "v": " of what is in it, unless the workspace's AI for pictures and search is off"
       }
      ]
     ]
@@ -52579,7 +51132,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Its menu: a group label's, an arrow's, a tag's"
+       "v": "Its menu: a group label's, an arrow's"
       }
      ]
     ],
@@ -54092,7 +52645,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The description is stored beside the picture, and Clusters doesn't show it on screen: it suggests tags, finds the picture in search and in "
+     "v": "The description is stored beside the picture, and Clusters doesn't show it on screen: it finds the picture in search and in "
     },
     {
      "t": "strong",
@@ -54134,11 +52687,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "AI suggestions",
+     "v": "AI for pictures and search",
      "children": [
       {
        "t": "text",
-       "v": "AI suggestions"
+       "v": "AI for pictures and search"
       }
      ]
     },
@@ -54148,17 +52701,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Workspace",
+     "v": "Settings → General",
      "children": [
       {
        "t": "text",
-       "v": "Settings → Workspace"
+       "v": "Settings → General"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". Off, Clusters sends no picture or text to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to."
+     "v": ". Off, Clusters sends no picture or search words to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to."
     }
    ]
   },
@@ -54550,7 +53103,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view."
+      "v": " are deleted, with every cluster, card, comment and uploaded file in them — and so is a workspace where everyone else can only view."
      }
     ],
     [
@@ -54602,11 +53155,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Comments, tags and votes you left on other people's clusters",
+      "v": "Comments and votes you left on other people's clusters",
       "children": [
        {
         "t": "text",
-        "v": "Comments, tags and votes you left on other people's clusters"
+        "v": "Comments and votes you left on other people's clusters"
        }
       ]
      },
@@ -56087,7 +54640,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Picture descriptions for search and tags"
+       "v": "Picture descriptions for search"
       }
      ],
      [
@@ -57909,77 +56462,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "GET /workspaces/:id/tags"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A workspace's "
-      },
-      {
-       "t": "link",
-       "v": "tags",
-       "href": "/docs/api/tags",
-       "children": [
-        {
-         "t": "text",
-         "v": "tags"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": ", each with how many things carry it"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "GET /tags/:id"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Everything carrying a tag, on every board"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "GET /boards/:id/tags"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "The tags on a board, and what carries each"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "POST /boards/:id/tags"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Put tags on cards or take them off, by name or id"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "POST /uploads"
       }
      ],
@@ -58418,23 +56900,73 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Tags were removed from Clusters.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tags were removed from Clusters."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The tag endpoints that used to sit beside the comment ones are gone, and a request to one answers "
+    },
+    {
+     "t": "code",
+     "v": "410"
+    },
+    {
+     "t": "text",
+     "v": " with the code "
+    },
+    {
+     "t": "code",
+     "v": "gone"
+    },
+    {
+     "t": "text",
+     "v": " and the message \"Tags were removed from Clusters.\" See "
+    },
+    {
+     "t": "link",
+     "v": "errors",
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "errors"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
-   "text": "Comments, docs and tags",
+   "text": "Comments and docs",
    "inline": [
     {
      "t": "text",
-     "v": "Comments, docs and tags"
+     "v": "Comments and docs"
     }
    ],
-   "id": "comments-docs-and-tags"
+   "id": "comments-and-docs"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Three groups of endpoints have a page of their own:"
+     "v": "Two groups of endpoints have a page of their own:"
     }
    ]
   },
@@ -58486,29 +57018,6 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " — read and write a doc card's pages as Markdown, without overwriting anyone's changes"
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "[Tags](/docs/api/tags)",
-      "children": [
-       {
-        "t": "link",
-        "v": "Tags",
-        "href": "/docs/api/tags",
-        "children": [
-         {
-          "t": "text",
-          "v": "Tags"
-         }
-        ]
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — list a workspace's tags, see what carries one, and tag cards or untag them"
      }
     ]
    ]
@@ -71177,661 +69686,6 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
- "/docs/api/tags": [
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "A workspace's "
-    },
-    {
-     "t": "link",
-     "v": "tags",
-     "href": "/docs/organize/tags",
-     "children": [
-      {
-       "t": "text",
-       "v": "tags"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " are read and applied here. Everything runs as you, so the API does with a tag exactly what the app does."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "GET /workspaces/:id/tags",
-   "inline": [
-    {
-     "t": "code",
-     "v": "GET /workspaces/:id/tags"
-    }
-   ],
-   "id": "get-workspaces-id-tags"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The workspace's tags, by name."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"workspace_id\": \"5b2e…\",\n  \"tags\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"color\": null, \"entity_type\": \"setting\",\n      \"description\": null, \"items\": 14, \"created_at\": \"2026-09-30T18:02:11Z\" }\n  ],\n  \"limit\": 100, \"offset\": 0, \"has_more\": false\n}"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "code",
-     "v": "items"
-    },
-    {
-     "t": "text",
-     "v": " is how many things carry the tag, the number the sidebar shows (null when it can't be counted just then). "
-    },
-    {
-     "t": "code",
-     "v": "color"
-    },
-    {
-     "t": "text",
-     "v": " is the one picked in the app, or null for the colour it gives the tag from its name. "
-    },
-    {
-     "t": "code",
-     "v": "entity_type"
-    },
-    {
-     "t": "text",
-     "v": " is one of "
-    },
-    {
-     "t": "code",
-     "v": "character"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "setting"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "organization"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "concept"
-    },
-    {
-     "t": "text",
-     "v": " (Topic, in the app) and "
-    },
-    {
-     "t": "code",
-     "v": "thing"
-    },
-    {
-     "t": "text",
-     "v": ", or null."
-    }
-   ]
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Parameter"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": ""
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "code",
-       "v": "name"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Just the tag of that name, in any case"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "limit"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Tags per page: 100 by default, at most 500"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "offset"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Where the page starts"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "GET /tags/:id",
-   "inline": [
-    {
-     "t": "code",
-     "v": "GET /tags/:id"
-    }
-   ],
-   "id": "get-tags-id"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Everything carrying a tag, on every board in its workspace, the most recently tagged first: the tag's page, as data."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"tag\": { \"id\": \"0c9a…\", \"name\": \"Diner\", \"workspace_id\": \"5b2e…\", \"…\": \"…\" },\n  \"items\": [\n    { \"kind\": \"card\", \"card_kind\": \"image\", \"board_id\": \"9f1c…\", \"board_name\": \"Locations\",\n      \"card_id\": \"c-3\", \"title\": \"Booth, night\", \"excerpt\": null,\n      \"auto\": false, \"tagged_at\": \"2026-10-20T09:14:02Z\", \"url\": \"https://…\" },\n    { \"kind\": \"doc_page\", \"board_id\": \"9f1c…\", \"card_id\": \"d-4\", \"page_id\": \"p-2\",\n      \"title\": \"Opening\", \"excerpt\": \"INT. DINER — NIGHT…\", \"auto\": true, \"…\": \"…\" }\n  ],\n  \"has_more\": false\n}"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Each item's "
-    },
-    {
-     "t": "code",
-     "v": "kind"
-    },
-    {
-     "t": "text",
-     "v": " is "
-    },
-    {
-     "t": "code",
-     "v": "card"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "group"
-    },
-    {
-     "t": "text",
-     "v": " (with "
-    },
-    {
-     "t": "code",
-     "v": "group_id"
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "code",
-     "v": "cards"
-    },
-    {
-     "t": "text",
-     "v": ", how many cards it holds), "
-    },
-    {
-     "t": "code",
-     "v": "board"
-    },
-    {
-     "t": "text",
-     "v": " (a whole cluster), or "
-    },
-    {
-     "t": "code",
-     "v": "doc_page"
-    },
-    {
-     "t": "text",
-     "v": " (a page of a doc, with "
-    },
-    {
-     "t": "code",
-     "v": "card_id"
-    },
-    {
-     "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "code",
-     "v": "page_id"
-    },
-    {
-     "t": "text",
-     "v": "). "
-    },
-    {
-     "t": "code",
-     "v": "auto"
-    },
-    {
-     "t": "text",
-     "v": " marks what was tagged automatically rather than by a person, and "
-    },
-    {
-     "t": "code",
-     "v": "url"
-    },
-    {
-     "t": "text",
-     "v": " opens it in the app. "
-    },
-    {
-     "t": "code",
-     "v": "limit"
-    },
-    {
-     "t": "text",
-     "v": " takes 100 by default, at most 500."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "GET /boards/:id/tags",
-   "inline": [
-    {
-     "t": "code",
-     "v": "GET /boards/:id/tags"
-    }
-   ],
-   "id": "get-boards-id-tags"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "The tags on one board, and what carries each."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"tags\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"…\": \"…\", \"on_board\": false,\n      \"cards\": [\"c-3\", \"c-7\"], \"groups\": [], \"pages\": [{ \"card_id\": \"d-4\", \"page_id\": \"p-2\" }] }\n  ],\n  \"url\": \"https://…\"\n}"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "code",
-     "v": "on_board"
-    },
-    {
-     "t": "text",
-     "v": " is true when the board itself carries the tag, and each list is in the order things were tagged. A card deleted from the board keeps its tags in case the delete is undone, and isn't listed; when the board can't be read just then, a "
-    },
-    {
-     "t": "code",
-     "v": "note"
-    },
-    {
-     "t": "text",
-     "v": " says deleted cards may be."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "POST /boards/:id/tags",
-   "inline": [
-    {
-     "t": "code",
-     "v": "POST /boards/:id/tags"
-    }
-   ],
-   "id": "post-boards-id-tags"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Puts tags on cards of this board and takes tags off them."
-    }
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{ \"card_ids\": [\"c-3\", \"c-7\"], \"add\": [\"Diner\", \"night exterior\"], \"remove\": [\"0c9a…\"] }"
-  },
-  {
-   "type": "table",
-   "head": [
-    [
-     {
-      "t": "text",
-      "v": "Field"
-     }
-    ],
-    [
-     {
-      "t": "text",
-      "v": ""
-     }
-    ]
-   ],
-   "rows": [
-    [
-     [
-      {
-       "t": "code",
-       "v": "card_ids"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Required. Up to 200 cards on this board"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "add"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Tags to put on them, up to 10: names, or ids from the lists above"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "remove"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Tags to take off them, up to 10, the same way"
-      }
-     ]
-    ]
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Send "
-    },
-    {
-     "t": "code",
-     "v": "add"
-    },
-    {
-     "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "code",
-     "v": "remove"
-    },
-    {
-     "t": "text",
-     "v": ", or both. A name is matched in any case, and a leading "
-    },
-    {
-     "t": "code",
-     "v": "#"
-    },
-    {
-     "t": "text",
-     "v": " is ignored. Each works as the "
-    },
-    {
-     "t": "strong",
-     "v": "Tag…",
-     "children": [
-      {
-       "t": "text",
-       "v": "Tag…"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " menu does:"
-    }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": false,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "A name the workspace has no tag for",
-      "children": [
-       {
-        "t": "text",
-        "v": "A name the workspace has no tag for"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " makes the tag, up to 80 characters. As a tag made in the app does, it then also goes on whatever else in the workspace says its name, marked auto."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "A deleted tag's name",
-      "children": [
-       {
-        "t": "text",
-        "v": "A deleted tag's name"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " brings that tag back with everything it was on, as recreating it in the app does."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Taking a tag off a card",
-      "children": [
-       {
-        "t": "text",
-        "v": "Taking a tag off a card"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " keeps it off that card for good: automatic tagging never puts it back there. Putting it on again yourself lifts that."
-     }
-    ]
-   ]
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"board_id\": \"9f1c…\",\n  \"added\": [\n    { \"id\": \"0c9a…\", \"name\": \"Diner\", \"…\": \"…\", \"created\": false, \"card_ids\": [\"c-7\"] },\n    { \"id\": \"77d1…\", \"name\": \"night exterior\", \"…\": \"…\", \"created\": true, \"card_ids\": [\"c-3\", \"c-7\"] }\n  ],\n  \"removed\": [{ \"id\": \"3f2b…\", \"name\": \"Day\", \"…\": \"…\", \"card_ids\": [\"c-3\"] }],\n  \"not_found\": { \"card_ids\": [], \"tags\": [] },\n  \"url\": \"https://…\"\n}"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Each tag's "
-    },
-    {
-     "t": "code",
-     "v": "card_ids"
-    },
-    {
-     "t": "text",
-     "v": " are the cards that changed: one that already had the tag, or never had the one taken off, isn't listed, so sending the same call twice changes nothing the second time. "
-    },
-    {
-     "t": "code",
-     "v": "created"
-    },
-    {
-     "t": "text",
-     "v": " marks a new tag and "
-    },
-    {
-     "t": "code",
-     "v": "revived: true"
-    },
-    {
-     "t": "text",
-     "v": " one brought back. An id that isn't a tag of this workspace, or a tag to take off that it doesn't have, is listed in "
-    },
-    {
-     "t": "code",
-     "v": "not_found.tags"
-    },
-    {
-     "t": "text",
-     "v": ", and a card that isn't on the board in "
-    },
-    {
-     "t": "code",
-     "v": "not_found.card_ids"
-    },
-    {
-     "t": "text",
-     "v": "."
-    }
-   ]
-  },
-  {
-   "type": "heading",
-   "depth": 2,
-   "text": "Who can do what",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Who can do what"
-    }
-   ],
-   "id": "who-can-do-what"
-  },
-  {
-   "type": "para",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Tags belong to a workspace. Its members read them; anyone who can edit the workspace tags things in it, and anyone else gets "
-    },
-    {
-     "t": "code",
-     "v": "403"
-    },
-    {
-     "t": "text",
-     "v": ". Someone a board is shared with sees no tags. A board you can't open, or none of the cards on it, answers "
-    },
-    {
-     "t": "code",
-     "v": "404"
-    },
-    {
-     "t": "text",
-     "v": ". Tagging reads the board to find its cards: when it can't be read just then, nothing is written and the answer is "
-    },
-    {
-     "t": "code",
-     "v": "503"
-    },
-    {
-     "t": "text",
-     "v": " "
-    },
-    {
-     "t": "code",
-     "v": "room_unavailable"
-    },
-    {
-     "t": "text",
-     "v": ", so try again."
-    }
-   ]
-  }
- ],
  "/docs/api/images": [
   {
    "type": "para",
@@ -80054,71 +77908,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "list_tags"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "workspace_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "board_id?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "tag?"
-      },
-      {
-       "t": "text",
-       "v": " (a name or an id), "
-      },
-      {
-       "t": "code",
-       "v": "limit?"
-      },
-      {
-       "t": "text",
-       "v": " (up to 500) — a workspace's "
-      },
-      {
-       "t": "link",
-       "v": "tags",
-       "href": "/docs/api/tags",
-       "children": [
-        {
-         "t": "text",
-         "v": "tags"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": ", the tags on one board, or with "
-      },
-      {
-       "t": "code",
-       "v": "tag"
-      },
-      {
-       "t": "text",
-       "v": " everything carrying it"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "list_audit"
       }
      ],
@@ -81238,63 +79027,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
-       "v": "tag_cards"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "board_id"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "card_ids[]"
-      },
-      {
-       "t": "text",
-       "v": " (up to 200), "
-      },
-      {
-       "t": "code",
-       "v": "add[]?"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "remove[]?"
-      },
-      {
-       "t": "text",
-       "v": " (tag names or ids, up to 10 each) — put "
-      },
-      {
-       "t": "link",
-       "v": "tags",
-       "href": "/docs/api/tags",
-       "children": [
-        {
-         "t": "text",
-         "v": "tags"
-        }
-       ]
-      },
-      {
-       "t": "text",
-       "v": " on cards or take them off, as the Tag menu does; a new name makes the tag"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
        "v": "resolve_comments"
       }
      ],
@@ -81492,6 +79224,27 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "list_tags"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "tag_cards"
+    },
+    {
+     "t": "text",
+     "v": " are gone. Calling either answers that the tool is gone and that tags were removed from Clusters, for example \"list_tags is gone: Tags were removed from Clusters.\""
+    }
    ]
   },
   {
@@ -81876,14 +79629,6 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", "
-     },
-     {
-      "t": "code",
-      "v": "list_tags"
-     },
-     {
-      "t": "text",
       "v": " and "
      },
      {
@@ -81952,14 +79697,6 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "code",
-      "v": "tag_cards"
-     },
-     {
-      "t": "text",
-      "v": ", "
-     },
-     {
-      "t": "code",
       "v": "resolve_comments"
      },
      {
@@ -81988,7 +79725,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", since each can take something away or write over it (words, positions, tags, a thread's state, a link, cards, a cluster). Only a write that purely adds is marked non-destructive, even where the same call could put things back."
+      "v": ", since each can take something away or write over it (words, positions, a thread's state, a link, cards, a cluster). Only a write that purely adds is marked non-destructive, even where the same call could put things back."
      }
     ],
     [
@@ -84816,6 +82553,32 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "410"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "gone"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The endpoint was removed — the tag endpoints answer this with \"Tags were removed from Clusters.\""
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "413"
       }
      ],
@@ -85230,6 +82993,25 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " is correct; or a reparent that would create a cycle, which is permanent."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`410`",
+     "children": [
+      {
+       "t": "code",
+       "v": "410"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the endpoint no longer exists and will not come back. Do not retry it; stop calling it."
     }
    ]
   },
@@ -85865,34 +83647,6 @@ export const DOCS_CONTENT = {
        "v": "A deleted comment is brought back"
       }
      ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "tag.applied"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A tag is put on cards, groups, boards or doc pages"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "tag.removed"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "A tag is taken off them"
-      }
-     ]
     ]
    ]
   },
@@ -85901,11 +83655,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Card, upload and tag events are grouped.",
+     "v": "Card and upload events are grouped.",
      "children": [
       {
        "t": "text",
-       "v": "Card, upload and tag events are grouped."
+       "v": "Card and upload events are grouped."
       }
      ]
     },
@@ -86003,7 +83757,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is the comment's id for a comment event and the tag's id for a tag event. A grouped card or upload event covers several things at once, so its "
+     "v": " is the comment's id for a comment event. A grouped card or upload event covers several things at once, so its "
     },
     {
      "t": "code",
@@ -86306,112 +84060,6 @@ export const DOCS_CONTENT = {
        "v": "resolved"
       }
      ]
-    ],
-    [
-     [
-      {
-       "t": "code",
-       "v": "tag.applied"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "tag.removed"
-      }
-     ],
-     [
-      {
-       "t": "code",
-       "v": "id"
-      },
-      {
-       "t": "text",
-       "v": " (the tag's), "
-      },
-      {
-       "t": "code",
-       "v": "auto"
-      },
-      {
-       "t": "text",
-       "v": " (true when automatic tagging put it on or took it off), "
-      },
-      {
-       "t": "code",
-       "v": "count"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "items"
-      },
-      {
-       "t": "text",
-       "v": ": each thing it is on, "
-      },
-      {
-       "t": "code",
-       "v": "{kind, id}"
-      },
-      {
-       "t": "text",
-       "v": " with "
-      },
-      {
-       "t": "code",
-       "v": "kind"
-      },
-      {
-       "t": "text",
-       "v": " one of "
-      },
-      {
-       "t": "code",
-       "v": "card"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "group"
-      },
-      {
-       "t": "text",
-       "v": ", "
-      },
-      {
-       "t": "code",
-       "v": "board"
-      },
-      {
-       "t": "text",
-       "v": " or "
-      },
-      {
-       "t": "code",
-       "v": "doc_page"
-      },
-      {
-       "t": "text",
-       "v": " (a doc page adds "
-      },
-      {
-       "t": "code",
-       "v": "page_id"
-      },
-      {
-       "t": "text",
-       "v": ")"
-      }
-     ]
     ]
    ]
   },
@@ -86437,15 +84085,26 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in both, so the workspace the cards left hears of it too. Merging two tags reads as "
-    },
+     "v": " in both, so the workspace the cards left hears of it too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
     {
-     "t": "code",
-     "v": "tag.removed"
+     "t": "strong",
+     "v": "There are no tag events.",
+     "children": [
+      {
+       "t": "text",
+       "v": "There are no tag events."
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " for the tag merged away and "
+     "v": " "
     },
     {
      "t": "code",
@@ -86453,7 +84112,31 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for the one it merged into. Confirming a tag that automatic tagging put on changes no tag, so it fires nothing."
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "tag.removed"
+    },
+    {
+     "t": "text",
+     "v": " were removed along with tags. A webhook that listed them keeps working for its other events, and "
+    },
+    {
+     "t": "code",
+     "v": "[\"*\"]"
+    },
+    {
+     "t": "text",
+     "v": " simply no longer includes them. A create or update that still names them has them dropped; one that names nothing else answers "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },

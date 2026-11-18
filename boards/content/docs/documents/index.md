@@ -5,7 +5,7 @@ h1: Documents
 navLabel: Overview
 section: documents
 order: 0
-updated: 2026-10-24
+updated: 2026-11-17
 answer: A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, one row of formatting tools, tables you can grow, images, code blocks and embedded boards, real-time co-editing with visible cursors, and a side panel with every comment and a find and replace across all its pages. Open it full screen or docked beside the canvas.
 faq:
   - q: When should I use a document instead of a note?
@@ -118,7 +118,7 @@ the list to jump there.
 **The body** in the middle, with the toolbar over it.
 
 **The side panel** on the right, when you open it with **Comments** in the
-header: every [comment](#comments-tags-and-links) in the document, and
+header: every [comment](#comments-and-links) in the document, and
 [Find](#find-and-replace) across all its pages. In a screenplay it holds the
 [elements](/docs/documents/screenplay#elements) too. It stays open for the next
 document you open, until you close it. On a phone it comes up from the bottom,
@@ -286,13 +286,11 @@ Two histories, matching how documents are edited:
 
 Both undo only *your* edits, never a collaborator's.
 
-## Comments, tags and links
+## Comments and links
 
 The margins do a lot of work:
 
-- **[Inline comments](/docs/documents/comments-and-tags)** on a text range, with dots in the right margin, and every one of them in the side panel
-- **[Tag ranges](/docs/documents/comments-and-tags)** underlining text, with dots in the left margin
-- **Suggested entities** — names the app noticed, with a tick or a cross in the margin to confirm or dismiss
+- **[Inline comments](/docs/documents/comments-and-backlinks)** on a text range, with dots in the right margin, and every one of them in the side panel
 - **[Links and mentions](/docs/organize/links-and-mentions)** — `@` anything, with hover previews
 - **Backlinks** — everywhere this document is referenced from
 

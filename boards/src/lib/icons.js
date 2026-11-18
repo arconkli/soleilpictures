@@ -251,9 +251,7 @@ export {
   LineSegment,
   // The sketch pad's layers in the toolbar look (components/SketchPadOverlay.jsx).
   Stack,
-  // Tag actions in the shared menu (lib/menus).
-  Drop,
-  GitMerge,
+  // The shared menu's Shape row (lib/menus/rows.js).
   Shapes,
   // The consent screen's trust banner (pages/OAuthConsentPage.jsx).
   SealCheck,

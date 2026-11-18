@@ -129,10 +129,6 @@ msgstr "「{clusterName}」とそのすべての内容が完全に削除され�
 msgid "\"{clusterName}\", the {insideLabel} and ALL their content will be permanently removed. This cannot be undone."
 msgstr "「{clusterName}」、{insideLabel}、およびそのすべての内容が完全に削除されます。この操作は元に戻せません。"
 
-#: src/components/SidebarTags.jsx
-msgid "“{name}” — seen {n}× in your prose. Adopt as an entity."
-msgstr "「{name}」はあなたの文章に{n}回登場しました。エンティティとして採用します。"
-
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” deleted"
 msgstr "「{name}」を削除しました"
@@ -144,34 +140,6 @@ msgstr "「{name}」で同期エラーが発生したため、サーバーから
 #: src/App.jsx
 msgid "“{name}” is no longer shared with you."
 msgstr "「{name}」は共有されなくなりました。"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a {kind}"
-msgstr "「{name}」を{kind}にしました"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a character"
-msgstr "「{name}」をキャラクターにしました"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a setting"
-msgstr "「{name}」を舞台にしました"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a tag"
-msgstr "「{name}」をタグにしました"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a thing"
-msgstr "「{name}」の種類を「もの」にしました"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now a topic"
-msgstr "「{name}」をトピックにしました"
-
-#: src/hooks/useCandidateTagging.js
-msgid "“{name}” is now an organization"
-msgstr "「{name}」を組織にしました"
 
 #: src/App.jsx
 #: src/components/shared/SharedPage.jsx
@@ -283,8 +251,6 @@ msgid "{0, plural, one {# audio file} other {# audio files}}"
 msgstr "{0, plural, other {#件の音声ファイル}}"
 
 #. placeholder {0}: a.board_ids.length
-#. placeholder {0}: r.shared
-#: src/components/TagDetailView.jsx
 #: src/components/WorkspaceAlertBanner.jsx
 msgid "{0, plural, one {# board} other {# boards}}"
 msgstr "{0, plural, other {#件のクラスター}}"
@@ -429,17 +395,10 @@ msgstr "{0, plural, other {#件・日を開く}}"
 
 #. placeholder {0}: dayCounts[d.date]
 #. placeholder {0}: list.length
-#. placeholder {0}: vis.total
 #: src/components/cards/ScheduleWall.jsx
-#: src/components/EntityHoverPopover.jsx
 #: src/lib/cardInfo.js
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, other {#件のアイテム}}"
-
-#. placeholder {0}: g.member_count
-#: src/components/TagDetailView.jsx
-msgid "{0, plural, one {# item} other {# items}} · open the cluster to view"
-msgstr "{0, plural, other {#件}} · クラスターを開いて表示"
 
 #. placeholder {0}: workspaceMembers.length
 #: src/App.jsx
@@ -544,11 +503,6 @@ msgstr "{0, plural, other {#本のストロークが削除されます。元に�
 #: src/components/LinkPopover.jsx
 msgid "{0, plural, one {# TARGETS} other {# TARGETS}}"
 msgstr "{0, plural, other {リンク先#件}}"
-
-#. placeholder {0}: counts.get(tag.id)
-#: src/components/SidebarTags.jsx
-msgid "{0, plural, one {# thing} other {# things}}"
-msgstr "{0, plural, other {#件のもの}}"
 
 #. placeholder {0}: zips.length
 #: src/lib/importStart.js
@@ -1006,16 +960,6 @@ msgstr "{count, plural, other {ファイル#件がファイルにあります}}"
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, other {#件のファイル}}"
 
-#: src/components/SidebarTags.jsx
-msgid "{count, plural, one {# item are tagged with \"{name}\". Delete the tag and all of its applications?\n"
-"\n"
-"You can undo this — it's recoverable for 30 days.} other {# items are tagged with \"{name}\". Delete the tag and all of its applications?\n"
-"\n"
-"You can undo this — it's recoverable for 30 days.}}"
-msgstr "{count, plural, other {#件のアイテムに「{name}」のタグが付いています。タグとすべてのタグ付けを削除しますか？\n"
-"\n"
-"元に戻せます。30日間は復元できます。}}"
-
 #: src/components/cards/ScheduleRail.jsx
 msgid "{count, plural, one {# item on {when}} other {# items on {when}}}"
 msgstr "{count, plural, other {{when}に#件}}"
@@ -1116,10 +1060,6 @@ msgstr "{days, plural, =1 {1日} other {#日}}"
 #: src/lib/billingCopyWords.js
 msgid "{days} days free"
 msgstr "{days}日間無料"
-
-#: src/components/TagDetailView.jsx
-msgid "{distPct}% match"
-msgstr "{distPct}%一致"
 
 #: src/lib/teamCopy.js
 msgid "{domain} is verified."
@@ -1368,10 +1308,6 @@ msgstr "{from}は閲覧のみのため、コピーされます"
 msgid "{from} is view only, so they’re copied"
 msgstr "{from}は閲覧のみのため、コピーされます"
 
-#: src/components/SidebarTags.jsx
-msgid "{fromCount, plural, one {Merge \"{fromName}\" into \"{intoName}\". # application moves over and \"{fromName}\" is deleted.} other {Merge \"{fromName}\" into \"{intoName}\". # applications move over and \"{fromName}\" is deleted.}}"
-msgstr "{fromCount, plural, other {「{fromName}」を「{intoName}」に統合します。#件のタグ付けが移り、「{fromName}」は削除されます。}}"
-
 #: src/components/cards/ScheduleCard.jsx
 msgid "{fullTitle} — jump to date"
 msgstr "{fullTitle}: 日付へ移動"
@@ -1467,10 +1403,6 @@ msgstr "{label}・{frameToTC}から"
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{label} · press to see another cluster’s files"
 msgstr "{label}・押すと別のクラスターのファイルを表示"
-
-#: src/components/CandidatePromptPopover.jsx
-msgid "{label} (suggested)"
-msgstr "{label}（おすすめ）"
 
 #: src/components/ShareModal.jsx
 msgid "{label} can now edit every cluster in \"{name}\"."
@@ -2119,10 +2051,6 @@ msgid "{name} — click to jump to their view"
 msgstr "{name}・クリックして相手の表示へ移動"
 
 #: src/components/CanvasSurface.jsx
-msgid "{name} — click to light it up on this cluster"
-msgstr "{name}：クリックするとこのクラスターで強調表示します"
-
-#: src/components/CanvasSurface.jsx
 msgid "{name} — click to start an arrow from this group"
 msgstr "{name}：クリックしてこのグループから矢印を開始"
 
@@ -2142,10 +2070,6 @@ msgstr "{name}：右クリックでグループの操作"
 #: src/pages/MakePage.jsx
 msgid "{name} — Soleil Clusters"
 msgstr "{name} — Soleil Clusters"
-
-#: src/components/SidebarTags.jsx
-msgid "{name} · {c} applied"
-msgstr "{name} · {c}件に適用"
 
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{name} · {where}"
@@ -2186,14 +2110,6 @@ msgstr "{name}・押すと別のクラスターのファイルを表示"
 #: src/components/SidebarSharedBoards.jsx
 msgid "{name} · view only"
 msgstr "{name} · 閲覧のみ"
-
-#: src/components/CanvasSurface.jsx
-msgid "{name} ({source}) — click to light it up on this cluster"
-msgstr "{name}（{source}）：クリックするとこのクラスターで強調表示します"
-
-#: src/components/CanvasSurface.jsx
-msgid "{name} ({source}) — right-click to confirm — click to light it up on this cluster"
-msgstr "{name}（{source}）：右クリックで確認 · クリックでこのクラスターで強調表示"
 
 #: src/App.jsx
 msgid "{name} (copy)"
@@ -2356,12 +2272,12 @@ msgid "{next} ends at {endsAt}"
 msgstr "{next}は{endsAt}に終わります"
 
 #: src/App.jsx
-msgid "{nKept, plural, one {# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search or tags until there's room.} other {# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search or tags until there's room.}}"
-msgstr "{nKept, plural, other {ここの#枚のカードはカウントされていません。このクラスターのオーナーがカードの上限に達しているためです。キャンバスには残りますが、空きができるまで検索やタグには表示されません。}}"
+msgid "{nKept, plural, one {# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search until there's room.} other {# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search until there's room.}}"
+msgstr "{nKept, plural, other {ここの#枚のカードはカウントされていません。このクラスターのオーナーがカードの上限に達しているためです。キャンバスには残りますが、空きができるまで検索には表示されません。}}"
 
 #: src/App.jsx
-msgid "{nKept, plural, one {# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search or tags until there's room.} other {# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search or tags until there's room.}}"
-msgstr "{nKept, plural, other {ここの#枚のカードはカウントされていません。カードの上限に達しているためです。キャンバスには残りますが、空きができるまで検索やタグには表示されません。}}"
+msgid "{nKept, plural, one {# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search until there's room.} other {# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search until there's room.}}"
+msgstr "{nKept, plural, other {ここの#枚のカードはカウントされていません。カードの上限に達しているためです。キャンバスには残りますが、空きができるまで検索には表示されません。}}"
 
 #: src/components/fileShare/FileComments.jsx
 msgid "{nOpen, plural, one {# open} other {# open}}"
@@ -2783,10 +2699,6 @@ msgstr "{total}件中{shown}件"
 msgid "{shownCount, plural, one {# card} other {# cards}} · not saved yet"
 msgstr "{shownCount, plural, other {#枚のカード}}・まだ保存されていません"
 
-#: src/components/CommandPalette.jsx
-msgid "{shownCount, plural, one {# shown} other {# shown}}"
-msgstr "{shownCount, plural, other {#件を表示}}"
-
 #. placeholder {0}: files.length
 #: src/lib/cardInfo.js
 msgid "{size} ({known} of {0, plural, one {# file} other {# files}})"
@@ -2815,18 +2727,6 @@ msgstr "{strokeArrowCount, plural, =1 {削除しました} other {#件を削除�
 #: src/components/NewClusterButton.jsx
 msgid "{sweep, plural, one {All # loose cards move into it. Undo puts them back.} other {All # loose cards move into it. Undo puts them back.}}"
 msgstr "{sweep, plural, other {バラバラの#枚のカードがすべてその中に移動します。元に戻すと戻ります。}}"
-
-#: src/components/DocTagGutter.jsx
-msgid "{tag} · {source}"
-msgstr "{tag} · {source}"
-
-#: src/components/TagDetailView.jsx
-msgid "{taggedCount} tagged"
-msgstr "タグ付き{taggedCount}件"
-
-#: src/components/TagDetailView.jsx
-msgid "{taggedCount} tagged · {insideCount} inside"
-msgstr "タグ付き{taggedCount}件 · 内側{insideCount}件"
 
 #: src/components/ImportCapDialog.jsx
 msgid "{take, plural, one {Add the first # card} other {Add the first # cards}}"
@@ -2931,14 +2831,6 @@ msgstr "今月の残り期間分として本日{today}、その後は{then}が�
 #: src/lib/billingCopyWords.js
 msgid "{today} today for the rest of this year, then {then}, on the card you pay {planName} with. You can remove it later in Settings → Plan & billing."
 msgstr "今年の残り期間分として本日{today}、その後は{then}が、{planName}のお支払いに使っているカードに請求されます。あとから「設定」→「プランとお支払い」で削除できます。"
-
-#: src/components/TagRangeHoverPopover.jsx
-msgid "{total, plural, one {# item} other {# items}}"
-msgstr "{total, plural, other {#件}}"
-
-#: src/components/TagManyPicker.jsx
-msgid "{total, plural, one {Tag # card} other {Tag # cards}}"
-msgstr "{total, plural, other {#枚のカードにタグ付け}}"
 
 #: src/lib/activityTray.js
 msgid "{total, plural, other {Preparing download of # files}}"
@@ -3049,10 +2941,6 @@ msgstr "{value}はここにあります。クリックで移動"
 #: src/components/cards/ScheduleCard.jsx
 msgid "{value} more on this date"
 msgstr "この日はほかに{value}件"
-
-#: src/components/CanvasSurface.jsx
-msgid "{value} of {count} cards"
-msgstr "{count}枚中{value}枚"
 
 #: src/components/CanvasSurface.jsx
 msgid "{value} selected"
@@ -3395,14 +3283,6 @@ msgstr "<0>{email}を確認してください。</0>そこにあるリンクを�
 msgid "<0>esc</0> close"
 msgstr "<0>esc</0>で閉じる"
 
-#: src/components/CanvasSurface.jsx
-msgid "<0>Esc</0>clears"
-msgstr "<0>Esc</0>でクリア"
-
-#: src/components/TagManyPicker.jsx
-msgid "<0>Esc</0>Close"
-msgstr "<0>Esc</0>閉じる"
-
 #: src/components/settings/DocsTab.jsx
 msgid "<0>Open the full documentation →</0> It is also readable as plain Markdown at <1>/docs/*.md</1>, and as <2>/llms.txt</2> for AI agents."
 msgstr "<0>ドキュメント全体を開く →</0> プレーンなMarkdownとして<1>/docs/*.md</1>でも、AIエージェント向けの<2>/llms.txt</2>としても読めます。"
@@ -3624,8 +3504,8 @@ msgid "A photo in an album can come out twice: in the album and in its year."
 msgstr "アルバム内の写真は、アルバムと年の両方に2回入ることがあります。"
 
 #: src/components/CommandPalette.jsx
-msgid "A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI suggestions are off. To find one by your own words, hover it and choose Caption."
-msgstr "ワークスペースのAI提案がオフでない限り、画像は追加の数分後から内容で見つけられます。自分の言葉で見つけるには、画像にカーソルを合わせて「キャプション」を選んでください。"
+msgid "A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI for pictures and search is off. To find one by your own words, hover it and choose Caption."
+msgstr "ワークスペースの「画像と検索のAI」がオフでない限り、画像は追加の数分後から内容で見つけられます。自分の言葉で見つけるには、画像にカーソルを合わせて「キャプション」を選んでください。"
 
 #: src/lib/helpHub.js
 msgid "A question with options that everyone on the cluster can vote on."
@@ -3686,10 +3566,6 @@ msgstr "絵コンテ"
 #: src/components/SidebarBoardTree.jsx
 msgid "a sub-board"
 msgstr "サブクラスター"
-
-#: src/components/SidebarTags.jsx
-msgid "A tag you deleted recently is still called “{clean}” (deleted tags are kept for 30 days so they can be restored). Pick another name."
-msgstr "最近削除したタグがまだ「{clean}」という名前で残っています（削除したタグは復元できるよう30日間保持されます）。別の名前を選んでください。"
 
 #: src/lib/workspaceSetup.js
 msgid "A team"
@@ -3779,14 +3655,6 @@ msgstr "残り約{min}分"
 #: src/components/settings/AppearanceTab.jsx
 msgid "Accent"
 msgstr "アクセント"
-
-#: src/components/TagDetailView.jsx
-msgid "Accept"
-msgstr "採用"
-
-#: src/components/TagDetailView.jsx
-msgid "Accept failed: {reason}"
-msgstr "採用に失敗しました：{reason}"
 
 #: src/components/settings/BillingTab.jsx
 msgid "Access"
@@ -4485,14 +4353,6 @@ msgstr "管理者が人とシートを管理します。ワークスペースは
 msgid "Admins, and work the team owns"
 msgstr "管理者と、チームが所有する作業"
 
-#: src/components/SidebarTags.jsx
-msgid "Adopt \"{name}\" as an entity"
-msgstr "「{name}」をエンティティとして採用"
-
-#: src/components/SidebarTags.jsx
-msgid "Adopt failed: {reason}"
-msgstr "採用に失敗しました：{reason}"
-
 #: src/lib/workspaceSetup.js
 msgid "Ads & brand"
 msgstr "広告・ブランド"
@@ -4510,8 +4370,8 @@ msgid "AI"
 msgstr "AI"
 
 #: src/components/settings/WorkspaceTab.jsx
-msgid "AI suggestions"
-msgstr "AIによる提案"
+msgid "AI for pictures and search"
+msgstr "画像と検索のAI"
 
 #: src/components/settings/fields.jsx
 msgid "Aileron (default)"
@@ -4562,7 +4422,6 @@ msgstr "上揃え"
 msgid "Align: {label}"
 msgstr "配置: {label}"
 
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/lib/sidebarShelves.js
 msgid "All"
@@ -4621,10 +4480,6 @@ msgstr "すべてのページ"
 #: src/components/SidebarSharedBoards.jsx
 msgid "All shared"
 msgstr "すべての共有"
-
-#: src/components/TagDetailView.jsx
-msgid "All types"
-msgstr "すべての種類"
 
 #: src/pages/OAuthConsentPage.jsx
 msgid "Allow deleting"
@@ -4895,10 +4750,6 @@ msgstr "アプリのナビゲーション"
 msgid "Appearance"
 msgstr "外観"
 
-#: src/components/TagDetailView.jsx
-msgid "Appears in"
-msgstr "掲載先"
-
 #: src/components/EntityHoverPopover.jsx
 msgid "APPEARS IN"
 msgstr "登場箇所"
@@ -4912,17 +4763,12 @@ msgid "Applies to the next link you create. Existing links keep their own settin
 msgstr "次に作成するリンクに適用されます。既存のリンクはそれぞれの設定のままです。下で変更してください。"
 
 #: src/components/CanvasSurface.jsx
-#: src/components/TagManyPicker.jsx
 msgid "Apply"
 msgstr "適用"
 
 #: src/lib/menus/rows.js
 msgid "Apply template…"
 msgstr "テンプレートを適用…"
-
-#: src/components/TagDetailView.jsx
-msgid "Apply this tag"
-msgstr "このタグを適用"
 
 #: src/components/team/TeamPeople.jsx
 msgid "Approve"
@@ -5141,18 +4987,9 @@ msgstr "ハイライトした行を試聴（ファイル、リストレイアウ
 msgid "Author"
 msgstr "著者"
 
-#: src/components/DocTagGutter.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "auto"
 msgstr "自動"
-
-#: src/components/TagDetailView.jsx
-msgid "Auto"
-msgstr "自動"
-
-#: src/components/TagDetailView.jsx
-msgid "Auto-applied only"
-msgstr "自動適用のみ"
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Automatic ({autoName})"
@@ -5354,7 +5191,6 @@ msgstr "クラスター"
 #: src/components/HomeGraphDetailDrawer.jsx
 #: src/components/settings/WorkspaceTab.jsx
 #: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/ViewSwitch.jsx
 #: src/lib/cardInfo.js
 #: src/lib/viewSwitch.js
@@ -5913,7 +5749,6 @@ msgstr "カードのタイトル"
 msgid "Card, invoices and receipts are in Stripe."
 msgstr "カード、請求書、領収書はStripeにあります。"
 
-#: src/components/TagDetailView.jsx
 #: src/lib/billingCopyWords.js
 msgid "Cards"
 msgstr "カード"
@@ -5995,18 +5830,10 @@ msgstr "行った変更は、このデバイスに保持されます"
 msgid "Channels"
 msgstr "チャンネル"
 
-#: src/lib/entityTypes.js
-msgid "Character"
-msgstr "キャラクター"
-
 #: src/lib/screenplayFlowWords.js
 msgctxt "screenplay element"
 msgid "Character"
 msgstr "人物名"
-
-#: src/lib/entityTypes.js
-msgid "Characters"
-msgstr "キャラクター"
 
 #: src/lib/menus/rows.js
 msgctxt "background"
@@ -6153,10 +5980,6 @@ msgstr "クリア"
 msgid "Clear (esc)"
 msgstr "クリア(esc)"
 
-#: src/components/TagDetailView.jsx
-msgid "Clear {label}"
-msgstr "{label}をクリア"
-
 #: src/lib/menus/rows.js
 msgid "Clear all drawings"
 msgstr "すべての描画を消去"
@@ -6172,10 +5995,6 @@ msgstr "セルを空にする"
 #: src/components/DocPageEditor.jsx
 msgid "Clear color"
 msgstr "色をクリア"
-
-#: src/components/CanvasSurface.jsx
-msgid "Clear filter: {name}"
-msgstr "フィルターを解除：{name}"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/ListSurface.jsx
@@ -6238,10 +6057,6 @@ msgstr "選択を解除"
 #: src/components/ShowcaseBanner.jsx
 msgid "Clears the demo so you can start your own."
 msgstr "デモを消去して、自分のクラスターを始められます。"
-
-#: src/components/TagManyPicker.jsx
-msgid "Click – to add to all"
-msgstr "－をクリックしてすべてに追加"
 
 #: src/components/CanvasSurface.jsx
 msgid "Click a card to attach, or empty space to drop a comment"
@@ -6311,29 +6126,13 @@ msgstr "クリックでコピー"
 msgid "Click to edit"
 msgstr "クリックして編集"
 
-#: src/components/TagDetailView.jsx
-msgid "Click to open"
-msgstr "クリックで開く"
-
 #: src/components/SidebarBoardTree.jsx
 msgid "Click to open · double-click to rename · drag onto another board to nest it"
 msgstr "クリックで開く · ダブルクリックで名前変更 · 別のクラスターにドラッグで入れ子"
 
-#: src/components/TagDetailView.jsx
-msgid "Click to open · right-click for actions"
-msgstr "クリックで開く · 右クリックで操作"
-
-#: src/components/TagDetailView.jsx
-msgid "Click to open the parent cluster · right-click for actions"
-msgstr "クリックで親クラスターを開く · 右クリックで操作"
-
 #: src/components/CanvasSurface.jsx
 msgid "Click to place a cluster: a canvas inside this one. Drop cards onto it to file them."
 msgstr "クリックしてクラスターを配置：このキャンバスの中にあるキャンバスです。カードをドロップして整理します。"
-
-#: src/components/TagDetailView.jsx
-msgid "Click to preview · right-click for actions"
-msgstr "クリックでプレビュー · 右クリックで操作"
 
 #: src/components/HomeGraph.jsx
 msgid "Click to see it · double-click to open it"
@@ -6389,7 +6188,6 @@ msgstr "クリップのタイムコード"
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/SketchPadOverlay.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamPageLive.jsx
 #: src/components/TrashModal.jsx
@@ -6837,6 +6635,10 @@ msgstr "ファイルに沿ったコメント"
 msgid "Comments and find"
 msgstr "コメントと検索"
 
+#: src/components/settings/DeleteAccount.jsx
+msgid "Comments and votes you left on other people's clusters stay where they are, with your name removed."
+msgstr "他の人のクラスターに残したコメントと投票はそのまま残り、あなたの名前は削除されます。"
+
 #: src/components/comments/CanvasCommentsList.jsx
 #: src/components/comments/commentChunkFail.js
 #: src/components/comments/commentPartsLazy.jsx
@@ -6862,10 +6664,6 @@ msgstr "このドキュメントへのコメントがここに表示されます
 #: src/components/comments/DocFloatCards.jsx
 msgid "Comments on this note"
 msgstr "このメモへのコメント"
-
-#: src/components/settings/DeleteAccount.jsx
-msgid "Comments, tags and votes you left on other people's clusters stay where they are, with your name removed."
-msgstr "他の人のクラスターに残したコメント、タグ、投票はそのまま残り、あなたの名前は削除されます。"
 
 #: src/lib/gridLayoutWords.js
 msgid "Community"
@@ -6935,16 +6733,6 @@ msgstr "確認"
 #: src/components/AppFeedback.jsx
 msgid "Confirm action"
 msgstr "操作の確認"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/TagDetailView.jsx
-msgid "Confirm failed: {reason}"
-msgstr "確認に失敗しました：{reason}"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/TagDetailView.jsx
-msgid "Confirm tag"
-msgstr "タグを確認"
 
 #: src/lib/passkeyWords.js
 msgid "Confirm your email first: sign in with the code we send."
@@ -7341,10 +7129,6 @@ msgstr "共有リンクを作成できませんでした。もう一度お試し
 msgid "Could not create cluster: {reason}"
 msgstr "クラスターを作成できませんでした：{reason}"
 
-#: src/hooks/useCandidateTagging.js
-msgid "Could not create tag: {reason}"
-msgstr "タグを作成できませんでした: {reason}"
-
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Could not create that token."
 msgstr "そのトークンを作成できませんでした。"
@@ -7372,14 +7156,6 @@ msgstr "削除できませんでした：{reason}"
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Could not disconnect that app."
 msgstr "そのアプリの接続を解除できませんでした。"
-
-#: src/components/CanvasSurface.jsx
-msgid "Could not dismiss it: {reason}"
-msgstr "却下できませんでした：{reason}"
-
-#: src/hooks/useCandidateTagging.js
-msgid "Could not dismiss: {reason}"
-msgstr "却下できませんでした: {reason}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Could not find the image element."
@@ -7413,10 +7189,6 @@ msgstr "コピーを完了できませんでした。もう一度お試しくだ
 msgid "Could not invite: {reason}"
 msgstr "招待できませんでした: {reason}"
 
-#: src/components/CanvasSurface.jsx
-msgid "Could not keep it: {reason}"
-msgstr "保持できませんでした：{reason}"
-
 #: src/components/MessageThread.jsx
 msgid "Could not leave the conversation — try again."
 msgstr "会話から退出できませんでした。もう一度お試しください。"
@@ -7436,10 +7208,6 @@ msgstr "プロフィールを読み込めませんでした。"
 #: src/components/settings/SecurityTab.jsx
 msgid "Could not load security: {reason}"
 msgstr "セキュリティを読み込めませんでした: {reason}"
-
-#: src/components/DocPageEditor.jsx
-msgid "Could not load tags: {reason}"
-msgstr "タグを読み込めませんでした：{reason}"
 
 #: src/App.jsx
 msgid "Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment."
@@ -7584,11 +7352,6 @@ msgstr "カバーを設定できませんでした：{reason}"
 #: src/App.jsx
 msgid "Could not set thumbnail: {reason}"
 msgstr "サムネイルを設定できませんでした：{reason}"
-
-#: src/components/SidebarTags.jsx
-#: src/components/TagDetailView.jsx
-msgid "Could not set type"
-msgstr "種類を設定できませんでした"
 
 #: src/App.jsx
 msgid "Could not start your copy — try again."
@@ -8112,14 +7875,6 @@ msgstr "クリーム"
 msgid "Create"
 msgstr "作成"
 
-#: src/components/TagManyPicker.jsx
-msgid "Create “{trim}”<0>new tag on all {total}</0>"
-msgstr "「{trim}」を作成<0>{total}枚すべてに新規タグ</0>"
-
-#: src/components/TagPicker.jsx
-msgid "Create \"<0>{trim}</0>\""
-msgstr "「<0>{trim}</0>」を作成"
-
 #: src/lib/oauthTrustWords.js
 msgid "Create and change"
 msgstr "作成と変更"
@@ -8341,17 +8096,12 @@ msgstr "Delete"
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 #: src/lib/menus/rows.js
 #: src/lib/oauthTrustWords.js
 msgid "Delete"
 msgstr "削除"
-
-#: src/components/SidebarTags.jsx
-msgid "Delete \"{name}\"? You can undo this — it's recoverable for 30 days."
-msgstr "「{name}」を削除しますか？元に戻せます。30日間は復元できます。"
 
 #: src/components/DocPageTree.jsx
 msgid "Delete \"{pageLabel}\"?"
@@ -8438,7 +8188,6 @@ msgstr "描画を削除"
 
 #: src/App.jsx
 #: src/components/CanvasVoteCard.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/TrashModal.jsx
 msgid "Delete failed: {reason}"
 msgstr "削除に失敗しました：{reason}"
@@ -8476,14 +8225,6 @@ msgstr "選択項目を削除"
 #: src/components/doc/DocTableBar.jsx
 msgid "Delete table"
 msgstr "表を削除"
-
-#: src/components/SidebarTags.jsx
-msgid "Delete tag"
-msgstr "タグを削除"
-
-#: src/components/SidebarTags.jsx
-msgid "Delete tag?"
-msgstr "タグを削除しますか？"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Delete the selection"
@@ -8567,6 +8308,10 @@ msgstr "削除中…"
 msgid "Demo cleared — your canvas is yours"
 msgstr "デモを消去しました。キャンバスはあなたのものです"
 
+#: src/components/settings/WorkspaceTab.jsx
+msgid "Describes the pictures people add, so search finds them by what's in them and More like this finds similar ones, and translates searches typed in another language. A small copy of each picture and those searches go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted."
+msgstr "追加された画像を説明し、検索で内容から見つけたり、「これに似たもの」で似た画像を見つけたりできるようにします。ほかの言語で入力された検索も翻訳します。各画像の小さなコピーとそれらの検索がCloudflare Workers AIに送られます。オフにすると、Clustersは何も送信せず、画像の説明は削除されます。"
+
 #: src/components/clusterBrowser/ClusterTile.jsx
 msgid "Deselect {name}"
 msgstr "{name}の選択を解除"
@@ -8618,17 +8363,9 @@ msgstr "セリフ"
 msgid "Diamond"
 msgstr "ひし形"
 
-#: src/components/SidebarTags.jsx
-msgid "Did you mean"
-msgstr "もしかして"
-
 #: src/auth/AuthGate.jsx
 msgid "Did you mean <0>{suggestion}</0>?"
 msgstr "<0>{suggestion}</0>ではありませんか？"
-
-#: src/components/SidebarTags.jsx
-msgid "Did you mean…"
-msgstr "もしかして…"
 
 #: src/components/cards/CardTransferState.jsx
 msgid "Didn’t finish"
@@ -8714,7 +8451,6 @@ msgstr "{client_name}の接続を解除しました。"
 #: src/components/FeedbackOverlay.jsx
 #: src/components/fileShare/DocShareView.jsx
 #: src/components/ScoutClaimBanner.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/TeamJoinCard.jsx
 #: src/components/TemplateAddedPrompt.jsx
 #: src/components/WorkspaceAlertBanner.jsx
@@ -8723,14 +8459,6 @@ msgstr "{client_name}の接続を解除しました。"
 #: src/lib/activityTray.js
 msgid "Dismiss"
 msgstr "閉じる"
-
-#: src/components/SidebarTags.jsx
-msgid "Dismiss failed"
-msgstr "却下に失敗しました"
-
-#: src/components/TagDetailView.jsx
-msgid "Dismiss failed: {reason}"
-msgstr "却下に失敗しました：{reason}"
 
 #: src/lib/activityTray.js
 msgid "Dismiss: {title}"
@@ -8799,10 +8527,6 @@ msgstr "ドキュメント · {pageName}"
 msgid "Doc anchor"
 msgstr "ドキュメントのアンカー"
 
-#: src/lib/tagVisuals.js
-msgid "Doc page"
-msgstr "ドキュメントのページ"
-
 #: src/components/doc/DocBarA.jsx
 msgid "Doc type"
 msgstr "ドキュメントの種類"
@@ -8818,7 +8542,6 @@ msgstr "キャンバスの横に固定中"
 #: src/components/CommandPalette.jsx
 #: src/components/ListSurface.jsx
 #: src/components/settings/WorkspaceTab.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/onboardingTourWords.js
 msgid "Docs"
 msgstr "ドキュメント"
@@ -8880,10 +8603,6 @@ msgstr "どこでも停止"
 #: src/components/EntityHoverPopover.jsx
 msgid "Don't here"
 msgstr "ここでは停止"
-
-#: src/components/TagDetailView.jsx
-msgid "Don't suggest this again"
-msgstr "今後は提案しない"
 
 #: src/auth/WaitlistConfirm.jsx
 msgid "Don't want to wait?"
@@ -9194,10 +8913,6 @@ msgstr "ドリフト"
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Drive your clusters from your own software, or connect an AI assistant. A token acts as you — it can reach exactly what you can reach, and nothing more."
 msgstr "ご自身のソフトウェアからクラスターを操作したり、AIアシスタントを接続したりできます。トークンはあなたとして動作し、あなたがアクセスできるものにだけアクセスできます。"
-
-#: src/components/CanvasSurface.jsx
-msgid "Drop a tag onto a card or cluster to apply it."
-msgstr "タグをカードまたはクラスターにドロップして適用します。"
 
 #: src/lib/importGuide.js
 msgid "Drop all the parts anywhere in {target} at once."
@@ -9581,10 +9296,6 @@ msgstr "埋め込み"
 msgid "Embed cluster"
 msgstr "クラスターを埋め込む"
 
-#: src/components/SidebarTags.jsx
-msgid "Emerging"
-msgstr "新たに登場"
-
 #: src/components/MessageComposer.jsx
 msgid "Emoji"
 msgstr "絵文字"
@@ -9595,38 +9306,14 @@ msgstr "絵文字"
 msgid "Empty"
 msgstr "空"
 
-#: src/components/TagDetailView.jsx
-msgid "empty {kind}"
-msgstr "空の{kind}"
-
-#: src/components/TagDetailView.jsx
-msgid "empty card"
-msgstr "空のカード"
-
 #: src/components/ListSurface.jsx
 msgid "Empty cluster"
 msgstr "空のクラスター"
-
-#: src/components/TagDetailView.jsx
-msgid "empty doc"
-msgstr "空のドキュメント"
-
-#: src/components/TagDetailView.jsx
-msgid "empty link"
-msgstr "空のリンク"
-
-#: src/components/TagDetailView.jsx
-msgid "empty note"
-msgstr "空のメモ"
 
 #: src/components/cards.jsx
 #: src/lib/listItemWords.js
 msgid "Empty note"
 msgstr "空のメモ"
-
-#: src/components/TagDetailView.jsx
-msgid "empty schedule"
-msgstr "空のスケジュール"
 
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/playerKeys.js
@@ -9688,10 +9375,6 @@ msgstr "移動中"
 #: src/components/EntityHoverPopover.jsx
 msgid "ENTITIES NAMED THIS"
 msgstr "この名前のエンティティ"
-
-#: src/components/TagDetailView.jsx
-msgid "Entity type"
-msgstr "エンティティの種類"
 
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
@@ -9832,10 +9515,6 @@ msgstr "招待した全員が、あなたの上限の範囲で使えます。編
 msgid "Everything below goes on any cluster. Paste or drag from wherever it already is; the canvas takes care of the rest."
 msgstr "以下はすべて、どのクラスターにも置けます。今ある場所から貼り付けるかドラッグしてください。あとはキャンバスにおまかせです。"
 
-#: src/components/TagDetailView.jsx
-msgid "Everything connected"
-msgstr "つながっているものすべて"
-
 #: src/components/ShortcutsOverlay.jsx
 msgid "Everything else is written up in the <0>documentation</0>."
 msgstr "そのほかはすべて<0>ドキュメント</0>にまとめています。"
@@ -9843,10 +9522,6 @@ msgstr "そのほかはすべて<0>ドキュメント</0>にまとめていま�
 #: src/lib/teamPricingCopyWords.js
 msgid "Everything in Creator, for each editor"
 msgstr "Creatorのすべてを、編集者ごとに"
-
-#: src/components/CommandPalette.jsx
-msgid "Everything tagged {tagTitle}"
-msgstr "{tagTitle}のタグが付いたすべて"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Everything that can reach your clusters without being this browser."
@@ -10183,14 +9858,6 @@ msgstr "映画・動画"
 msgid "Filmmaker"
 msgstr "映像制作者"
 
-#: src/components/TagPicker.jsx
-msgid "Filter tags or type a new one…"
-msgstr "タグを絞り込むか、新しい名前を入力…"
-
-#: src/components/SidebarTags.jsx
-msgid "Filter tags…"
-msgstr "タグを絞り込み…"
-
 #: src/lib/filesView.js
 msgid "Filtered"
 msgstr "フィルター適用中"
@@ -10240,10 +9907,6 @@ msgstr "このドキュメント内を検索"
 #: src/components/doc/DocBarA.jsx
 msgid "Find it again under Bookmarks"
 msgstr "ブックマークからもう一度見つけられます"
-
-#: src/components/TagManyPicker.jsx
-msgid "Find or create a tag"
-msgstr "タグを検索または作成"
 
 #: src/components/MessageThread.jsx
 #: src/components/NewConversationPicker.jsx
@@ -10884,7 +10547,6 @@ msgid "Grids in this family"
 msgstr "このファミリーのグリッド"
 
 #: src/components/comments/CommentAbout.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
 msgid "Group"
@@ -11356,12 +11018,9 @@ msgstr "画像"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/docExtensions/ImageUpload.js
 #: src/components/DocInsertMenu.jsx
-#: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
 #: src/components/shared/SharedPage.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagRangeHoverPopover.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
@@ -11393,7 +11052,6 @@ msgid "Image upload failed: {reason}"
 msgstr "画像のアップロードに失敗しました：{reason}"
 
 #: src/components/ListSurface.jsx
-#: src/components/TagDetailView.jsx
 msgid "Images"
 msgstr "画像"
 
@@ -11606,10 +11264,6 @@ msgstr "instagram.com/your-handle"
 #: src/lib/dropRules.js
 msgid "Into its files, not onto its board"
 msgstr "キャンバスではなく、ファイルに入ります"
-
-#: src/components/SidebarTags.jsx
-msgid "into…"
-msgstr "統合先…"
 
 #: src/components/WorkspaceRecoveryModal.jsx
 msgid "Invalid timestamp"
@@ -11958,7 +11612,6 @@ msgid "Italic"
 msgstr "斜体"
 
 #: src/components/cards/ScheduleRundown.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/cardInfo.js
 #: src/lib/listItemWords.js
 msgid "Item"
@@ -12198,10 +11851,6 @@ msgstr "行揃え"
 msgid "Justify"
 msgstr "両端揃え"
 
-#: src/components/CanvasSurface.jsx
-msgid "Keep {name}"
-msgstr "{name}を保持"
-
 #: src/lib/versionActions.js
 msgid "Keep as separate file"
 msgstr "別のファイルとして保持"
@@ -12279,8 +11928,8 @@ msgid "Keep this tab open until you’re back online"
 msgstr "オンラインに戻るまで、このタブを開いたままにしてください"
 
 #: src/components/CommandPalette.jsx
-msgid "Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
-msgstr "入力を続けてください。単語で、クラスター、グループ、タグの名前、メモ、ドキュメント、キャプション、ファイル名、画像の内容が見つかります。"
+msgid "Keep typing — a word finds cluster and group names, notes, docs, captions, file names and what’s in pictures."
+msgstr "入力を続けてください。単語で、クラスターとグループの名前、メモ、ドキュメント、キャプション、ファイル名、画像の内容が見つかります。"
 
 #: src/components/comments/CommentComposer.jsx
 msgid "Keep writing"
@@ -12683,10 +12332,6 @@ msgstr "既存のクラスターをリンク"
 msgid "Link card"
 msgstr "リンクカード"
 
-#: src/components/TagDetailView.jsx
-msgid "Link cards"
-msgstr "リンクカード"
-
 #: src/components/comments/CanvasCommentCard.jsx
 #: src/components/comments/CanvasCommentPins.jsx
 #: src/components/comments/docThreadOps.js
@@ -12949,7 +12594,6 @@ msgstr "ワークスペースを読み込み中"
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/sidebar/ClusterShelves.jsx
-#: src/components/TagRangeHoverPopover.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/components/TrashModal.jsx
@@ -12996,7 +12640,6 @@ msgid "Looking back through what I've got"
 msgstr "持っているものを見返す"
 
 #: src/components/EntityHoverPopover.jsx
-#: src/components/TagDetailView.jsx
 msgid "Looking up…"
 msgstr "検索中…"
 
@@ -13058,10 +12701,6 @@ msgstr "{host}で作成"
 #: src/components/fileShare/FileSharePage.jsx
 msgid "Made with Clusters, one place for every file you make."
 msgstr "Clustersで作成。あらゆるファイルを1か所に。"
-
-#: src/components/DocCandidateGutter.jsx
-msgid "Make “{name}” a tag"
-msgstr "「{name}」をタグにする"
 
 #: src/components/team/TeamWorkspaces.jsx
 msgid "Make {name} private?"
@@ -13136,10 +12775,6 @@ msgstr "非公開にする"
 msgid "Make the board"
 msgstr "クラスターを作成"
 
-#: src/components/CandidatePromptPopover.jsx
-msgid "Make this a…"
-msgstr "これを次のものにする…"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "Make this board public & discoverable on Google. It’s reviewed before going live."
 msgstr "このクラスターを公開してGoogleで見つかるようにします。公開前に審査があります。"
@@ -13184,7 +12819,6 @@ msgstr "このブラウザで再生できるバージョンを作成中…"
 msgid "Making your link…"
 msgstr "リンクを作成中…"
 
-#: src/components/TagDetailView.jsx
 #: src/components/team/TeamBilling.jsx
 msgid "Manage"
 msgstr "管理"
@@ -13206,30 +12840,17 @@ msgstr "共有を管理"
 msgid "Manage sharing…"
 msgstr "共有を管理…"
 
-#: src/components/DocTagGutter.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "manual"
-msgstr "手動"
-
-#: src/components/TagDetailView.jsx
-msgid "Manual"
 msgstr "手動"
 
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Manual link"
 msgstr "手動リンク"
 
-#: src/components/TagDetailView.jsx
-msgid "Manual only"
-msgstr "手動のみ"
-
 #: src/components/NotificationsPanel.jsx
 msgid "Mark all read"
 msgstr "すべて既読にする"
-
-#: src/components/TagDetailView.jsx
-msgid "Mark as {label}"
-msgstr "{label}として設定"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Markdown"
@@ -13250,10 +12871,6 @@ msgstr "メイソンリー列"
 #: src/components/doc/DocFindTab.jsx
 msgid "Match case"
 msgstr "大文字と小文字を区別"
-
-#: src/components/TagManyPicker.jsx
-msgid "Matching “{trim}”"
-msgstr "「{trim}」に一致"
 
 #: src/lib/menus/rows.js
 msgctxt "background"
@@ -13321,30 +12938,6 @@ msgstr "Menu"
 #: src/components/settings/AppearanceTab.jsx
 msgid "Menus, dates and the emails we send you"
 msgstr "メニュー、日付、お送りするメール"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge"
-msgstr "統合"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge failed: {reason}"
-msgstr "統合に失敗しました：{reason}"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge into…"
-msgstr "統合先…"
-
-#: src/components/SidebarTags.jsx
-msgid "MERGE TAG"
-msgstr "タグを統合"
-
-#: src/components/SidebarTags.jsx
-msgid "Merge tags?"
-msgstr "タグを統合しますか？"
-
-#: src/components/SidebarTags.jsx
-msgid "Merged into \"{intoName}\""
-msgstr "「{intoName}」に統合しました"
 
 #: src/components/EntityBacklinksPanel.jsx
 #: src/components/EntityHoverPopover.jsx
@@ -13535,7 +13128,6 @@ msgstr "矢印のその他のオプション"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13603,11 +13195,6 @@ msgid "Most new seats a month"
 msgstr "1か月に追加できるシートの最大数"
 
 #: src/components/home/ClustersHome.jsx
-msgid "Move"
-msgstr "移動"
-
-#: src/components/TagManyPicker.jsx
-msgctxt "navigate"
 msgid "Move"
 msgstr "移動"
 
@@ -13838,7 +13425,6 @@ msgstr "N — 列ごと、上→下"
 #: src/components/ListSurface.jsx
 #: src/components/SaveTemplateDialog.jsx
 #: src/components/settings/WorkspaceTab.jsx
-#: src/components/SidebarTags.jsx
 #: src/components/team/NewWorkspaceDialog.jsx
 #: src/components/team/TeamJoining.jsx
 #: src/lib/filesView.js
@@ -13944,17 +13530,9 @@ msgstr "無期限"
 msgid "never expires"
 msgstr "無期限"
 
-#: src/components/CanvasSurface.jsx
-msgid "Never suggest {name} here"
-msgstr "ここでは{name}を今後提案しない"
-
 #: src/components/settings/ConnectionsTab.jsx
 msgid "never used"
 msgstr "未使用"
-
-#: src/components/TagPicker.jsx
-msgid "new"
-msgstr "新規"
 
 #: src/components/MessageThread.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -14067,14 +13645,6 @@ msgstr "シートまでは追加し、それ以降は先に確認します。好
 msgid "New sub-page"
 msgstr "新規サブページ"
 
-#: src/components/SidebarTags.jsx
-msgid "New tag"
-msgstr "新規タグ"
-
-#: src/components/SidebarTags.jsx
-msgid "New tag…"
-msgstr "新規タグ…"
-
 #: src/components/settings/ConnectionsTab.jsx
 msgid "New to Scout? <0>See how it works</0>."
 msgstr "Scoutは初めてですか？ <0>使い方を見る</0>"
@@ -14178,10 +13748,6 @@ msgstr "いいスタートです。クラスターは3枚以上になると真�
 msgid "Nice start — boards get good at 3+. Paste or drag in a few more."
 msgstr "いいスタートです。クラスターは3枚以上になると真価を発揮します。貼り付けやドラッグで、あと数枚追加しましょう。"
 
-#: src/components/TagDetailView.jsx
-msgid "No {lowerCase}s tagged."
-msgstr "タグ付きの{lowerCase}はありません。"
-
 #: src/components/cards.jsx
 #: src/components/R2Image.jsx
 msgid "No access"
@@ -14204,10 +13770,6 @@ msgstr "矢じりなし"
 msgid "No audio track"
 msgstr "オーディオトラックなし"
 
-#: src/components/TagDetailView.jsx
-msgid "No auto-applied items."
-msgstr "自動適用されたアイテムはありません。"
-
 #: src/components/toolbar/Colours.jsx
 msgid "No background"
 msgstr "背景なし"
@@ -14223,10 +13785,6 @@ msgstr "クラスターはまだありません"
 #: src/lib/billingCopyWords.js
 msgid "No card, no clock, no expiry."
 msgstr "カードの登録も、カウントダウンも、有効期限もありません。"
-
-#: src/components/TagDetailView.jsx
-msgid "No cards tagged."
-msgstr "タグ付きのカードはありません。"
 
 #: src/components/WorkspaceRecoveryModal.jsx
 msgid "no change"
@@ -14290,10 +13848,6 @@ msgstr "クレジットカードは不要。インストールも不要です。
 msgid "No days in that range."
 msgstr "その範囲に日がありません。"
 
-#: src/components/TagDetailView.jsx
-msgid "No docs tagged."
-msgstr "タグ付きのドキュメントはありません。"
-
 #: src/App.jsx
 msgid "no edit access"
 msgstr "編集のアクセス権がありません"
@@ -14323,10 +13877,6 @@ msgstr "一致するファイルがありません。"
 msgid "No fill"
 msgstr "塗りつぶしなし"
 
-#: src/components/TagDetailView.jsx
-msgid "No images tagged."
-msgstr "タグ付きの画像はありません。"
-
 #: src/components/cards.jsx
 msgid "No items yet"
 msgstr "アイテムはまだありません"
@@ -14338,10 +13888,6 @@ msgstr "上限なし"
 #: src/components/ShareModal.jsx
 msgid "No link"
 msgstr "リンクなし"
-
-#: src/components/TagDetailView.jsx
-msgid "No link cards tagged."
-msgstr "タグ付きのリンクカードはありません。"
 
 #: src/components/setup/InviteStep.jsx
 msgid "No link right now"
@@ -14362,10 +13908,6 @@ msgstr "共有は終了しました"
 #: src/lib/importGuide.js
 msgid "No Mac? On **icloud.com**, open **Drive**, select what you want and choose **Download**. What it saves comes in the same way."
 msgstr "Macをお持ちでない場合は、**icloud.com**で**Drive**を開き、取り込みたいものを選んで**ダウンロード**を選びます。保存されたものは、同じ方法で取り込めます。"
-
-#: src/components/TagDetailView.jsx
-msgid "No manually applied items."
-msgstr "手動で適用したアイテムはありません。"
 
 #: src/components/ColorPicker.jsx
 #: src/components/ctxMenuParts.jsx
@@ -14396,10 +13938,6 @@ msgstr "名前や外観の変更は記録されていません。"
 msgid "No new addresses to invite."
 msgstr "招待する新しいアドレスはありません。"
 
-#: src/components/TagDetailView.jsx
-msgid "No notes tagged."
-msgstr "タグ付きのメモはありません。"
-
 #: src/components/SendSheet.jsx
 msgid "No one matches. Type a full email address to send it by email."
 msgstr "一致する人がいません。メールで送るには、メールアドレスをすべて入力してください。"
@@ -14413,15 +13951,6 @@ msgstr "メッセージを送れる相手がまだいません。クラスター
 msgid "No open comments"
 msgstr "未解決のコメントはありません"
 
-#: src/components/EntityHoverPopover.jsx
-#: src/components/TagRangeHoverPopover.jsx
-msgid "No other items tagged."
-msgstr "タグが付いたほかのアイテムはありません。"
-
-#: src/components/SidebarTags.jsx
-msgid "No other tags found."
-msgstr "ほかのタグが見つかりません。"
-
 #: src/components/DocCard.jsx
 msgid "no pages"
 msgstr "ページなし"
@@ -14429,10 +13958,6 @@ msgstr "ページなし"
 #: src/components/DocPageTree.jsx
 msgid "No pages yet"
 msgstr "ページはまだありません"
-
-#: src/components/TagDetailView.jsx
-msgid "No palettes tagged."
-msgstr "タグ付きのパレットはありません。"
 
 #: src/components/NewConversationPicker.jsx
 msgid "No people match."
@@ -14479,10 +14004,6 @@ msgstr "空きなし"
 msgid "No scenes yet"
 msgstr "シーンはまだありません"
 
-#: src/components/TagDetailView.jsx
-msgid "No schedules tagged."
-msgstr "タグ付きのスケジュールはありません。"
-
 #: src/components/team/TeamJoining.jsx
 msgid "No seats free: sending adds {needs}"
 msgstr "空きシートなし: 送信すると{needs}が追加されます"
@@ -14503,18 +14024,6 @@ msgstr "開始時刻なし"
 #: src/components/clusterBrowser/FileStages.jsx
 msgid "No subject"
 msgstr "件名なし"
-
-#: src/components/SidebarTags.jsx
-msgid "No tags match “{trim}”."
-msgstr "「{trim}」に一致するタグはありません。"
-
-#: src/components/SidebarTags.jsx
-msgid "No tags yet — anything you tag will appear here."
-msgstr "タグはまだありません。タグを付けたものがここに表示されます。"
-
-#: src/components/TagPicker.jsx
-msgid "No tags yet — type a name above."
-msgstr "タグはまだありません。上に名前を入力してください。"
 
 #: src/components/GridTemplatePanel.jsx
 msgid "No templates match “{query}”."
@@ -14573,10 +14082,6 @@ msgstr "なし"
 msgid "None are free to give."
 msgstr "割り当て可能なシートはありません。"
 
-#: src/components/TagManyPicker.jsx
-msgid "None of these cards has a tag yet. Type to find one or make one."
-msgstr "これらのカードにはまだタグがありません。入力して探すか、新しく作ってください。"
-
 #: src/lib/teamBillingLines.js
 msgid "None yet."
 msgstr "まだありません。"
@@ -14592,18 +14097,6 @@ msgstr "まだありません。作成したトークンは、できることと
 #: src/components/film/FilmPlayer.jsx
 msgid "Normal"
 msgstr "標準"
-
-#: src/components/CandidatePromptPopover.jsx
-msgid "Not a name"
-msgstr "名前ではない"
-
-#: src/components/SidebarTags.jsx
-msgid "Not a name — stop suggesting"
-msgstr "名前ではない：提案を停止"
-
-#: src/components/DocCandidateGutter.jsx
-msgid "Not a tag — dismiss “{name}”"
-msgstr "タグではない：「{name}」を却下"
 
 #: src/components/fileShare/FileShareDialog.jsx
 msgid "Not an email address: it will be skipped"
@@ -14756,7 +14249,6 @@ msgstr "メモ、テキスト、追加、付箋"
 #: src/components/ScreenplayTitlePage.jsx
 #: src/components/settings/WorkspaceTab.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/sidebarShelves.js
 msgid "Notes"
 msgstr "メモ"
@@ -14776,14 +14268,6 @@ msgstr "最近追加されたものはありません。"
 #: src/components/home/ClustersHome.jsx
 msgid "Nothing called that."
 msgstr "該当するものはありません。"
-
-#: src/components/CommandPalette.jsx
-msgid "Nothing carries it yet"
-msgstr "まだ何も付いていません"
-
-#: src/components/TagDetailView.jsx
-msgid "Nothing connected to <0>{name}</0> yet."
-msgstr "<0>{name}</0>につながるものはまだありません。"
 
 #: src/lib/importCopy.js
 msgid "Nothing fits yet. It waits in this tab and comes in once {ownerName} has room."
@@ -14980,17 +14464,9 @@ msgstr "「{q}」に一致する共有はありません"
 msgid "Nothing there could be downloaded."
 msgstr "ダウンロードできるものがありませんでした。"
 
-#: src/components/TagDetailView.jsx
-msgid "Nothing to confirm on this page."
-msgstr "このページで確認するものはありません。"
-
 #: src/components/CanvasSurface.jsx
 msgid "Nothing to export."
 msgstr "書き出すものがありません。"
-
-#: src/components/TagDetailView.jsx
-msgid "Nothing to manage."
-msgstr "管理するものはありません。"
 
 #: src/components/CanvasSurface.jsx
 msgid "Nothing to undo — those cards are no longer on this board."
@@ -15015,10 +14491,6 @@ msgstr "何も移動していません。移動が完了する前にこのクラ
 #: src/components/CanvasSurface.jsx
 msgid "Nothing was moved — this board changed since the copy."
 msgstr "何も移動していません。コピー後にこのクラスターが変更されました。"
-
-#: src/components/TagDetailView.jsx
-msgid "Nothing was removed. Reload and try again."
-msgstr "何も削除されませんでした。再読み込みして、もう一度お試しください。"
 
 #: src/components/NotificationsPanel.jsx
 msgid "Nothing yet. When someone shares a file with you or comments on one, it lands here."
@@ -15186,10 +14658,6 @@ msgstr "キャンバス上"
 #: src/auth/WaitlistConfirm.jsx
 msgid "On the waitlist"
 msgstr "ウェイトリスト登録済み"
-
-#: src/components/TagManyPicker.jsx
-msgid "On these {total} cards"
-msgstr "この{total}枚のカードにあるもの"
 
 #: src/components/NewConversationPicker.jsx
 msgid "ON THIS BOARD"
@@ -15497,7 +14965,6 @@ msgstr "{boardOrThis}を開いてファイルを追加"
 #: src/components/MoreLikeThis.jsx
 #: src/components/setup/WorkspaceSetup.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/TagDetailView.jsx
 #: src/components/WorkspaceJoinCard.jsx
 #: src/lib/importCopy.js
 msgid "Open {name}"
@@ -15506,14 +14973,6 @@ msgstr "{name}を開く"
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Open {name} on the board"
 msgstr "{name}をキャンバスで開く"
-
-#: src/components/CanvasSurface.jsx
-msgid "Open {name}'s page: everything carrying it, everywhere"
-msgstr "{name}のページを開く：これが付いたものをすべて表示"
-
-#: src/components/EntityHoverPopover.jsx
-msgid "Open {title}"
-msgstr "{title}を開く"
 
 #: src/components/EntityHoverPopover.jsx
 msgid "Open {value}"
@@ -15542,10 +15001,6 @@ msgstr "**Google Takeout**を開き、**すべて選択解除**を選んでか�
 #: src/App.jsx
 msgid "Open a board in split view…"
 msgstr "クラスターを分割表示で開く…"
-
-#: src/components/TagDetailView.jsx
-msgid "Open a card's menu and choose Tag…."
-msgstr "カードのメニューを開いて「タグ…」を選んでください。"
 
 #: src/App.jsx
 msgid "Open a cluster…"
@@ -15738,10 +15193,6 @@ msgstr "元を開く"
 msgid "Open Outlook"
 msgstr "Outlookを開く"
 
-#: src/components/TagDetailView.jsx
-msgid "Open page"
-msgstr "ページを開く"
-
 #: src/components/HomeGraphDetailDrawer.jsx
 msgid "Open palette"
 msgstr "パレットを開く"
@@ -15786,28 +15237,9 @@ msgstr "スケッチを開く"
 msgid "Open split view"
 msgstr "分割表示を開く"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/DocPageTagChips.jsx
-#: src/components/EntityHoverPopover.jsx
-msgid "Open tag"
-msgstr "タグを開く"
-
-#. placeholder {0}: c.name
-#: src/components/DocPageTagChips.jsx
-msgid "Open tag \"{0}\""
-msgstr "タグ「{0}」を開く"
-
-#: src/components/TagRangeHoverPopover.jsx
-msgid "Open tag detail"
-msgstr "タグの詳細を開く"
-
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the box: type in a text box, or its menu"
 msgstr "セルを開く：テキストボックスに入力、またはそのメニュー"
-
-#: src/components/TagDetailView.jsx
-msgid "Open the cluster to view its cards"
-msgstr "クラスターを開いてカードを表示"
 
 #: src/lib/activityTray.js
 msgid "Open the copy"
@@ -15816,10 +15248,6 @@ msgstr "コピーを開く"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Open the focused cluster"
 msgstr "フォーカス中のクラスターを開く"
-
-#: src/components/TagDetailView.jsx
-msgid "Open the page to remove this tag."
-msgstr "このタグを削除するには、ページを開いてください。"
 
 #: src/components/team/TeamSetup.jsx
 msgid "Open the team page"
@@ -15978,14 +15406,6 @@ msgstr "または<0>Enter</0>キーを押す"
 msgid "Or start from"
 msgstr "または次から始める"
 
-#: src/lib/entityTypes.js
-msgid "Organization"
-msgstr "組織"
-
-#: src/lib/entityTypes.js
-msgid "Organizations"
-msgstr "組織"
-
 #: src/components/ImageEditModal.jsx
 msgid "Original"
 msgstr "オリジナル"
@@ -16008,10 +15428,6 @@ msgstr "その他"
 msgctxt "files"
 msgid "Other"
 msgstr "その他"
-
-#: src/components/TagDetailView.jsx
-msgid "Other items"
-msgstr "その他のアイテム"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Other version"
@@ -16063,10 +15479,6 @@ msgstr "オーナー: 名前の変更、アイコンの変更、削除ができ�
 #: src/components/comments/FileThreads.jsx
 msgid "p. {page}"
 msgstr "{page}ページ"
-
-#: src/components/DocTagGutter.jsx
-msgid "page"
-msgstr "ページ"
 
 #. placeholder {0}: script.scenes
 #: src/components/doc/DocFrameA.jsx
@@ -16133,10 +15545,7 @@ msgstr "パレット"
 #: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 #: src/components/ColorPicker.jsx
-#: src/components/EntityHoverPopover.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagRangeHoverPopover.jsx
 #: src/lib/boardsApi.js
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
@@ -16159,7 +15568,6 @@ msgid "Palette, lensing, light and texture."
 msgstr "パレット、レンズ、光、質感。"
 
 #: src/components/ListSurface.jsx
-#: src/components/TagDetailView.jsx
 msgid "Palettes"
 msgstr "パレット"
 
@@ -16199,10 +15607,6 @@ msgstr "パンツール"
 msgctxt "background"
 msgid "Paper"
 msgstr "ペーパー"
-
-#: src/components/DocTagGutter.jsx
-msgid "paragraph"
-msgstr "段落"
 
 #: src/lib/screenplayFlowWords.js
 msgctxt "screenplay element"
@@ -16424,10 +15828,6 @@ msgstr "鉛筆"
 #: src/components/ExplorePublishSection.jsx
 msgid "Pending review"
 msgstr "審査待ち"
-
-#: src/components/TagDetailView.jsx
-msgid "Pending suggestions"
-msgstr "保留中の提案"
 
 #: src/components/SendSheet.jsx
 #: src/components/team/TeamPage.jsx
@@ -16874,10 +16274,6 @@ msgstr "カードを長押しすると、持ち上げて移動できます。"
 msgid "Press and hold the canvas or any card for more actions."
 msgstr "キャンバスまたはカードを長押しすると、さらに操作できます。"
 
-#: src/components/TagPicker.jsx
-msgid "Press Enter to create this tag"
-msgstr "Enterを押すとこのタグを作成します"
-
 #: src/lib/helpHub.js
 msgid "Press N, or right-click the canvas. Bold, lists, and @-mentions of other cards."
 msgstr "Nキーを押すか、キャンバスを右クリックします。太字、リスト、ほかのカードへの@メンションが使えます。"
@@ -17262,14 +16658,6 @@ msgstr "最近のワークスペースの巻き戻し"
 msgid "Recently deleted ({count})"
 msgstr "最近削除した項目({count})"
 
-#: src/components/SidebarTags.jsx
-msgid "Recolor failed: {reason}"
-msgstr "色の変更に失敗しました：{reason}"
-
-#: src/components/SidebarTags.jsx
-msgid "Recolor…"
-msgstr "色を変更…"
-
 #: src/lib/docSaveStatus.js
 msgid "Reconnecting — changes kept on this device"
 msgstr "再接続中・変更はこのデバイスに保持されています"
@@ -17336,10 +16724,6 @@ msgstr "参照元"
 msgid "Reframe"
 msgstr "再フレーミング"
 
-#: src/components/TagDetailView.jsx
-msgid "Related"
-msgstr "関連"
-
 #: src/components/FilesDock.jsx
 msgid "Release for full-screen Files"
 msgstr "放すとファイルを全画面表示します"
@@ -17385,10 +16769,6 @@ msgstr "リミックス"
 #: src/components/WaitlistModal.jsx
 msgid "Remove"
 msgstr "削除"
-
-#: src/components/DocPageEditor.jsx
-msgid "Remove \"{tagName}\""
-msgstr "「{tagName}」を外す"
 
 #: src/lib/billingCopyWords.js
 msgid "Remove {block}"
@@ -17460,11 +16840,6 @@ msgstr "カバー画像を削除"
 msgid "Remove extra storage"
 msgstr "追加ストレージを解除"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/TagDetailView.jsx
-msgid "Remove failed: {reason}"
-msgstr "タグを外せませんでした：{reason}"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "Remove from Explore"
 msgstr "探索から外す"
@@ -17514,18 +16889,6 @@ msgstr "メンバーを外す"
 msgid "Remove preview"
 msgstr "プレビューを削除"
 
-#: src/components/CanvasSurface.jsx
-#: src/components/DocPageEditor.jsx
-#: src/components/DocPageTagChips.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagRangeHoverPopover.jsx
-msgid "Remove tag"
-msgstr "タグを外す"
-
-#: src/components/DocPageEditor.jsx
-msgid "Remove tag failed: {reason}"
-msgstr "タグを外せませんでした：{reason}"
-
 #: src/components/team/TeamPeople.jsx
 msgid "Remove their access"
 msgstr "アクセス権を削除"
@@ -17549,15 +16912,6 @@ msgstr "このインポートを削除"
 #: src/components/cards/gridCellShared.jsx
 msgid "REMOVED"
 msgstr "削除済み"
-
-#: src/components/CanvasSurface.jsx
-msgid "Removed “{name}”"
-msgstr "「{name}」を外しました"
-
-#. placeholder {0}: having.length
-#: src/components/TagManyPicker.jsx
-msgid "Removed “{shownName}” from {0, plural, one {# card} other {# cards}}"
-msgstr "{0, plural, other {#枚のカード}}から「{shownName}」を外しました"
 
 #: src/components/ShareModal.jsx
 msgid "Removed {email}'s access"
@@ -17604,14 +16958,6 @@ msgstr "リストから外しました。"
 msgid "Removed."
 msgstr "外しました。"
 
-#: src/components/CanvasSurface.jsx
-msgid "Removes this tag and won't auto-apply it here again."
-msgstr "このタグを外し、ここでは今後自動で付けません。"
-
-#: src/components/TagDetailView.jsx
-msgid "Removes this tag and won't auto-apply it here again. Drag it back to undo."
-msgstr "このタグを外し、ここには二度と自動適用しません。元に戻すには、ドラッグして戻してください。"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "Removing…"
 msgstr "外しています…"
@@ -17620,7 +16966,6 @@ msgstr "外しています…"
 #: src/components/home/ClustersHome.jsx
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ShortcutsOverlay.jsx
-#: src/components/SidebarTags.jsx
 msgid "Rename"
 msgstr "名前を変更"
 
@@ -17631,10 +16976,6 @@ msgstr "{name}の名前を変更"
 #: src/components/WorkspaceMenu.jsx
 msgid "Rename & icon…"
 msgstr "名前とアイコン…"
-
-#: src/components/SidebarTags.jsx
-msgid "Rename failed: {reason}"
-msgstr "名前の変更に失敗しました：{reason}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Rename group"
@@ -17647,10 +16988,6 @@ msgstr "グループ名を変更…"
 #: src/components/info/VersionsSection.jsx
 msgid "Rename label…"
 msgstr "ラベルの名前を変更…"
-
-#: src/components/SidebarTags.jsx
-msgid "Rename tag"
-msgstr "タグ名を変更"
 
 #: src/components/CanvasSurface.jsx
 msgid "Rename template"
@@ -17671,7 +17008,6 @@ msgstr "名前、色、カバー、表示の変更。それぞれ元に戻せま
 #: src/components/CanvasSurface.jsx
 #: src/components/DocPageTree.jsx
 #: src/components/MessageThread.jsx
-#: src/components/SidebarTags.jsx
 #: src/lib/menus/rows.js
 msgid "Rename…"
 msgstr "名前を変更…"
@@ -17878,12 +17214,7 @@ msgstr "解決済みのコメント"
 msgid "Restore"
 msgstr "復元"
 
-#: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
-#: src/components/DocPageEditor.jsx
-#: src/components/SidebarTags.jsx
-#: src/components/TagDetailView.jsx
-#: src/components/TagManyPicker.jsx
 #: src/components/TrashModal.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "Restore failed: {reason}"
@@ -18043,10 +17374,6 @@ msgstr "このワークスペースのすべてのクラスターを一度に巻
 #: src/components/doc/DocBarA.jsx
 msgid "Right"
 msgstr "右"
-
-#: src/components/TagDetailView.jsx
-msgid "Right-click a card and choose Tag…, or drag this tag onto something."
-msgstr "カードを右クリックして「タグ…」を選ぶか、このタグを何かにドラッグしてください。"
 
 #: src/components/comments/CanvasCommentsList.jsx
 msgid "Right-click a card or the canvas to add one."
@@ -18364,10 +17691,6 @@ msgstr "スケジュールの変更"
 msgid "Schedule view"
 msgstr "スケジュールのビュー"
 
-#: src/components/TagDetailView.jsx
-msgid "Schedules"
-msgstr "スケジュール"
-
 #: src/components/EntityPicker.jsx
 msgid "SCHEDULES"
 msgstr "スケジュール"
@@ -18489,18 +17812,18 @@ msgstr "すべてのパレットを検索"
 msgid "Search and commands"
 msgstr "検索とコマンド"
 
+#: src/components/CommandPalette.jsx
+msgid "Search boards and cards — or run a command"
+msgstr "クラスターとカードを検索、またはコマンドを実行"
+
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
 msgid "Search boards to link…"
 msgstr "リンクするクラスターを検索…"
 
 #: src/components/CommandPalette.jsx
-msgid "Search boards, cards, notes, docs and tags — or jump to an action."
-msgstr "クラスター、カード、メモ、ドキュメント、タグを検索、またはアクションに移動。"
-
-#: src/components/CommandPalette.jsx
-msgid "Search boards, cards, tags — or run a command"
-msgstr "クラスター、カード、タグを検索、またはコマンドを実行"
+msgid "Search boards, cards, notes and docs — or jump to an action."
+msgstr "クラスター、カード、メモ、ドキュメントを検索、またはアクションに移動。"
 
 #: src/components/EntityPicker.jsx
 msgid "Search boards, docs, cards…"
@@ -18545,17 +17868,13 @@ msgid "search results"
 msgstr "検索結果"
 
 #: src/components/CommandPalette.jsx
-msgid "Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
-msgstr "検索の対象は、クラスター、グループ、タグの名前、メモ、ドキュメント、キャプション、ファイル名、画像の内容です。"
+msgid "Search sees cluster and group names, notes, docs, captions, file names and what’s in pictures."
+msgstr "検索の対象は、クラスターとグループの名前、メモ、ドキュメント、キャプション、ファイル名、画像の内容です。"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 msgid "Search shared"
 msgstr "共有を検索"
-
-#: src/components/SidebarTags.jsx
-msgid "Search tags…"
-msgstr "タグを検索…"
 
 #: src/components/GridTemplatePanel.jsx
 msgid "Search templates"
@@ -18730,10 +18049,6 @@ msgstr "ハイライトしたファイルを選択"
 #: src/components/CanvasSurface.jsx
 msgid "Select tool"
 msgstr "選択ツール"
-
-#: src/components/DocPageEditor.jsx
-msgid "Select words inside one paragraph to tag them."
-msgstr "1つの段落内の単語を選択してタグ付けします。"
 
 #: src/lib/menus/rows.js
 msgid "Select…"
@@ -18914,10 +18229,6 @@ msgstr "送信しましたが、再開できませんでした。もう一度お
 msgid "Sent. Only an editor or the person who started this can reopen it."
 msgstr "送信しました。再開できるのは、編集者かこの会話を始めた人だけです。"
 
-#: src/components/DocTagGutter.jsx
-msgid "sentence"
-msgstr "文"
-
 #: src/App.jsx
 msgid "Sequence"
 msgstr "シーケンス"
@@ -18978,17 +18289,12 @@ msgstr "チームを設定"
 msgid "Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in boards/.env.local"
 msgstr "boards/.env.localでVITE_SUPABASE_URLとVITE_SUPABASE_PUBLISHABLE_KEYを設定してください"
 
-#: src/lib/entityTypes.js
-msgid "Setting"
-msgstr "舞台"
-
 #: src/lib/feedbackContext.js
 msgid "settings"
 msgstr "設定"
 
 #: src/App.jsx
 #: src/components/SettingsPanel.jsx
-#: src/lib/entityTypes.js
 msgid "Settings"
 msgstr "設定"
 
@@ -19335,10 +18641,6 @@ msgstr "Aを表示"
 msgid "Show all"
 msgstr "すべて表示"
 
-#: src/components/TagDetailView.jsx
-msgid "Show all {count}"
-msgstr "{count}件すべてを表示"
-
 #: src/components/ListSurface.jsx
 msgid "Show all {folderCount}"
 msgstr "{folderCount}件すべて表示"
@@ -19351,10 +18653,6 @@ msgstr "すべてのテキストを表示：メモを内容に合わせる"
 #: src/components/ListSurface.jsx
 msgid "Show and sort"
 msgstr "表示と並べ替え"
-
-#: src/components/TagDetailView.jsx
-msgid "Show auto-applied and manual items"
-msgstr "自動適用と手動のアイテムを表示"
 
 #: src/components/film/FilmDock.jsx
 msgid "Show B"
@@ -19504,10 +18802,6 @@ msgstr "ショーケースのプレビュー：クラスターを作成できま
 #: src/App.jsx
 msgid "Showcase preview: no content returned (showcase disabled in config?)."
 msgstr "ショーケースのプレビュー：コンテンツが返されませんでした（設定でショーケースが無効になっていませんか？）。"
-
-#: src/components/CanvasSurface.jsx
-msgid "Showing"
-msgstr "表示中"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Showing {lowerCase} · sorted by {lowerCase2} · grouped by {lowerCase3}"
@@ -19987,10 +19281,6 @@ msgstr "ソース"
 #: src/components/BacklinksList.jsx
 msgid "SOURCE DOC"
 msgstr "元のドキュメント"
-
-#: src/components/TagDetailView.jsx
-msgid "Source filter and pending suggestions"
-msgstr "ソースフィルターと保留中の提案"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Source timecode"
@@ -20501,18 +19791,6 @@ msgstr "サブスクリプションを解約しました。Creatorは<0>{value}<
 msgid "Subtitles"
 msgstr "字幕"
 
-#: src/components/CanvasSurface.jsx
-msgid "Suggested from the picture: {name}. ✓ keeps it, × never suggests it here."
-msgstr "画像からの提案：{name}。✓で保持、×でここでは今後提案しません。"
-
-#: src/components/CanvasSurface.jsx
-msgid "Suggested from the text: {name}. ✓ keeps it, × never suggests it here."
-msgstr "テキストからの提案：{name}。✓で保持、×でここでは今後提案しません。"
-
-#: src/components/settings/WorkspaceTab.jsx
-msgid "Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work."
-msgstr "ここに書かれた内容からタグを提案し、ドキュメント内で該当しそうな箇所に下線を引き、追加された画像を説明します。テキストと各画像の小さなコピーがCloudflare Workers AIに送られます。オフにすると、Clustersは何も送信せず、画像の説明は削除されます。追加したタグや、名前がテキストにそのまま現れるタグは、引き続き使えます。"
-
 #: src/lib/menus/rows.js
 msgctxt "cover color"
 msgid "Sun"
@@ -20613,100 +19891,6 @@ msgstr "表"
 #: src/components/doc/DocTableBar.jsx
 msgid "Table deleted"
 msgstr "表を削除しました"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/DocTagGutter.jsx
-#: src/components/TagManyPicker.jsx
-msgid "tag"
-msgstr "タグ"
-
-#: src/components/entityPreviews/TagPreview.jsx
-#: src/components/MessageComposer.jsx
-#: src/components/TagRangeHoverPopover.jsx
-#: src/hooks/useAppliedTagRanges.js
-#: src/lib/entityKinds.js
-msgid "Tag"
-msgstr "タグ"
-
-#: src/components/toolbar/SelectionBarA.jsx
-msgctxt "verb"
-msgid "Tag"
-msgstr "タグ付け"
-
-#: src/components/EntityHoverPopover.jsx
-msgid "TAG"
-msgstr "タグ"
-
-#: src/components/DocTagGutter.jsx
-msgid "Tag · {source}"
-msgstr "タグ · {source}"
-
-#: src/components/SidebarTags.jsx
-msgid "Tag \"{name}\" deleted"
-msgstr "タグ「{name}」を削除しました"
-
-#: src/lib/menus/rows.js
-msgid "Tag cluster…"
-msgstr "クラスターにタグ付け…"
-
-#: src/components/SidebarTags.jsx
-msgid "Tag create failed: {reason}"
-msgstr "タグの作成に失敗しました：{reason}"
-
-#: src/components/CanvasSurface.jsx
-#: src/components/DocPageEditor.jsx
-#: src/components/TagManyPicker.jsx
-msgid "Tag failed: {reason}"
-msgstr "タグ付けに失敗しました：{reason}"
-
-#: src/lib/menus/rows.js
-msgid "Tag group…"
-msgstr "グループにタグ付け…"
-
-#: src/lib/errorWords.js
-msgid "Tag name required"
-msgstr "タグ名が必要です"
-
-#: src/lib/feedbackContext.js
-msgid "tag page"
-msgstr "タグページ"
-
-#: src/components/DocPageEditor.jsx
-#: src/components/DocPageTagChips.jsx
-#: src/components/TagDetailView.jsx
-msgid "Tag removed"
-msgstr "タグを外しました"
-
-#: src/components/DocPageEditor.jsx
-msgid "Tag selection…"
-msgstr "選択範囲にタグ付け…"
-
-#: src/lib/menus/rows.js
-msgid "Tag…"
-msgstr "タグ…"
-
-#. placeholder {0}: missing.length
-#: src/components/TagManyPicker.jsx
-msgid "Tagged {0, plural, one {# card} other {# cards}} “{shownName}”"
-msgstr "{0, plural, other {#枚のカード}}に「{shownName}」のタグを付けました"
-
-#: src/components/CommandPalette.jsx
-msgid "Tagged {tagTitle}"
-msgstr "{tagTitle}のタグ付き"
-
-#: src/components/TagDetailView.jsx
-msgid "Tagged: the things carrying this tag, as the sidebar counts them. Inside: what's in the tagged clusters and groups."
-msgstr "タグ付き：サイドバーで数えている、このタグが付いたもの。内側：タグ付きのクラスターとグループの中身。"
-
-#: src/components/CommandPalette.jsx
-#: src/components/SidebarTags.jsx
-msgid "Tags"
-msgstr "タグ"
-
-#: src/components/EntityHoverPopover.jsx
-#: src/components/EntityPicker.jsx
-msgid "TAGS"
-msgstr "タグ"
 
 #: src/components/capture/CaptureHud.jsx
 msgid "Take"
@@ -21219,10 +20403,6 @@ msgstr "そのパスキーは、もうあなたのアカウントにありませ
 msgid "That price is out of date. Check it and try again."
 msgstr "その金額は古くなっています。確認して、もう一度お試しください。"
 
-#: src/components/SidebarTags.jsx
-msgid "That tag already exists"
-msgstr "そのタグはすでにあります"
-
 #: src/lib/teamCopy.js
 msgid "That team invite has expired. Ask the team for a new one."
 msgstr "そのチームへの招待は期限が切れました。チームに新しい招待を依頼してください。"
@@ -21692,10 +20872,6 @@ msgstr "その後{price}"
 msgid "There is no undo and no grace period. To confirm, type <0>{email}</0> below."
 msgstr "元に戻すことも、猶予期間もありません。確認のため、下に<0>{email}</0>を入力してください。"
 
-#: src/components/SidebarTags.jsx
-msgid "There's already a tag called “{name}”. Merge “{name2}” into it? Everything tagged “{name3}” moves over."
-msgstr "「{name}」というタグがすでにあります。「{name2}」をそこに統合しますか？「{name3}」のタグが付いたものはすべて移ります。"
-
 #: src/pages/MakePage.jsx
 msgid "There’s no board in that"
 msgstr "その中にはクラスターがありません"
@@ -21866,14 +21042,6 @@ msgstr "太い"
 msgid "Thin"
 msgstr "細い"
 
-#: src/lib/entityTypes.js
-msgid "Thing"
-msgstr "もの"
-
-#: src/lib/entityTypes.js
-msgid "Things"
-msgstr "もの"
-
 #: src/components/film/FilmPlayer.jsx
 msgid "Thirds"
 msgstr "三分割"
@@ -21959,10 +21127,6 @@ msgstr "このブラウザでは、利用できるビデオレコーダーがあ
 #: src/lib/versionActions.js
 msgid "This card can’t have versions."
 msgstr "このカードにはバージョンを作れません。"
-
-#: src/components/TagDetailView.jsx
-msgid "This card isn't tagged directly — it shows here because its board/group is."
-msgstr "このカードに直接タグは付いていません。所属するクラスターまたはグループにタグが付いているため、ここに表示されています。"
 
 #: src/auth/PricingSuccess.jsx
 msgid "This checkout belongs to a subscription that has since been canceled, so it can't activate your account. Start a fresh checkout from the pricing page."
@@ -22574,14 +21738,6 @@ msgstr "最上位"
 msgid "Topbar add menu"
 msgstr "トップバーの追加メニュー"
 
-#: src/lib/entityTypes.js
-msgid "Topic"
-msgstr "トピック"
-
-#: src/lib/entityTypes.js
-msgid "Topics"
-msgstr "トピック"
-
 #: src/lib/importGuide.js
 msgid "Touch and hold the folder you want, then tap **Compress**."
 msgstr "取り込みたいフォルダを長押しして、**圧縮**をタップします。"
@@ -22725,7 +21881,6 @@ msgstr "双方向"
 #: src/components/clusterBrowser/ClusterTable.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
-#: src/components/SidebarTags.jsx
 #: src/lib/cardInfo.js
 msgid "Type"
 msgstr "種類"
@@ -22814,8 +21969,6 @@ msgid "Undo failed — the pre-move snapshots are still available for recovery. 
 msgstr "元に戻せませんでした。移動前のスナップショットは復旧用に残っています。{reason}"
 
 #: src/App.jsx
-#: src/components/SidebarTags.jsx
-#: src/components/TagManyPicker.jsx
 msgid "Undo failed: {reason}"
 msgstr "元に戻せませんでした：{reason}"
 
@@ -22969,7 +22122,6 @@ msgstr "{b}まで"
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
 #: src/components/SidebarBoardTree.jsx
-#: src/components/TagDetailView.jsx
 #: src/lib/clusterSwitchList.js
 #: src/lib/dropRules.js
 #: src/lib/graphData.js
@@ -23063,10 +22215,6 @@ msgstr "無題のテンプレート"
 #: src/lib/starterDocs.js
 msgid "Untitled treatment"
 msgstr "無題のトリートメント"
-
-#: src/components/SidebarTags.jsx
-msgid "Untyped"
-msgstr "種類なし"
 
 #: src/components/WorkspaceRecoveryModal.jsx
 msgid "Unusual deletion activity"
@@ -23343,10 +22491,6 @@ msgstr "別のメールを使う"
 msgid "Use cases"
 msgstr "活用例"
 
-#: src/components/SidebarTags.jsx
-msgid "use existing"
-msgstr "既存のものを使う"
-
 #: src/pages/TemplateSharePage.jsx
 msgid "Use this template"
 msgstr "このテンプレートを使う"
@@ -23541,10 +22685,6 @@ msgstr "公開ページを見る →"
 #: src/lib/versionFields.js
 msgid "View restored."
 msgstr "表示を復元しました。"
-
-#: src/components/TagRangeHoverPopover.jsx
-msgid "View tag"
-msgstr "タグを表示"
 
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamPage.jsx
@@ -24150,10 +23290,6 @@ msgstr "取り下げ中…"
 #: src/lib/billingCopyWords.js
 msgid "Wondering how a team’s work is kept safe?"
 msgstr "チームの作業がどう守られているか気になりますか？"
-
-#: src/components/DocTagGutter.jsx
-msgid "word"
-msgstr "単語"
 
 #: src/lib/cardInfo.js
 msgid "Words"

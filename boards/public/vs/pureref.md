@@ -2,7 +2,7 @@
 
 > PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.
 
-_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-11-17_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
 
@@ -34,10 +34,10 @@ A reference board is rarely just pictures. Clusters cards can be images, notes, 
 
 ## Switching from PureRef takes an afternoon
 
-Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.
+Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and nested boards keep it organized as the project grows.
 
 - Select a folder’s references and drag them all in at once
-- Tags and nested boards keep a growing board findable
+- Nested boards keep a growing board findable
 - One board per project — or nest boards inside it
 
 ## Reference boards your whole team can stand around

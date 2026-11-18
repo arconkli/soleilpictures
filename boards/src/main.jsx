@@ -158,7 +158,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined' && window.__SOLEIL_GRAI
       '.cnv-tools', '.tob', '.sketchpad-toolbar', '.sketchpad-frame',
       '.ctx-menu', '.ctx-submenu', '.cp-pop', '.ws-menu', '.cnv-add-menu', '.topbar-add-menu',
       '.entity-picker', '.entity-hover-popover', '.link-popover', '.link-hover-card',
-      '.account-modal', '.settings-modal', '.home-graph-drawer', '.tag-detail', '.inbox'];
+      '.account-modal', '.settings-modal', '.home-graph-drawer', '.inbox'];
     const head = '%c[grain]';
     const headStyle = 'color:#ffa500;font-weight:600';
     // Sanity: load the tile --grain-url names, so we know the asset exists.

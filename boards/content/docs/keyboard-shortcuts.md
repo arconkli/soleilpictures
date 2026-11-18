@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-11-15
+updated: 2026-11-17
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -60,7 +60,7 @@ card until the word is settled.
 Every menu row that has a keyboard shortcut shows it.
 
 `⌘K` is the fastest way to get anywhere. It searches cluster names, card
-contents, notes, docs and tags, and it also runs commands — "share", "trash",
+contents, notes and docs, and it also runs commands — "share", "trash",
 "theme", "invite" all work as typed input. Type a person's name to switch to
 their workspace or open a cluster they shared with you.
 

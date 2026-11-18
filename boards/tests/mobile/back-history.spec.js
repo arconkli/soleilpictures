@@ -370,26 +370,6 @@ test('Back closes the comments list sheet and stays on the cluster; Back again g
   await expectInApp(page);
 });
 
-// The tag picker is a popover of its own, not a Modal or a Sheet: Back closes
-// it and the cluster stays; Back again goes to where you were.
-test('Back closes the tag picker and stays on the cluster; Back again goes to where you were', async ({ page }) => {
-  await boot(page);
-  await openAlphaFromHome(page);
-  await openCardMenu(page);
-  await menu(page).getByRole('menuitem', { name: 'Tag…', exact: true }).tap();
-  await expect(menu(page)).toHaveCount(0);
-  const picker = page.locator('.tag-picker');
-  await expect(picker).toBeVisible();
-  await expectInApp(page);
-  await back(page);
-  await expect(picker).toHaveCount(0);
-  await expectCluster(page, 'Alpha');
-  await expectInApp(page);
-  await back(page);
-  await expectHome(page);
-  await expectInApp(page);
-});
-
 // ── ?local=1: a picture and a file to open ─────────────────────────────
 
 const stillLocal = (page) => expect(page).toHaveURL(/\?local=1/);

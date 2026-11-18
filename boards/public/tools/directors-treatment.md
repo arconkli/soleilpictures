@@ -2,7 +2,7 @@
 
 > A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.
 
-_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-11-17_
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
@@ -13,7 +13,7 @@ Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
 2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
 3. **Look and light** — Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.
-4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
+4. **Casting** — Faces and types, with a note on each. Put each character’s name on its reference so search finds every image of them.
 5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
 6. **Locations** — Scout photos and found references, a cluster per setting.
 7. **Edit, music and pace** — How it moves: reference clips as video cards, tracks as audio cards, and the rhythm you are after.

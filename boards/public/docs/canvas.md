@@ -70,15 +70,15 @@ what is under the cursor.
 **On empty canvas:** a row of buttons on top that add a note, a picture, a
 cluster, a doc or a link; then Add › (everything else you can add), Paste here,
 Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy
-link, Tag cluster…, Cluster info, and Clear all drawings when there are
+link, Cluster info, and Clear all drawings when there are
 drawings. `⌘0` still resets the zoom.
 
 **On a card:** a row of icon buttons on top — Cut, Copy, Duplicate, Delete —
 then everything specific to that card kind, plus the universal operations —
-layer order, tag, comment, copy link, and
+layer order, comment, copy link, and
 **[Send to…](/docs/collaborate/messages#sending-a-card-or-cluster)**.
 
-**On a group:** Rename group…, Add comment, Tag group…, Outline, Label,
+**On a group:** Rename group…, Add comment, Outline, Label,
 Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup.
 
 **Inside text you are editing:** your browser's own menu, not ours. Right-clicking

@@ -1,6 +1,6 @@
 // Keyboard-shortcuts overlay. Opened with "?" anywhere outside an editor,
-// the toolbar's help button, or a `soleil-open-help` CustomEvent (same
-// prop-drill-less pattern as soleil-open-tag). Content mirrors the real
+// the toolbar's help button, or a `soleil-open-help` CustomEvent (a
+// prop-drill-less pattern). Content mirrors the real
 // keymap in CanvasSurface — update both together.
 //
 // ShortcutsHost owns the state + listeners so any app shell (the real App,

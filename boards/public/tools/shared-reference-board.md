@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
 
-_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-11-17_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
@@ -26,10 +26,10 @@ Feedback in a chat thread drifts away from the picture it is about. In Clusters 
 
 ## Organised the way a studio thinks
 
-Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.
+Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Search reaches across the nesting, so every reference for a character, a setting or a thing is one query away. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.
 
 - Nested clusters per character, environment or shot
-- Typed tags gather a character’s references across boards
+- Search finds a character’s references across boards
 - Black-and-white value checks, and swatches sampled off any image
 
 ## One plan for the team, not a licence per seat
@@ -45,7 +45,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
 2. **Invite the team** — Invite artists as editors by email or with an invite link. Up to 10 people edit free on Free and Creator, and everyone lands in the same live board.
 3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
-4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
+4. **Mark what matters** — Comment on a card or a group, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
 
 ## What it costs

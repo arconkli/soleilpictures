@@ -266,9 +266,8 @@ const RULES = [
     // location: tagging moves nothing, ever. And automatic tagging reads TEXT —
     // titles, notes, the names of groups and clusters — against tags somebody
     // already made; it never looks at what a picture shows, so a dropped image
-    // is not tagged either. (What it does do, when a card's text closely matches
-    // an existing tag, is apply that tag marked "auto", to be confirmed or
-    // dismissed — see docs/organize/tags.md.) Removed 2026-10-01; the homepage
+    // is not tagged either. (Tags themselves were removed from Clusters on
+    // 2026-11-17, so no copy may claim them at all.) Removed 2026-10-01; the homepage
     // animation (SignInBackdrop.jsx) kept saying it until 2026-10-02 because it
     // sat outside this corpus. Competitors' auto-tagging (Eagle's, refern's) is
     // theirs to claim; these shapes are ours.

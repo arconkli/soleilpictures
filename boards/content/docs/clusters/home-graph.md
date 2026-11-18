@@ -5,7 +5,7 @@ h1: Home
 navLabel: Home
 section: clusters
 order: 2
-updated: 2026-11-15
+updated: 2026-11-17
 answer: Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 faq:
   - q: Which clusters does Home list?
@@ -121,4 +121,3 @@ phone, Home is the panel alone, and the graph is never loaded.
 
 - Looking for one specific thing you can name — [`⌘K`](/docs/organize/search)
 - Browsing the contents of one cluster — [Files](/docs/clusters/list-view)
-- Finding everything on a theme — [tags](/docs/organize/tags)

@@ -26,7 +26,7 @@ export async function recordEntityLinks({
   // Scope the delete by (kind, id, [pageId,linkId], link_kind) so
   // unrelated sources on the same doc card aren't touched. Optional
   // target-kind + attribution scoping lets two flows (manual links,
-  // auto-detected tag mentions) coexist on the same (doc,page) without
+  // auto-detected mentions) coexist on the same (doc,page) without
   // one wiping the other.
   if (replaceForSource) {
     let q = supabase.from('entity_links').delete()
@@ -89,9 +89,6 @@ function refToTargetCols(ref) {
       return { target_kind: 'user', target_id: ref.id || null };
     case 'url':
       return { target_kind: 'url', target_url: ref.href || null };
-    case 'tag':
-      // Tag id IS the uuid we stored; goes into target_id like board/user/message.
-      return { target_kind: 'tag', target_id: ref.id || null };
     default:
       return {};
   }

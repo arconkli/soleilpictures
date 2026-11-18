@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-11-17",
+    "anchor": "2026-11-17",
+    "title": "Tags are gone",
+    "summary": "Tags are removed from cards, groups, clusters and documents, along with the tag pages and the sidebar list. Nothing anyone made was deleted, and search still finds pictures by what is in them.",
+    "headings": []
+  },
+  {
     "date": "2026-11-10",
     "anchor": "2026-11-10",
     "title": "Help improve Clusters",

@@ -2,8 +2,8 @@
 // mockup A-select), shipped 2026-10-25 (components/toolbar/SelectionBarA.jsx):
 // two or more cards picked on a desktop canvas get, on the bottom row, what
 // right-clicking one of them offers, each control the card menu's own item:
-// Tidy up, Align (and Distribute), Group, Tag (its picker, 2026-10-26), New
-// cluster from these, Move to cluster; ⋯ is that menu itself, over the bar,
+// Tidy up, Align (and Distribute), Group, New cluster from these, Move to
+// cluster; ⋯ is that menu itself, over the bar,
 // and Delete is ⌫'s, with its undo. The words are the right-click rework's
 // (plan.md §3 Several cards): no "(N)" on a label, the count is the menu's
 // title, and Align's rows say "Align left", "Distribute horizontally".
@@ -37,12 +37,12 @@ const lefts = (page) => page.evaluate((ids) => ids.map((id) => {
   return Math.round(parseFloat(el.style.left));
 }), PICKED);
 
-test('three cards picked: the count, then Tidy up, Align, Group, Tag, New cluster, Move, More and Delete, by name', async ({ page }) => {
+test('three cards picked: the count, then Tidy up, Align, Group, New cluster, Move, More and Delete, by name', async ({ page }) => {
   await threePicked(page);
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).toContainText('3 selected');
   await expect(page.locator('.cnv-selcount')).toHaveCount(0);
-  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'Tag', 'New cluster from these', 'Move to cluster',
+  expect(await names(bar(page))).toEqual(['Tidy up', 'Align', 'Group', 'New cluster from these', 'Move to cluster',
     'More', 'Delete']);
   await expect(button(page, 'Group')).toHaveAttribute('aria-keyshortcuts', /^(Meta|Control)\+G$/);
   await expect(button(page, 'Delete')).toHaveAttribute('aria-keyshortcuts', 'Backspace');
@@ -171,6 +171,8 @@ test('More opens the right-click menu itself, over the bar', async ({ page }) =>
   // cards, §2.3).
   await expect(menu.locator('.ctx-title')).toHaveText('3 cards');
   await expect(menu.locator('.ctx-quick').getByRole('menuitem', { name: 'Delete', exact: true })).toBeVisible();
+  // It rises 4px into place as it opens (ctx-menu-in): measure where it settles.
+  await menu.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   const [m, b] = await Promise.all([menu.boundingBox(), bar(page).boundingBox()]);
   expect(m.y + m.height).toBeLessThanOrEqual(b.y + 1);
 });

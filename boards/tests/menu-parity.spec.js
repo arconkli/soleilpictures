@@ -111,8 +111,8 @@ test.describe('a cluster card on the canvas', () => {
   const CARD_RANK = new Map([
     ['Open cluster', 0], ['Color and cover', 1], ['Copy to my workspace', 1.5],
     ['Send to…', 2], ['Share…', 3], ['Copy link', 4],
-    ['Rename…', 5], ['Add comment', 6], ['Tag…', 7], ['Move to cluster', 8], ['Add to group', 9], ['Arrange', 10],
-    ['Star', 11], ['Unstar', 11], ['Info', 12],
+    ['Rename…', 5], ['Add comment', 6], ['Move to cluster', 7], ['Add to group', 8], ['Arrange', 9],
+    ['Star', 10], ['Unstar', 10], ['Info', 11],
   ]);
 
   test('its menu has the cluster rows in the card\'s universal order, its quick row above them', async ({ page }) => {

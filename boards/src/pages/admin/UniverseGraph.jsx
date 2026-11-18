@@ -688,7 +688,7 @@ function makeFxPoints(capacity) {
 // onStats — fires with { nodes, edges, byKind } once the snapshot is built and
 // again whenever deltas change the totals. This is the ONLY honest source for
 // "how big is the thing on screen": admin_universe_stats counts rows, and
-// some rows never become nodes or edges (tag attachments above all), so a HUD
+// some rows never become nodes or edges (link rows above all), so a HUD
 // reading the counts could claim connections the universe does not draw.
 // onStream — fires with { status, lastDeltaAt } so a HUD can say whether the
 //   socket is alive. On a universe that is legitimately still for twenty

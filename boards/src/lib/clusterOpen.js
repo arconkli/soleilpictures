@@ -1,5 +1,5 @@
 // Opening a cluster from somewhere other than the tree: an entity link, a
-// notification, a search hit, a tag's "appears in" row.
+// notification, a search hit, an "appears in" row.
 //
 // Those carry an id from a cache, an index or another person's message, so
 // the id can name a cluster that is not in this workspace's live boards map

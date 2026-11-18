@@ -1,7 +1,6 @@
 // Collapsible "BOARDS" sidebar section. Wraps the board tree + "All boards"
-// row under a chevron header, mirroring the already-collapsible TAGS
-// (SidebarTags) and "Shared with me" (SidebarSharedBoards) sections so the
-// three read as siblings. Expanded state persists per-workspace in
+// row under a chevron header, mirroring the already-collapsible
+// "Shared with me" (SidebarSharedBoards) section so the two read as siblings. Expanded state persists per-workspace in
 // localStorage, defaulting open.
 
 import { useState } from 'react';

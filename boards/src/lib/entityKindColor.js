@@ -13,7 +13,6 @@ const KIND_COLORS = {
   url:     '#94a3b8',  // gray   — external URLs
   user:    '#22d3ee',  // cyan   — people
   message: '#10b981',  // green  — chat
-  tag:     '#ec4899',  // rose   — tags
 };
 
 export function entityKindColor(kind) {

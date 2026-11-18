@@ -9,7 +9,6 @@ import { Schema } from '@tiptap/pm/model';
 import { EditorState, TextSelection } from '@tiptap/pm/state';
 import { findWrapping } from '@tiptap/pm/transform';
 import { makeAutoDetectPlugin, AUTO_DETECT_KEY } from '../components/docExtensions/AutoDetectPlugin.js';
-import { makeCandidateNamePlugin, CANDIDATE_NAME_KEY } from '../components/docExtensions/CandidateNamePlugin.js';
 import { createNameIndex } from './entityNameTrie.js';
 
 const schema = new Schema({
@@ -74,41 +73,10 @@ test('a doc change, or the refresh meta, recomputes', () => {
   assert.ok(index.calls > calls, 'refresh meta did not recompute');
 });
 
-// The applied-tag-range boxes move with the text, and the owner used to refresh
-// them only after the plugin's apply — so a doc change was suppressed against
-// boxes one edit old. The plugin must ask for the ranges of the doc it builds.
-test('auto-detect suppresses under applied ranges of the NEW doc', () => {
-  const index = countingIndex('Ada');
-  // A box over the second paragraph's "Ada", computed from whichever doc is
-  // passed in (as DocPageEditor's refreshAppliedRangeBoxes now does).
-  const boxesFor = (doc) => {
-    let box = null;
-    doc.forEach((node, offset, i) => {
-      if (i !== 1) return;
-      const at = node.textContent.indexOf('Ada');
-      box = { from: offset + 1 + at, to: offset + 1 + at + 3 };
-    });
-    return box ? [box] : [];
-  };
-  const doc = schema.node('doc', null, [
-    schema.node('paragraph', null, [schema.text('Ada met Bob.')]),
-    schema.node('paragraph', null, [schema.text('Later, Ada left.')]),
-  ]);
-  const plugin = makeAutoDetectPlugin({ getIndex: () => index, getAppliedRangeSet: boxesFor });
-  const state = EditorState.create({ schema, doc, plugins: [plugin] });
-  assert.equal(AUTO_DETECT_KEY.getState(state).set.find().length, 1, 'covered match suppressed');
-  // A paste above shifts the covered "Ada"; suppression must follow it.
-  const pasted = state.apply(state.tr.insertText('A long pasted line. ', 1));
-  const decos = AUTO_DETECT_KEY.getState(pasted).set.find();
-  assert.equal(decos.length, 1, 'still exactly one hairline (the uncovered first "Ada")');
-  assert.equal(pasted.doc.textBetween(decos[0].from, decos[0].to), 'Ada');
-  assert.ok(decos[0].from < pasted.doc.child(0).nodeSize, 'the hairline is in the first paragraph');
-});
-
 // ── A key re-reads the paragraph it typed into, not the document ───────────
-// Both underline plugins used to re-run the trie over every text node of the
-// doc on every keystroke (a few ms each in a 40-page doc, per key). Now they
-// move what an edit didn't touch and decorate afresh only the textblocks it
+// The underline plugin used to re-run the trie over every text node of the
+// doc on every keystroke (a few ms each in a 40-page doc, per key). Now it
+// moves what an edit didn't touch and decorates afresh only the textblocks it
 // did — found by comparing the two docs, so a collaborator's change, which
 // y-prosemirror applies as a replace of the whole document, costs the same.
 
@@ -144,7 +112,6 @@ const secondStart = (doc) => doc.child(0).nodeSize + 1;
 
 const PLUGINS = [
   ['auto-detect', AUTO_DETECT_KEY, (index, extra = {}) => makeAutoDetectPlugin({ getIndex: () => index, ...extra })],
-  ['candidate names', CANDIDATE_NAME_KEY, (index, extra = {}) => makeCandidateNamePlugin({ getIndex: () => index, ...extra })],
 ];
 const setOf = (key, state) => {
   const s = key.getState(state);
@@ -226,7 +193,7 @@ function textblocks(doc) {
   return out;
 }
 
-const SNIPPETS = ['Ada', ' Ada ', 'Bob', ' bob.', 'Ada Lovelace', 'Lovelace ', 'x', ' ', 'tagged ', 'Ad', 'a'];
+const SNIPPETS = ['Ada', ' Ada ', 'Bob', ' bob.', 'Ada Lovelace', 'Lovelace ', 'x', ' ', 'noted ', 'Ad', 'a'];
 
 // One random edit to `state`, as a transaction (null when it can't apply).
 function randomEdit(state, rand) {
@@ -276,35 +243,19 @@ function randomEdit(state, rand) {
   }
 }
 
-// A box over the first "Ada" of every textblock that says "tagged" — like the
-// applied tag ranges, worked out from whichever doc is being decorated.
-function taggedBoxes(doc) {
-  const boxes = [];
-  for (const { node, pos } of textblocks(doc)) {
-    const text = node.textContent;
-    if (!text.includes('tagged')) continue;
-    const at = text.indexOf('Ada');
-    if (at >= 0) boxes.push({ from: pos + 1 + at, to: pos + 1 + at + 3 });
-  }
-  return boxes;
-}
-
 for (const [label, key, make] of PLUGINS) {
   test(`${label}: after any run of edits, the underlines are what a fresh read would draw`, () => {
     const ignored = new Set(['bob']);
-    const extra = label === 'auto-detect'
-      ? { getIgnored: () => ignored, getAppliedRangeSet: (doc) => taggedBoxes(doc) }
-      : { getAppliedRangeSet: (doc) => taggedBoxes(doc), getMentionIndex: () => names('Lovelace') };
+    const extra = { getIgnored: () => ignored };
     const index = names('Ada', 'Ada Lovelace', 'Bob', 'Lovelace');
     for (let seed = 1; seed <= 60; seed++) {
       const rand = rng(seed);
       let state = EditorState.create({
         schema: rich,
-        doc: rich.node('doc', null, [para('Ada met Bob.'), para('tagged: Ada and Ada Lovelace.'), para('Later, Lovelace left.')]),
+        doc: rich.node('doc', null, [para('Ada met Bob.'), para('noted: Ada and Ada Lovelace.'), para('Later, Lovelace left.')]),
         plugins: [make(index, extra)],
       });
-      // Drawn once to begin with, as the editor asks when the index lands (the
-      // candidate plugin draws nothing before that).
+      // Drawn once to begin with, as the editor asks when the index lands.
       state = state.apply(state.tr.setMeta(key, true));
       const steps = [];
       for (let i = 0; i < 25; i++) {
@@ -325,36 +276,3 @@ for (const [label, key, make] of PLUGINS) {
     }
   });
 }
-
-// Typing through an input method (iOS predictive text, Android keyboards, an
-// IME): ProseMirror marks those transactions "composition". The candidate
-// underline must not appear around the word being composed (re-rendering its
-// text node ends the composition), and must appear once it ends.
-test('candidate names: a word typed through an input method is underlined when the composition ends, not during it', () => {
-  const index = names('Ada', 'Bob');
-  const plugin = makeCandidateNamePlugin({ getIndex: () => index });
-  const words = (s) => CANDIDATE_NAME_KEY.getState(s).set.find().map((d) => s.doc.textBetween(d.from, d.to));
-  let state = EditorState.create({ schema: rich, doc: rich.node('doc', null, [para('Bob met '), para('Later.')]), plugins: [plugin] });
-  state = state.apply(state.tr.setMeta(CANDIDATE_NAME_KEY, true));
-  assert.deepEqual(words(state), ['Bob']);
-  for (const ch of 'Ada') state = state.apply(state.tr.insertText(ch, state.doc.child(0).nodeSize - 1).setMeta('composition', 1));
-  assert.equal(state.doc.child(0).textContent, 'Bob met Ada');
-  assert.deepEqual(words(state), ['Bob'], 'no new underline mid-composition');
-  assert.ok(CANDIDATE_NAME_KEY.getState(state).held, 'the composed span is held');
-  state = state.apply(state.tr.setMeta(CANDIDATE_NAME_KEY, { composed: true }));
-  assert.deepEqual(words(state).sort(), ['Ada', 'Bob']);
-  assert.equal(CANDIDATE_NAME_KEY.getState(state).held, null);
-  const fresh = EditorState.create({ schema: rich, doc: state.doc, plugins: [makeCandidateNamePlugin({ getIndex: () => index })] });
-  assert.deepEqual(words(fresh.apply(fresh.tr.setMeta(CANDIDATE_NAME_KEY, true))).sort(), words(state).sort());
-});
-
-test('candidate names: an ordinary edit after a composition also redraws the held span', () => {
-  const index = names('Ada');
-  const words = (s) => CANDIDATE_NAME_KEY.getState(s).set.find().map((d) => s.doc.textBetween(d.from, d.to));
-  let state = EditorState.create({ schema: rich, doc: rich.node('doc', null, [para('x '), para('y')]), plugins: [makeCandidateNamePlugin({ getIndex: () => index })] });
-  state = state.apply(state.tr.setMeta(CANDIDATE_NAME_KEY, true));
-  state = state.apply(state.tr.insertText('Ada', 3).setMeta('composition', 1));
-  assert.deepEqual(words(state), []);
-  state = state.apply(state.tr.insertText('!', state.doc.content.size - 1)); // typed in the other paragraph
-  assert.deepEqual(words(state), ['Ada']);
-});

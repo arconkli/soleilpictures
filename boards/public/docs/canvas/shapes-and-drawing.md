@@ -2,7 +2,7 @@
 
 > Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing · Updated 2026-08-27_
+_Source: https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing · Updated 2026-11-17_
 
 Four different things that all involve making marks, for four different
 situations.
@@ -58,7 +58,7 @@ stylus only.
 From the rail's **+** menu → *Tools* → **Shape**.
 
 Eight kinds: rectangle, ellipse, line, arrow, diamond, triangle, hexagon and
-star. Each is a real card, so it moves, resizes, layers, groups and gets tagged
+star. Each is a real card, so it moves, resizes, layers and groups
 like anything else.
 
 Per-shape controls: stroke colour, fill colour, stroke width, and solid or
@@ -132,7 +132,7 @@ brushes, colour strip and thickness picker sit one tap behind the chip.
 
 An art canvas is a **card** with a drawing surface inside it. Unlike free-draw,
 it has edges, and it behaves like every other card — move it, resize it, group
-it, tag it, put it in a [grid](/docs/canvas/grids) cell.
+it, put it in a [grid](/docs/canvas/grids) cell.
 
 Drawing or erasing on an art canvas is one `⌘Z` step per line or erase pass;
 editing one in the sketch pad saves the whole session as a single step.

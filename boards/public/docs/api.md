@@ -2,7 +2,7 @@
 
 > The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 
-_Source: https://clusters.soleilpictures.com/docs/api · Updated 2026-10-27_
+_Source: https://clusters.soleilpictures.com/docs/api · Updated 2026-11-17_
 
 Base URL: `https://clusters.soleilpictures.com/api/v1`
 
@@ -53,10 +53,6 @@ permissions to drift out of step with app permissions.
 | `PATCH /boards/:id/comments` | Resolve or reopen several threads at once |
 | `PATCH /boards/:id/comments/:commentId` | Resolve or reopen a thread |
 | `DELETE /boards/:id/comments/:commentId` | Delete your own comment — restorable on the canvas |
-| `GET /workspaces/:id/tags` | A workspace's [tags](/docs/api/tags), each with how many things carry it |
-| `GET /tags/:id` | Everything carrying a tag, on every board |
-| `GET /boards/:id/tags` | The tags on a board, and what carries each |
-| `POST /boards/:id/tags` | Put tags on cards or take them off, by name or id |
 | `POST /uploads` | [Upload an image](/docs/api/images), get a key back |
 | `GET /images/:key` | Read an image back |
 | `GET /resolve` | Find an object by a [foreign identifier](/docs/api/metadata) |
@@ -83,13 +79,17 @@ permissions to drift out of step with app permissions.
 `GET /api/v1` returns this list plus your current scopes, so the one URL a
 person types by hand answers usefully.
 
-## Comments, docs and tags
+**Tags were removed from Clusters.** The tag endpoints that used to sit beside
+the comment ones are gone, and a request to one answers `410` with the code
+`gone` and the message "Tags were removed from Clusters." See
+[errors](/docs/api/errors).
 
-Three groups of endpoints have a page of their own:
+## Comments and docs
+
+Two groups of endpoints have a page of their own:
 
 - **[Comments](/docs/api/comments)** — read every thread on a board, docs included, and add, reply, resolve or delete
 - **[Docs](/docs/api/docs)** — read and write a doc card's pages as Markdown, without overwriting anyone's changes
-- **[Tags](/docs/api/tags)** — list a workspace's tags, see what carries one, and tag cards or untag them
 
 ## Authentication
 

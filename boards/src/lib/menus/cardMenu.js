@@ -15,7 +15,7 @@ import { row, group, layout, quickRow, resolve, allowOnly } from './rows.js';
 
 const QUICK = ['cut', 'copy', 'duplicate', 'delete'];
 const SHARE = ['send', 'copy-link', 'share-file', 'share-doc', 'download'];
-const ORGANIZE = ['comment', 'note-comments', 'tag', 'vote', 'move|keep-in-files', 'copy-to', 'add-to-group|group-menu', 'arrange'];
+const ORGANIZE = ['comment', 'note-comments', 'vote', 'move|keep-in-files', 'copy-to', 'add-to-group|group-menu', 'arrange'];
 const INFO = ['info', 'backlinks'];
 
 // Per kind: the open group (`edit` is the Edit › submenu, built from `edit`),
@@ -37,7 +37,7 @@ export const KIND_LAYOUT = {
   board: {
     open: ['open-cluster', 'color-cover', 'copy-to-workspace'],
     share: ['send', 'share-cluster', 'copy-link'],
-    organize: ['rename', 'comment', 'tag', 'move|keep-in-files', 'add-to-group|group-menu', 'arrange'],
+    organize: ['rename', 'comment', 'move|keep-in-files', 'add-to-group|group-menu', 'arrange'],
     info: ['star', 'info'],
   },
   boardlink: { open: ['open-linked'] },
@@ -160,7 +160,7 @@ export function multiMenu(count, ctx, acts) {
     ...(quick.length ? { quick } : {}),
     items: layout([
       ['send', 'download'],
-      ['tag', ...[pick('move|keep-in-files', acts)].filter(Boolean), 'copy-to', 'group-these', 'add-to-group', 'remove-from-group', 'new-cluster-from'],
+      [...[pick('move|keep-in-files', acts)].filter(Boolean), 'copy-to', 'group-these', 'add-to-group', 'remove-from-group', 'new-cluster-from'],
       ['align', 'arrange', 'tidy'],
       ['info'],
     ], acts),
@@ -176,7 +176,7 @@ export function groupMenu(ctx, acts) {
   return {
     label,
     items: layout([
-      ['rename-group', 'group-comment', 'tag-group'],
+      ['rename-group', 'group-comment'],
       ['outline', 'group-label', 'outline-shape', 'outline-color'],
       ['turn-into-cluster', 'group-info'],
       ['remove-from-group', 'ungroup'],

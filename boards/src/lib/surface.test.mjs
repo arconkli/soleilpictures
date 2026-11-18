@@ -24,10 +24,9 @@ test('the board view mode decides between canvas and list', () => {
   assert.equal(resolveSurface(app({ view: 'canvas' })), 'canvas');
 });
 
-test('home and tag surfaces are distinct from the board', () => {
+test('the home surface is distinct from the board', () => {
   assert.equal(resolveSurface(app({ currentSurface: 'home' })), 'projects', 'Home is the projects panel');
   assert.equal(resolveSurface(app({ currentSurface: 'home', homeExploring: true })), 'universe', 'exploring the graph is the universe');
-  assert.equal(resolveSurface(app({ currentSurface: 'tag' })), 'tag');
 });
 
 test('an open doc card occludes the canvas underneath it', () => {
@@ -73,7 +72,7 @@ test('isPublicPath tolerates junk instead of throwing into the emitter', () => {
 test('every resolvable surface is in the published list', () => {
   const cases = [
     app(), app({ view: 'list' }), app({ docOpen: true }), app({ currentSurface: 'home' }),
-    app({ currentSurface: 'tag' }), app({ settingsOpen: true }), app({ pathname: '/share/x' }),
+    app({ settingsOpen: true }), app({ pathname: '/share/x' }),
   ];
   for (const c of cases) {
     assert.ok(SURFACES.includes(resolveSurface(c)), `${resolveSurface(c)} missing from SURFACES`);
@@ -97,7 +96,7 @@ test('board-shaped surfaces keep the board id', () => {
 });
 
 test('non-board surfaces drop it, so their time is not blamed on a board', () => {
-  for (const s of ['universe', 'tag', 'settings', 'public']) {
+  for (const s of ['universe', 'settings', 'public']) {
     assert.equal(surfaceBoardId(s, 'b1'), null,
       `${s} time must not be attributed to whatever board was open behind it`);
   }

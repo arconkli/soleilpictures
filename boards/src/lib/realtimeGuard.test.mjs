@@ -92,15 +92,15 @@ test('every channel is watched however it was subscribed, and its subscriber sti
   const heard = [];
   const ch = rt.channel(`comments:${ID}:k3j2h1`).on('broadcast', { event: 'x' }, () => {});
   assert.equal(ch.subscribe((status) => heard.push(status), 30), ch, 'subscribe still hands back the channel');
-  rt.channel(`tags:${ID}:zz`).subscribe(undefined, 30);   // no callback of its own
+  rt.channel(`user:${ID}`).subscribe(undefined, 30);   // no callback of its own
   await wait(120);
   assert.deepEqual(heard, ['TIMED_OUT']);
   assert.deepEqual(seen, [
     [`realtime:comments:${ID}:k3j2h1`, `comments:${ID}:k3j2h1`, 'TIMED_OUT'],
-    [`realtime:tags:${ID}:zz`, `tags:${ID}:zz`, 'TIMED_OUT'],
+    [`realtime:user:${ID}`, `user:${ID}`, 'TIMED_OUT'],
   ]);
   assert.deepEqual(seen.map(([, name, status]) => [channelLabel(name), channelFailure(status)]),
-    [['comments', 'timed out'], ['tags', 'timed out']]);
+    [['comments', 'timed out'], ['user', 'timed out']]);
   // The same name hands back the same channel, watched once and not twice.
   assert.equal(rt.channel(`comments:${ID}:k3j2h1`), ch);
   const subscribeOnce = ch.subscribe;

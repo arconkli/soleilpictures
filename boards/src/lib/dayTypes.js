@@ -19,7 +19,7 @@
 // for active/selection/focus and a resting day tinted gold would read as
 // selected; and red, which is reserved for a cancelled day.
 
-// Hues are lifted from TAG_PALETTE (lib/tagColor.js) so the app has one colour
+// Hues come from the app's shared colour palette, so the app has one colour
 // vocabulary rather than two. Only 'off' is outside it — a day nobody works is
 // the one day that should recede, and a saturated hue cannot recede.
 export const DEFAULT_DAY_TYPES = Object.freeze([

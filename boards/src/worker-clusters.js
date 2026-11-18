@@ -9,7 +9,7 @@
 // disconnected, card ids survive a move (stars, comments and links with them),
 // and card_index is updated rather than reinserted, so a move costs no cap.
 //
-// AUTH. A signed-in session JWT, exactly as /api/tags/* takes one. scoutBoard
+// AUTH. A signed-in session JWT, exactly as the app's other /api routes take one. scoutBoard
 // writes with the service role and so bypasses RLS: every route here asks
 // can_write_board AS THE USER first, the app's own predicate (the twin of
 // worker-api.js requireBoardWrite), and reads boards as the user so a cluster

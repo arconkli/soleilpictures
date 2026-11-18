@@ -132,7 +132,6 @@ const UNRESOLVED = [
   { file: 'components/DocSurface.jsx', snippet: 'paper.addEventListener(t, stop, { passive: true })' },
   { file: 'components/ListSurface.jsx', snippet: 'el.addEventListener(t, settle, { passive: true })' },
   { file: 'components/OnboardingTour.jsx', snippet: 'window.addEventListener(ev, wake, opts)' },
-  { file: 'hooks/useAiTagger.js', snippet: 'window.addEventListener(ev, _markInteraction, { passive: tru' },
   { file: 'lib/buildWatch.js', snippet: 'window.addEventListener(ev, onInput, { passive: true, captur' },
   { file: 'lib/doubleTap.js', snippet: 'window.addEventListener(t, onEvent, capture)' },
   { file: 'lib/errorReporting.js', snippet: "window.addEventListener(k, () => crumb('net', k))" },

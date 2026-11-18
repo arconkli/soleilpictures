@@ -2,7 +2,7 @@
 //
 // Most assertions run in local QA mode (?local=1) — that gives us a
 // styled UI with no Supabase dependency. Features that require the
-// real backend (comments persistence, tag DB rows, profile fetches)
+// real backend (comments persistence, profile fetches)
 // are tested at the CSS / mounted-component level: we assert the new
 // classes ship and the relevant menu items appear.
 
@@ -316,20 +316,9 @@ test.describe('Phase 3 — anywhere-comments', () => {
   });
 });
 
-// ═══════════════ PHASE 4: TAGS ═══════════════
+// ═══════════════ PHASE 4: GROUPS ═══════════════
 
-test.describe('Phase 4 — tags everywhere', () => {
-  test('TagPicker CSS ships', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /\.tag-picker/)).toBe(true);
-  });
-
-  test('card tag chip strip CSS ships', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /\.card-tags-strip/)).toBe(true);
-    expect(await hasCssRule(page, /\.card-tag-chip/)).toBe(true);
-  });
-
+test.describe('Phase 4 — group labels', () => {
   test('group hide-label CSS doesn\'t break group rendering', async ({ page }) => {
     await go(page);
     // Group label class still ships even when hideLabel is set.
@@ -443,104 +432,6 @@ test.describe('Phase 7 — arrows + export + docs', () => {
     if (!m) return; // dev mode might not have a bundle URL
     const bundle = await (await page.request.get(m[1])).text();
     expect(bundle.includes('data-gramm')).toBe(true);
-  });
-});
-
-// ═══════════════ TAGS-AS-ENTITIES UNIFICATION ═══════════════
-// Phase A of the autotagging plan: tags became first-class entities
-// in entity_search, and tag applications moved into entity_links
-// (link_kind='applied'). The card_tags / board_tags tables are
-// replaced with read-only views over entity_links. These tests
-// guard against accidental regression of that unification.
-
-test.describe('Tags-as-entities unification (Phase A)', () => {
-  test('tag kind is registered in the entity registry', async ({ page }) => {
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    // entityKinds.js registers 'tag' with TagPreview now.
-    expect(bundle.includes('TagPreview')).toBe(true);
-    // entity_search view extension includes 'tag' kind alongside the others.
-    expect(bundle.includes("'tag'")).toBe(true);
-  });
-
-  test('entity_links picks up link_kind + source attribution', async ({ page }) => {
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    // tagsApi inserts entity_links rows now; the new column names
-    // appear in the bundle's literal strings.
-    expect(bundle.includes('link_kind')).toBe(true);
-    expect(bundle.includes("'applied'") || bundle.includes('"applied"')).toBe(true);
-  });
-
-  test('SidebarTags + TagDetailView CSS shipped (Phase B)', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /\.sb-tags\b/)).toBe(true);
-    expect(await hasCssRule(page, /\.sb-tag-row/)).toBe(true);
-    expect(await hasCssRule(page, /\.tag-detail/)).toBe(true);
-    expect(await hasCssRule(page, /\.tag-detail-row/)).toBe(true);
-  });
-
-  test('drag-tag handler routes to tagCard / tagBoard (no link card)', async ({ page }) => {
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    // CanvasSurface drop handler now special-cases ref.kind === 'tag'
-    // and calls tagCard / tagBoard instead of creating a link card.
-    expect(bundle.includes('tagBoard')).toBe(true);
-    // get_things_tagged RPC powers the tag detail view.
-    expect(bundle.includes('get_things_tagged')).toBe(true);
-  });
-
-  test('merge picker + merge_tags RPC ship (Phase C)', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /\.merge-picker/)).toBe(true);
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('merge_tags')).toBe(true);
-    expect(bundle.includes('mergeTags')).toBe(true);
-  });
-
-  test('autotag worker chunk + engine ship (Phase D)', async ({ page }) => {
-    await go(page);
-    // Worker chunk is emitted by Vite for the ?worker import.
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    // Main bundle references the worker URL + the engine entry points.
-    expect(/assets\/autotagWorker-[A-Za-z0-9_-]+\.js/.test(bundle)).toBe(true);
-    expect(bundle.includes('autotag_ignored')).toBe(true);
-    // Cold-start fallback is gone — substring matcher was replaced.
-    expect(bundle.includes('autoTagCardByTitle')).toBe(false);
-  });
-
-  test('autotag engine: word-boundary + threshold + board chips (audit fixes)', async ({ page }) => {
-    await go(page);
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    // Word-boundary regex helper shipped in the engine.
-    expect(bundle.includes('hasWord')).toBe(true);
-    // Workspace tag fingerprint — without this, creating a new tag
-    // never re-scores existing cards (the user's reported bug).
-    expect(bundle.includes('wsTagsFingerprint')).toBe(true);
-    // Board-tag chip strip rendered above the canvas.
-    expect(await hasCssRule(page, /\.board-tags-strip/)).toBe(true);
-    // untagBoard wired into the chip menu.
-    expect(bundle.includes('untagBoard')).toBe(true);
-    // Dead useAutotagOnChange.js was removed — no stale dependency.
-    expect(bundle.includes('useAutotagOnChange')).toBe(false);
   });
 });
 

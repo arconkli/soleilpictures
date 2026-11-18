@@ -6,7 +6,7 @@
 // is added to both lists.
 import {
   ArrowsOut, UserPlus, SlidersHorizontal, PencilSimple, PaperPlaneTilt, LinkSimple, ShareNetwork,
-  DownloadSimple, ChatCircle, Tag, ListChecks, Folder, FolderPlus, Stack, Scissors, Copy,
+  DownloadSimple, ChatCircle, ListChecks, Folder, FolderPlus, Stack, Scissors, Copy,
   PlusSquare, Info, Trash, BoundingBox, Broom, Plus, ClipboardText, SelectionAll, CornersOut,
   PaintBucket, Export, Eraser, NotePencil, Image, FileText, Link, ArrowSquareOut, Paperclip,
   GridFour, Calendar, Square, Palette, Scribble, ArrowRight, Star, DotsThree, MagnifyingGlass,
@@ -23,7 +23,7 @@ import {
 
 const MAP = {
   ArrowsOut, UserPlus, SlidersHorizontal, PencilSimple, PaperPlaneTilt, LinkSimple, ShareNetwork,
-  DownloadSimple, ChatCircle, Tag, ListChecks, Folder, FolderPlus, Stack, Scissors, Copy,
+  DownloadSimple, ChatCircle, ListChecks, Folder, FolderPlus, Stack, Scissors, Copy,
   PlusSquare, Info, Trash, BoundingBox, Broom, Plus, ClipboardText, SelectionAll, CornersOut,
   PaintBucket, Export, Eraser, NotePencil, Image, FileText, Link, ArrowSquareOut, Paperclip,
   GridFour, Calendar, Square, Palette, Scribble, ArrowRight, Star, DotsThree, MagnifyingGlass,

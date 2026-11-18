@@ -112,7 +112,7 @@ test('a draft lasts as long after its last change as the SQL says', () => {
 test('the draft tools are hosted tools, and none of them reaches past the draft', () => {
   for (const n of DRAFT_TOOLS) assert.ok(HOSTED.has(n), `${n} is a hosted tool`);
   for (const n of ['whoami', 'share_board', 'unshare_board', 'delete_board', 'restore_board', 'list_audit',
-    'add_comment', 'list_comments', 'resolve_comments', 'tag_cards', 'list_tags', 'resolve_identifier', 'upload_image']) {
+    'add_comment', 'list_comments', 'resolve_comments', 'resolve_identifier', 'upload_image']) {
     assert.ok(HOSTED.has(n), `${n} is a hosted tool`);
     assert.equal(isDraftTool(n), false, `${n} needs an account`);
   }
@@ -170,11 +170,9 @@ test('a draft is refused every other route', () => {
     ['GET', ''], ['GET', 'me'], ['GET', 'audit'], ['GET', 'resolve'], ['POST', 'mcp'],
     ['GET', 'webhooks'], ['POST', 'webhooks'], ['GET', 'service-accounts'], ['POST', 'service-accounts'],
     ['POST', 'uploads'], ['POST', 'uploads/multipart'], ['GET', 'images'], ['GET', 'images/k1'],
-    ['GET', 'tags/t1'], ['GET', `workspaces/${WS}/tags`],
     ['DELETE', 'boards'], ['DELETE', `boards/${BOARD}`], ['POST', `boards/${BOARD}/restore`],
     ['GET', `boards/${BOARD}/share-link`], ['POST', `boards/${BOARD}/share-link`], ['DELETE', `boards/${BOARD}/share-link`],
     ['GET', `boards/${BOARD}/comments`], ['POST', `boards/${BOARD}/comments`], ['PATCH', `boards/${BOARD}/comments/x`],
-    ['GET', `boards/${BOARD}/tags`], ['POST', `boards/${BOARD}/tags`],
     ['GET', `boards/${BOARD}/import`], ['GET', `boards/${BOARD}/docs`], ['POST', `boards/${BOARD}/gallery`],
     ['POST', `boards/${BOARD}/canvas`], ['DELETE', `boards/${BOARD}/canvas`],
     ['POST', 'boards/tree'], ['GET', 'boards/move'], ['POST', 'search'], ['PATCH', 'workspaces'],

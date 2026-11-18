@@ -14,7 +14,6 @@ import { noteTextSlice, dropEmptyTextStyle } from '../lib/notePaste.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { haptic } from '../lib/haptics.js';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { Extension } from '@tiptap/core';
 import Placeholder from '@tiptap/extension-placeholder';
 import Collaboration from '@tiptap/extension-collaboration';
 import { noteExtensions } from './noteExtensions/noteExtensions.js';
@@ -24,12 +23,7 @@ import { EntityPicker } from './EntityPicker.jsx';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { recordEntityLinks } from '../lib/recordEntityLinks.js';
 import { coerceRef } from '../lib/entityRef.js';
-import { makeCandidateNamePlugin } from './docExtensions/CandidateNamePlugin.js';
 import { ReadableColors } from './docExtensions/ReadableColors.js';
-import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
-import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
-import { tagCard } from '../lib/tagsApi.js';
-import { useFeedback } from './AppFeedback.jsx';
 import {
   ensureNoteFragment,
   seedNoteFragmentFromHtml,
@@ -78,7 +72,7 @@ const REMOTE_CACHE_DEBOUNCE_MS = 400;
 // vanished within a frame (NOTES-04). Modal hands focus back to the note when
 // it closes. The toolbar's own menus (.tob-menu, and its size presets'
 // .size-combo-tl) are portaled out of .tob, so they are named too.
-const EDIT_SESSION_UI = '.tob, .tob-menu, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .cmt-float-host, .cmt-sheet-host, .cmt-sheet-scrim, .cmt-pop, .cfont';
+const EDIT_SESSION_UI = '.tob, .tob-menu, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cmt-float-host, .cmt-sheet-host, .cmt-sheet-scrim, .cmt-pop, .cfont';
 const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
 
 // Card height the READ-ONLY note needs when its html carries link previews.
@@ -250,7 +244,6 @@ function NoteTiptapEditing({
   onExitEdit,
 }) {
   const { workspaceId } = useEntityTrie();
-  const feedback = useFeedback();
 
   // Resolve (and lazily seed) the fragment ONCE for this editing session.
   const fragment = useMemo(() => {
@@ -304,30 +297,6 @@ function NoteTiptapEditing({
   const onExitRef = useRef(onExitEdit);
   onExitRef.current = onExitEdit;
 
-  // In-context candidate-name discovery (shared with the doc editor). Notes
-  // have no range-underline infra, so a promote tags the whole note card
-  // (it joins the tag's cross-board collection) rather than pinning a span.
-  const {
-    candidateIndexRef,
-    candidatePrompt, setCandidatePrompt,
-    candidateBusy, promoteCandidate, dismissCandidate,
-  } = useCandidateTagging({
-    editorRef, workspaceId,
-    notify: (t) => feedback.toast(t),
-    applyPromotedTag: async (tag) => {
-      if (!tag?.id || !cardId || !boardId) return false;
-      await tagCard({ workspaceId, boardId, cardId, tagId: tag.id, source: 'user' });
-      return true;
-    },
-  });
-  const candidateExt = useMemo(() => Extension.create({
-    name: 'soleilNoteCandidateNames',
-    addProseMirrorPlugins: () => [makeCandidateNamePlugin({
-      getIndex: () => candidateIndexRef.current,
-    })],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), []);
-
   const addComment = useAddCommentFlow({
     ydoc,
     scope: commentScope,
@@ -341,22 +310,6 @@ function NoteTiptapEditing({
     boardId,
     cardId,
   });
-
-  // (A press on commented words opens their thread: NoteCommentsLayer.)
-  const onEditorClick = (e) => onCandidateClick(e);
-
-  const onCandidateClick = (e) => {
-    const candEl = e.target?.closest?.('.tt-candidate[data-name]');
-    if (!candEl) return;
-    setCandidatePrompt({
-      anchor: candEl.getBoundingClientRect(),
-      name: candEl.dataset.name || (candEl.textContent || '').trim(),
-      count: Number(candEl.dataset.count) || 0,
-      sample: candEl.dataset.sample || '',
-      entityType: candEl.dataset.type || null,
-      el: candEl,
-    });
-  };
 
   // Write the derived html + auto-size height onto the card map under
   // NOTE_ORIGIN (off the board undo stack; persisted + synced). Readers
@@ -465,7 +418,6 @@ function NoteTiptapEditing({
       ...noteExtensions,
       Placeholder.configure({ placeholder: tr`Write a note…`, showOnlyWhenEditable: true }),
       mentionExt,
-      candidateExt,
       // Keep per-span colors readable on this note's surface in both themes
       // (scoped stylesheet override; never mutates content).
       ReadableColors,
@@ -953,7 +905,6 @@ function NoteTiptapEditing({
           editor={editor}
           className="note-edit-wrap"
           onKeyDown={onKeyDown}
-          onClick={onEditorClick}
           // While editing we stop propagation so canvas drags can't hijack
           // typing — which also means CanvasSurface's touch-scroll branch never
           // sees this gesture. Drive the note's own overflow scroll here instead
@@ -972,19 +923,6 @@ function NoteTiptapEditing({
         )}
       </div>
       {addComment.node}
-      {candidatePrompt && (
-        <CandidatePromptPopover
-          anchor={candidatePrompt.anchor}
-          name={candidatePrompt.name}
-          count={candidatePrompt.count}
-          sample={candidatePrompt.sample}
-          suggestedType={candidatePrompt.entityType}
-          busy={candidateBusy}
-          onPromote={promoteCandidate}
-          onDismiss={dismissCandidate}
-          onClose={() => setCandidatePrompt(null)}
-        />
-      )}
       {mention && workspaceId && (
         <EntityPicker
           workspaceId={workspaceId}

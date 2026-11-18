@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 // the local QA shell (no Supabase) so it covers instant board-name search,
 // the command registry, recents, keyboard nav, and navigate-on-select.
 //
-// Content search (cards/notes/docs/tags via entity_search) needs Supabase and
+// Content search (cards/notes/docs via entity_search) needs Supabase and
 // is verified manually in the real shell — not here.
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';

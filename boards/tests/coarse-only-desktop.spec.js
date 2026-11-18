@@ -19,13 +19,12 @@ test('a mouse keeps its field sizes, its small Done and its wording', async ({ p
     };
     return {
       input: make('input').font, select: make('select').font,
-      tagField: make('input', 'tag-picker-input').font,
       done: make('button', 'cnv-hint-btn').h,
       settingsX: make('button', 'settings-x').h,
       scope: make('button', 'share-scope-btn').minH,
     };
   });
-  expect(sizes).toEqual({ input: 11, select: 11, tagField: 12, done: 22, settingsX: 24, scope: expect.stringMatching(/^(auto|0px)$/) });
+  expect(sizes).toEqual({ input: 11, select: 11, done: 22, settingsX: 24, scope: expect.stringMatching(/^(auto|0px)$/) });
   await expect(page.locator('.cnv-empty-tiles-sub-fine')).toBeVisible();
   await expect(page.locator('.cnv-empty-tiles-sub-coarse')).toBeHidden();
 });

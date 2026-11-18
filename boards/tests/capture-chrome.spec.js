@@ -20,7 +20,7 @@ const SHARED_WITH_CLEAN_MODE = [
   '.sidebar', '.topbar', '.crumbs', '.tob',
   '.cnv-tools', '.cnv-zoom', '.cnv-hint', '.cnv-selcount', '.cnv-comments-eye',
   '.ws-presence', '.canvas-comment-layer', '.msg-panel',
-  '.mb-nav', '.board-tags-strip', '.presence-stack-wrap',
+  '.mb-nav', '.presence-stack-wrap',
   '.upgrade-chip', '.feedback-trigger', '.fv-banner', '.onboarding-coachmark',
   '.imptray', '.imptray-chip',
   // The selection's bar (toolbarLook.css hides it).

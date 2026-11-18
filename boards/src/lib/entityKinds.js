@@ -16,7 +16,7 @@
 // closures); this registry is concerned with picking + rendering.
 
 import { t } from '@lingui/core/macro';
-import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link, User, MessageSquare, Folder, Tag } from './icons.js';
+import { LayoutGrid, FileText, StickyNote, Image, Palette, Calendar, Link, User, MessageSquare, Folder } from './icons.js';
 import * as BoardP    from '../components/entityPreviews/BoardPreview.jsx';
 import * as DocP      from '../components/entityPreviews/DocPreview.jsx';
 import * as PaletteP  from '../components/entityPreviews/PalettePreview.jsx';
@@ -27,7 +27,6 @@ import * as UserP     from '../components/entityPreviews/UserPreview.jsx';
 import * as MessageP  from '../components/entityPreviews/MessagePreview.jsx';
 import * as UrlP      from '../components/entityPreviews/UrlPreview.jsx';
 import * as GroupP    from '../components/entityPreviews/GroupPreview.jsx';
-import * as TagP      from '../components/entityPreviews/TagPreview.jsx';
 
 const REGISTRY = new Map();
 
@@ -69,8 +68,3 @@ register('link',     { get label() { return t`Link card`; }, kindPriority: 50, i
 register('message',  { get label() { return t`Message`; },   kindPriority: 60, icon: MessageSquare,  previewMini: MessageP.previewMini,  previewFull: MessageP.previewFull });
 register('user',     { get label() { return t`Person`; },    kindPriority: 70, icon: User,           previewMini: UserP.previewMini,     previewFull: UserP.previewFull });
 register('url',      { get label() { return t`Link`; },      kindPriority: 80, icon: Link,           previewMini: UrlP.previewMini,      previewFull: UrlP.previewFull });
-// Tags participate in the same picker / hover / backlinks surfaces
-// as everything else now (see migration 0036). Priority sits between
-// docs and palettes so they show up high in @-mention pickers but
-// not above the more navigable kinds (boards / docs).
-register('tag',      { get label() { return t`Tag`; },       kindPriority: 22, icon: Tag,            previewMini: TagP.previewMini,      previewFull: TagP.previewFull });

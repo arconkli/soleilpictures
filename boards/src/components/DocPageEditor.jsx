@@ -24,35 +24,13 @@ import { menuIconNow, useMenuIcons } from '../lib/menuIconsLoad.js';
 import { mod, isMacPlatform } from '../lib/menus/shortcuts.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
-import { untagDocRange, tagDocRange, restoreDocTagRows, listWorkspaceTags, ensureTag } from '../lib/tagsApi.js';
-import { TagPicker } from './TagPicker.jsx';
-import { logEvent } from '../lib/analytics.js';
-import { EV } from '../lib/analyticsEvents.js';
-import { undoToast } from '../lib/undoToast.js';
 import { updateBacklinks, syncDocPageIndex } from '../lib/boardsApi.js';
-import { extractTagMentions } from '../lib/extractTagMentions.js';
 import { safeRun } from '../lib/safeEditorCmd.js';
-import { extractParagraphTags } from '../lib/extractParagraphTags.js';
-import { splitSentences, wordContextSpan } from '../lib/sentenceSpan.js';
-import { recordEntityLinks } from '../lib/recordEntityLinks.js';
-import { applyCards } from '../lib/tagsClient.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
-import { makeTagRangePlugin, TAG_RANGE_KEY } from './docExtensions/TagRangePlugin.js';
-import { useAppliedTagRanges } from '../hooks/useAppliedTagRanges.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
-import { runParagraphCascade, loadWorkspaceTagCentroids, reconcilePageRanges } from '../lib/aiParagraphCascade.js';
-import { useWorkspaceAiEnabled } from '../hooks/useWorkspaceAiEnabled.js';
-import { TagRangeHoverPopover, readTagRangeFromEl } from './TagRangeHoverPopover.jsx';
-import { DocTagGutter } from './DocTagGutter.jsx';
-import { rangeBoxes } from '../lib/paragraphHash.js';
-import { DocCandidateGutter } from './DocCandidateGutter.jsx';
 import { makeLinkRendererPlugin } from './docExtensions/LinkRenderer.js';
 import { makeAutoDetectPlugin, AUTO_DETECT_KEY } from './docExtensions/AutoDetectPlugin.js';
-import { makeCandidateNamePlugin, CANDIDATE_NAME_KEY } from './docExtensions/CandidateNamePlugin.js';
-import { useCandidateTagging } from '../hooks/useCandidateTagging.js';
-import { CandidatePromptPopover } from './CandidatePromptPopover.jsx';
-import { contentHash } from '../lib/clusterMath.js';
 import { baseDocExtensions } from './docExtensions/baseExtensions.js';
 import { ScreenplayKeymap } from './docExtensions/screenplay/ScreenplayKeymap.js';
 import { ScreenplayPagination } from './docExtensions/screenplay/ScreenplayPagination.js';
@@ -95,32 +73,8 @@ import { createNameIndex } from '../lib/entityNameTrie.js';
 import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { t as tt, ph } from '@lingui/core/macro';
+import { t as tt } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { shownError } from '../lib/errorWords.js';
-// DocPageTagChips intentionally not mounted — the margin dot
-// (DocTagGutter) is the canonical tag surface in the doc body now.
-// import { DocPageTagChips } from './DocPageTagChips.jsx';
-
-// In-memory cache for /api/tags/apply verdicts, keyed by
-// (pageId, tagId, snippetHash). Typing in a doc only re-fires the API
-// when the surrounding-snippet content actually changes.
-const verdictCache = new Map();
-// Bound the module-global cache so a long multi-doc session can't grow it
-// without limit (every distinct snippet/tag pair the AI tagger evaluates used
-// to stay forever). FIFO-evict the oldest entry past the cap.
-const VERDICT_CACHE_MAX = 2000;
-function verdictSet(key, val) {
-  if (verdictCache.size >= VERDICT_CACHE_MAX) {
-    const oldest = verdictCache.keys().next().value;
-    if (oldest !== undefined) verdictCache.delete(oldest);
-  }
-  verdictCache.set(key, val);
-}
-function verdictKey(pageId, tagId, snippetHash) {
-  return `${pageId}::${tagId}::${snippetHash}`;
-}
-
 // Comprehensive keyboard shortcuts beyond the StarterKit defaults. Mirrors
 // what users expect from Google Docs / Notion.
 const ExtraShortcuts = Extension.create({
@@ -240,191 +194,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   const { trie: workspaceTrie } = useEntityNameTrie(workspaceId);
   const nameIndexRef = useRef(createNameIndex());
   // AutoDetectPlugin re-walks only on a doc change or this meta, so anything
-  // it reads from outside the doc (the trie, the ignore set, the applied
-  // ranges) has to ask for a recompute when it moves.
+  // it reads from outside the doc (the trie, the ignore set) has to ask for a
+  // recompute when it moves.
   const refreshAutoDetect = () => {
     const ed = editorRef.current;
     if (!ed?.view || ed.isDestroyed) return;
     try { ed.view.dispatch(ed.state.tr.setMeta(AUTO_DETECT_KEY, true).setMeta('addToHistory', false)); } catch (_) {}
   };
   useEffect(() => { nameIndexRef.current = workspaceTrie; refreshAutoDetect(); }, [workspaceTrie]);
-
-  // Candidate names — recurring proper nouns not yet tagged. Painted as a
-  // faint dotted underline by CandidateNamePlugin; tap → promote/dismiss.
-  // The shared useCandidateTagging hook owns the index + prompt + promote /
-  // dismiss (same as notes); the doc-specific bit is pinning the tapped span
-  // so a freshly promoted tag converts to a colored underline immediately.
-  //
-  // Build a { pHash, startOffset, length } anchor for the tapped span
-  // (TagRangePlugin re-locates ranges by paragraph content-hash). Best
-  // effort: null for short paragraphs the range plugin skips, or if the
-  // DOM→PM mapping fails — the tag still exists workspace-wide regardless.
-  const candidateAnchorFromEl = (el) => {
-    const ed = editorRef.current;
-    if (!ed?.view || !el) return null;
-    try {
-      const from = ed.view.posAtDOM(el.firstChild || el, 0);
-      const length = (el.textContent || '').length;
-      if (!(length > 0)) return null;
-      const $from = ed.state.doc.resolve(from);
-      let depth = $from.depth;
-      while (depth > 0 && !['paragraph', 'screenplayBlock'].includes($from.node(depth).type.name)) depth--;
-      if (depth === 0) return null;
-      const paraStart = $from.start(depth);
-      const raw = $from.node(depth).textContent || '';
-      const trimmed = raw.trim();
-      if (trimmed.length < 20) return null; // TagRangePlugin skips short paras
-      const leading = raw.length - raw.replace(/^\s+/, '').length;
-      const startOffset = (from - paraStart) - leading;
-      if (startOffset < 0 || startOffset + length > trimmed.length) return null;
-      // text lets the range follow its word when the paragraph is edited
-      // (lib/docRangeReconcile.js).
-      return { pHash: contentHash(trimmed), startOffset, length, text: el.textContent || '' };
-    } catch (_) {
-      return null;
-    }
-  };
-
-  // "Tag selection…": the selected words become a range tag, anchored the
-  // way a promoted name is. One block only, and not a short one (the range
-  // renderer skips blocks under 20 characters).
-  const selectionAnchor = () => {
-    const ed = editorRef.current;
-    if (!ed?.state) return null;
-    const { from, to, empty } = ed.state.selection;
-    if (empty) return null;
-    try {
-      const $from = ed.state.doc.resolve(from);
-      let depth = $from.depth;
-      while (depth > 0 && !['paragraph', 'screenplayBlock'].includes($from.node(depth).type.name)) depth--;
-      if (depth === 0) return null;
-      const blockStart = $from.start(depth);
-      if (to > $from.end(depth)) return null;
-      const raw = $from.node(depth).textContent || '';
-      const trimmed = raw.trim();
-      if (trimmed.length < 20) return null;
-      const leading = raw.length - raw.replace(/^\s+/, '').length;
-      const startOffset = (from - blockStart) - leading;
-      const length = to - from;
-      const text = ed.state.doc.textBetween(from, to, ' ');
-      if (startOffset < 0 || startOffset + length > trimmed.length || !text.trim()) return null;
-      return { pHash: contentHash(trimmed), startOffset, length, text };
-    } catch (_) {
-      return null;
-    }
-  };
-  const [docTagPicker, setDocTagPicker] = useState(null); // { anchor, rect, tags }
-  const openTagSelection = async () => {
-    const anchor = selectionAnchor();
-    if (!anchor) {
-      feedback.toast({ type: 'info', message: tt`Select words inside one paragraph to tag them.` });
-      return;
-    }
-    let rect = null;
-    try {
-      const c = editorRef.current.view.coordsAtPos(editorRef.current.state.selection.from);
-      rect = { left: c.left, top: c.top, bottom: c.bottom, right: c.right };
-    } catch (_) {}
-    try {
-      const tags = await listWorkspaceTags(workspaceId);
-      setDocTagPicker({ anchor, rect, tags });
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_list_failed', message: tt`Could not load tags: ${ph({ reason: shownError(err) })}` });
-    }
-  };
-  const tagSelectionWith = async (tag, via) => {
-    const picked = docTagPicker;
-    setDocTagPicker(null);
-    if (!picked || !tag?.id || !scope?.docCardId) return;
-    try {
-      await tagDocRange({
-        workspaceId, docCardId: scope.docCardId, pageId,
-        boardId: scope?.boardId || null,
-        tagId: tag.id, source: 'user',
-        sourceAnchor: picked.anchor,
-      });
-      try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'doc', via, tag_id: tag.id }); } catch (_) {}
-    } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tt`Tag failed: ${ph({ reason: shownError(err) })}` });
-    }
-  };
-
-  const {
-    candidateIndexRef,
-    candidatePrompt, setCandidatePrompt,
-    candidateBusy, promoteCandidate, dismissCandidate,
-  } = useCandidateTagging({
-    editorRef, workspaceId, userId,
-    notify: (t) => feedback.toast(t),
-    applyPromotedTag: async (tag, c) => {
-      const docCardId = scope?.docCardId || null;
-      if (!tag?.id || !docCardId || !pageId) return false;
-      const anchor = candidateAnchorFromEl(c.el);
-      if (!anchor) return false;
-      await tagDocRange({
-        workspaceId, docCardId, pageId,
-        boardId: scope?.boardId || null,
-        tagId: tag.id, source: 'user',
-        sourceAnchor: anchor,
-        contextText: c.sample || null,
-      });
-      return true;
-    },
-  });
-
-  // Applied tag ranges for the active page — painted as tag-color
-  // underlines by TagRangePlugin. Refs let the plugins read fresh
-  // values without re-mounting the editor.
-  const appliedTagRanges = useAppliedTagRanges({
-    workspaceId,
-    docCardId: scope?.docCardId || null,
-    pageId: activePageId || null,
-  });
-  const appliedTagRangesRef = useRef([]);
-  const appliedRangeBoxesRef = useRef([]);
-  useEffect(() => {
-    appliedTagRangesRef.current = appliedTagRanges || [];
-    // Compute absolute doc positions for each range so the auto-detect
-    // plugin can ask "does this entity-name match overlap an applied
-    // range?" without re-walking. Updates whenever ranges change OR
-    // the editor doc changes (handled below in the transaction hook).
-    refreshAppliedRangeBoxes();
-    // Force the TagRangePlugin to recompute even when the doc hasn't
-    // changed (e.g. a new entity_links row just landed).
-    const ed = editorRef.current;
-    if (ed?.view) {
-      // Recompute the tag-range underlines AND the candidate underlines
-      // (so a newly-applied range suppresses any candidate it now covers).
-      const tr = ed.state.tr
-        .setMeta(TAG_RANGE_KEY, { changed: true })
-        .setMeta(CANDIDATE_NAME_KEY, { changed: true })
-        .setMeta(AUTO_DETECT_KEY, true);
-      ed.view.dispatch(tr);
-    }
-  }, [appliedTagRanges]);
-
-  // Recompute the absolute-position boxes for each applied range so
-  // AutoDetectPlugin can suppress decorations that overlap them. Re-runs
-  // on every editor transaction so paragraphs that move (because a
-  // paragraph above grew/shrank) keep their boxes accurate.
-  // AutoDetectPlugin also calls this from its apply with the NEW doc: the
-  // transaction listener runs after apply, so reading the ref there saw boxes
-  // one edit old, and since the plugin no longer rebuilds on a caret move a
-  // paste above a tagged range left a hairline over its coloured underline.
-  // Memoized on (doc, ranges), so the listener's call after it is free.
-  const appliedBoxesKeyRef = useRef({ doc: null, ranges: null });
-  const refreshAppliedRangeBoxes = (doc = editorRef.current?.state?.doc) => {
-    const ranges = appliedTagRangesRef.current || [];
-    const key = appliedBoxesKeyRef.current;
-    if (doc && key.doc === doc && key.ranges === ranges) return appliedRangeBoxesRef.current;
-    appliedBoxesKeyRef.current = { doc: doc || null, ranges };
-    if (!doc || ranges.length === 0) { appliedRangeBoxesRef.current = []; return appliedRangeBoxesRef.current; }
-    // Found by the paragraph's hash as its ranges stored it (this hashed
-    // without contentHash's zero padding, so a paragraph in sixteen lost
-    // its box and drew both underlines).
-    appliedRangeBoxesRef.current = rangeBoxes(doc, ranges);
-    return appliedRangeBoxesRef.current;
-  };
 
   // Per-doc ignore set: terms the user has marked "don't auto-link
   // here" for this specific doc card. Populated from
@@ -587,6 +364,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     if (!link) return null;
     return (link.targets || []).map(t => coerceRef(t)).filter(Boolean);
   };
+  // An old @-mention of a tag (tags are gone) reads as plain text: no link,
+  // hover or click.
+  const isTagOnlyLink = (linkId) => {
+    const targets = linkId ? getLink(ydoc, linkId)?.targets : null;
+    return !!targets?.length && targets.every((t) => t?.kind === 'tag');
+  };
   const buildRefsFromCandidate = (records) => {
     if (!Array.isArray(records)) return null;
     return records.map(recordToRef).filter(Boolean);
@@ -615,7 +398,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     }
     // Manual link spans (rendered with data-link-id by LinkRenderer).
     const manualEl = e.target.closest?.('[data-link-id]');
-    if (manualEl) {
+    if (manualEl && !isTagOnlyLink(manualEl.dataset.linkId)) {
       const linkId = manualEl.dataset.linkId;
       const refs = buildRefsFromManualLink(linkId);
       e.preventDefault();
@@ -637,36 +420,10 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       try { records = JSON.parse(autoEl.dataset.records || '[]'); } catch {}
       const refs = buildRefsFromCandidate(records);
       e.preventDefault();
-      // Tag wins. If any record is a tag, the user is invoking that
-      // concept — navigate directly instead of opening the disambiguation
-      // popover. Hold cmd/ctrl to see the full match list.
-      const tagRef = (refs || []).find(r => r?.kind === 'tag');
-      if (tagRef && !(e.metaKey || e.ctrlKey)) {
-        setLinkHover(null);
-        navigateRef(tagRef);
-        return;
-      }
       setLinkHover({
         anchor: autoEl.getBoundingClientRect(),
         refs: refs || [],
         term: autoEl.textContent || '',
-      });
-      return;
-    }
-    // Candidate names (dotted underline from CandidateNamePlugin) — a tap
-    // opens the "make character/setting?" prompt right where you're reading.
-    const candEl = e.target.closest?.('.tt-candidate[data-name]');
-    if (candEl) {
-      e.preventDefault();
-      setLinkHover(null);
-      setTagHover(null);
-      setCandidatePrompt({
-        anchor: candEl.getBoundingClientRect(),
-        name: candEl.dataset.name || (candEl.textContent || '').trim(),
-        count: Number(candEl.dataset.count) || 0,
-        sample: candEl.dataset.sample || '',
-        entityType: candEl.dataset.type || null,
-        el: candEl,
       });
       return;
     }
@@ -678,7 +435,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // (which happen as the cursor crosses internal sub-spans created by
   // overlapping decorations) don't reset the open timer.
   const [linkHover, setLinkHover] = useState(null);
-  const [tagHover, setTagHover] = useState(null);  // { anchor, tagId, tagName, tagColor, source }
   const hoverTimers = useRef({ open: null, close: null });
   const lastChipRef = useRef(null);
   const cancelHoverTimers = () => {
@@ -687,28 +443,16 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     hoverTimers.current.open = null;
     hoverTimers.current.close = null;
   };
-  // Resolve which chip (tag-range tint, manual link, or auto link) sits
-  // under an event target. Shared by the hover path and the touch-tap path.
+  // Resolve which chip (manual link or auto link) sits under an event
+  // target. Shared by the hover path and the touch-tap path.
   const chipAtTarget = (target) => {
-    const tagRange = readTagRangeFromEl(target);
-    const manualEl = !tagRange && target.closest?.('[data-link-id]');
-    const autoEl   = !tagRange && !manualEl && target.closest?.('.tt-link-auto[data-records]');
-    const el = tagRange?.el || manualEl || autoEl;
-    return el ? { el, tagRange, manualEl, autoEl } : null;
+    let manualEl = target.closest?.('[data-link-id]');
+    if (manualEl && isTagOnlyLink(manualEl.dataset.linkId)) manualEl = null;
+    const autoEl = !manualEl && target.closest?.('.tt-link-auto[data-records]');
+    const el = manualEl || autoEl;
+    return el ? { el, manualEl, autoEl } : null;
   };
-  const openChipPopover = ({ el, tagRange, manualEl, autoEl }) => {
-    if (tagRange) {
-      setTagHover({
-        anchor: el.getBoundingClientRect(),
-        tagId: tagRange.tagId,
-        tagName: tagRange.tagName,
-        tagColor: tagRange.tagColor,
-        source: el.getAttribute('data-source') || 'auto-word',
-        sourceAnchor: tagRange.sourceAnchor,
-      });
-      setLinkHover(null);
-      return;
-    }
+  const openChipPopover = ({ el, manualEl, autoEl }) => {
     let refs = null;
     const term = el.textContent || '';
     if (manualEl) refs = buildRefsFromManualLink(manualEl.dataset.linkId);
@@ -718,15 +462,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       refs = buildRefsFromCandidate(records);
     }
     setLinkHover({ anchor: el.getBoundingClientRect(), refs: refs || [], term });
-    setTagHover(null);
   };
   const handleLinkHoverEnter = (e) => {
-    // Tag-color tint (.tt-tag-word) hover opens the SAME tag popover
-    // that the margin dot opens. Wins over manual / auto-detect spans
-    // when both happen at the same point.
     const chip = chipAtTarget(e.target);
     if (!chip) return;
-    if (lastChipRef.current === chip.el && (hoverTimers.current.open || linkHover || tagHover)) return;
+    if (lastChipRef.current === chip.el && (hoverTimers.current.open || linkHover)) return;
     lastChipRef.current = chip.el;
     cancelHoverTimers();
     hoverTimers.current.open = setTimeout(() => {
@@ -745,16 +485,15 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     openChipPopover(chip);
   };
   const handleLinkHoverLeave = (e) => {
-    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-word');
+    const fromChip = e.target.closest?.('[data-link-id], .tt-link-auto[data-records]');
     if (!fromChip) return;
-    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records], .tt-tag-word');
+    const toChip = e.relatedTarget?.closest?.('[data-link-id], .tt-link-auto[data-records]');
     if (toChip && toChip === fromChip) return;
     lastChipRef.current = null;
     clearTimeout(hoverTimers.current.open);
     hoverTimers.current.open = null;
     hoverTimers.current.close = setTimeout(() => {
       setLinkHover(null);
-      setTagHover(null);
     }, 200);
   };
   useEffect(() => () => cancelHoverTimers(), []);
@@ -810,30 +549,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         addProseMirrorPlugins: () => [makeAutoDetectPlugin({
           getIndex:   () => nameIndexRef.current,
           getIgnored: () => docIgnoreRef.current,
-          // Suppress dotted-underline decorations inside any applied
-          // tag range — the colored underline wins. Boxes for the doc being
-          // decorated, not the last one the transaction listener saw.
-          getAppliedRangeSet: (doc) => refreshAppliedRangeBoxes(doc) || [],
-        })],
-      }),
-      // Discover recurring proper nouns that aren't tags yet and mark them
-      // with a fainter dotted underline; a tap promotes them to a
-      // character/setting tag. Suppressed under applied tag ranges and
-      // real mentions so it never double-paints.
-      Extension.create({
-        name: 'soleilCandidateNames',
-        addProseMirrorPlugins: () => [makeCandidateNamePlugin({
-          getIndex:           () => candidateIndexRef.current,
-          getAppliedRangeSet: () => appliedRangeBoxesRef.current || [],
-          getMentionIndex:    () => nameIndexRef.current,
-        })],
-      }),
-      // Paint tag-color underlines over applied tag ranges (paragraph,
-      // sentence, or word+context spans persisted by the AI tagger).
-      Extension.create({
-        name: 'soleilTagRange',
-        addProseMirrorPlugins: () => [makeTagRangePlugin({
-          getRanges: () => appliedTagRangesRef.current || [],
         })],
       }),
       // (An Enter shortcut used to open the EntityPicker when the caret sat
@@ -1081,83 +796,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     return () => { editor.off('focus', onFocus); };
   }, [editor, onEditorFocus]);
 
-  // Keep applied-range absolute boxes in sync with the live doc so the
-  // auto-detect plugin can suppress decorations under colored ranges.
-  // Paragraph positions shift as the user types above/below; the
-  // hashes don't, so we re-derive boxes on every doc change (a caret move
-  // moves nothing).
-  useEffect(() => {
-    if (!editor) return;
-    const onTr = ({ transaction } = {}) => {
-      if (transaction && !transaction.docChanged) return;
-      refreshAppliedRangeBoxes();
-    };
-    editor.on('transaction', onTr);
-    onTr();
-    return () => editor.off('transaction', onTr);
-  }, [editor]);
-
-  // Independent paragraph-cascade trigger. The doc_page_index sync
-  // effect only runs when scope.docCardId AND Y.Type observation is
-  // wired; for root docs or freshly-created doc cards that's not
-  // always true. This listener fires the cascade on every editor
-  // update (debounced 2s) so paragraph tagging works regardless.
-  //
-  // Crucial: depend on stable primitive values, NOT the `scope`
-  // object — scope is a new identity each render so depending on it
-  // remounts the effect on every keystroke, cancelling the timer
-  // before it can fire (the cascade would never run).
-  const scopeDocCardId = scope?.docCardId || null;
-  const scopeBoardId   = scope?.boardId   || null;
-  // May this doc's text go to a model? The workspace's AI switch, and only
-  // for someone who can edit it (a viewer's or a share link's results can't
-  // be saved).
-  const aiEnabled = useWorkspaceAiEnabled(workspaceId);
-  const docWritable = editable && !isPublic;
-  const aiCallsAllowedRef = useRef(false);
-  aiCallsAllowedRef.current = aiEnabled === true && docWritable;
-  const docWritableRef = useRef(docWritable);
-  docWritableRef.current = docWritable;
-  useEffect(() => {
-    if (!editor || !workspaceId) return;
-    if (!scopeDocCardId || !activePageId) return;
-    if (!docWritable) return;
-    let timer = null;
-    const fire = async () => {
-      try {
-        const paragraphs = extractParagraphTags(editor.state.doc);
-        if (aiEnabled !== true) {
-          // No model calls. A person's range tags still follow their words.
-          await reconcilePageRanges({ docCardId: scopeDocCardId, pageId: activePageId, paragraphs });
-          return;
-        }
-        if (paragraphs.length === 0) return;
-        const centroids = await loadWorkspaceTagCentroids(workspaceId);
-        if (centroids.size === 0) return;
-        await runParagraphCascade({
-          workspaceId,
-          docCardId: scopeDocCardId,
-          boardId: scopeBoardId,
-          pageId: activePageId,
-          paragraphs,
-          tagCentroids: centroids,
-          trie: nameIndexRef.current,
-        });
-      } catch (e) { console.warn('[paragraph-cascade] failed', e?.message || e); }
-    };
-    const onUpdate = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(fire, 2000);
-    };
-    editor.on('update', onUpdate);
-    // Initial fire shortly after mount so existing content gets tagged.
-    timer = setTimeout(fire, 1500);
-    return () => {
-      if (timer) clearTimeout(timer);
-      editor.off('update', onUpdate);
-    };
-  }, [editor, workspaceId, scopeDocCardId, scopeBoardId, activePageId, aiEnabled, docWritable]);
-
   // Observe links Y.Map and debounce-call updateBacklinks (2s inactivity).
   // Skipped for root doc — those have no docCardId to anchor backlinks.
   useEffect(() => {
@@ -1199,114 +837,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       try {
         const pages = readPagesWithText(ydoc, scope);
         syncDocPageIndex({ workspaceId, docCardId, pages });
-        // Persist auto-detected tag mentions per page with an AI verdict
-        // gate. The trie already gave us name-match candidates; for each
-        // mention we ask /api/tags/apply whether the surrounding sentence
-        // is genuinely about that tag's concept:
-        //   high   → link_kind='applied', source='auto-doc' (chip on doc)
-        //   medium → link_kind='mention' (shows under "Mentioned in")
-        //   low    → link_kind='mention' (same — still useful breadcrumb)
-        // Verdicts are memoized per (page,tag,snippetHash) so typing in
-        // the doc only re-calls /apply when the surrounding text changes.
-        const trie = nameIndexRef.current;
-        if (!trie?.findMatches) return;
-        // A viewer's or a share link's mention rows can't be saved.
-        if (!docWritableRef.current) return;
-
-        // Step 1: collect mentions per page; partition cached vs uncached.
-        const perPage = [];                  // [{ pageId, mentions, uncached }]
-        const uncachedToFetch = [];          // [{ id, text, candidate_tags, meta }]
-        for (const p of pages) {
-          if (!p?.id) continue;
-          const mentions = extractTagMentions(p.text || '', trie);
-          if (mentions.length === 0) {
-            // No mentions on this page — still need to wipe prior auto rows
-            // so removed text actually disappears from the tag detail view.
-            perPage.push({ pageId: p.id, mentions: [], uncached: [] });
-            continue;
-          }
-          const uncached = [];
-          for (const m of mentions) {
-            const k = verdictKey(p.id, m.ref.id, m.snippetHash);
-            if (!verdictCache.has(k)) uncached.push({ ...m, _key: k, _pageId: p.id });
-          }
-          perPage.push({ pageId: p.id, mentions, uncached });
-          // Build /apply payload — composite id encodes both page and tag.
-          for (const m of uncached) {
-            uncachedToFetch.push({
-              id: `${m._pageId}|${m.ref.id}`,
-              text: m.contextText || '',
-              candidate_tags: [{ id: m.ref.id, name: m.name || '' }],
-              _key: m._key,
-            });
-          }
-        }
-
-        // Step 2: fetch missing verdicts in chunks of 16 (worker cap). With
-        // the workspace's AI off nothing is asked: unverdicted mentions stay
-        // mentions.
-        if (uncachedToFetch.length > 0 && aiCallsAllowedRef.current) {
-          for (let i = 0; i < uncachedToFetch.length; i += 16) {
-            const slice = uncachedToFetch.slice(i, i + 16);
-            try {
-              const resp = await applyCards(slice.map(({ _key, ...c }) => c), { workspaceId });
-              // null is a failed call (budget, 5xx, cooldown), not a verdict:
-              // leave the slice uncached so the next sync asks again.
-              if (!resp) continue;
-              const verdicts = resp.verdicts || [];
-              const byId = new Map(slice.map(s => [s.id, s._key]));
-              for (const v of verdicts) {
-                const key = byId.get(v.card_id);
-                if (!key) continue;
-                // worker returns tags[]; first entry is the only candidate we sent.
-                const c = (v.tags || [])[0]?.confidence || 'low';
-                verdictSet(key, c);
-              }
-              // Any cards the model didn't return a verdict for → 'low' so
-              // we don't keep refetching.
-              for (const s of slice) {
-                if (!verdictCache.has(s._key)) verdictSet(s._key, 'low');
-              }
-            } catch (e) {
-              console.warn('tag-apply verdict', e?.message || e);
-              // Don't poison the cache on transient errors — leave uncached so
-              // next sync retries.
-            }
-          }
-        }
-
-        // Step 3: per-page, bucket by verdict and persist.
-        for (const { pageId, mentions } of perPage) {
-          const applied = [];
-          const mention = [];
-          for (const m of mentions) {
-            const k = verdictKey(pageId, m.ref.id, m.snippetHash);
-            const v = verdictCache.get(k);
-            if (v === 'high') applied.push(m); else mention.push(m);
-          }
-          // Two upserts per page, each scoped by source-attribution so they
-          // don't trample each other (the recordEntityLinks delete filters
-          // on `source`). 'auto-doc' = doc-name-match + AI-confirmed apply.
-          // 'auto' = unconfirmed mention.
-          recordEntityLinks({
-            source: { kind: 'doc', id: docCardId, workspace: workspaceId, pageId },
-            refs: applied,
-            replaceForSource: true,
-            replaceTargetKind: 'tag',
-            replaceSourceAttribution: 'auto-doc',
-            linkKind: 'applied',
-            attribution: 'auto-doc',
-          }).catch((e) => console.warn('tag-applied persist', e?.message || e));
-          recordEntityLinks({
-            source: { kind: 'doc', id: docCardId, workspace: workspaceId, pageId },
-            refs: mention,
-            replaceForSource: true,
-            replaceTargetKind: 'tag',
-            replaceSourceAttribution: 'auto',
-            linkKind: 'mention',
-            attribution: 'auto',
-          }).catch((e) => console.warn('tag-mention persist', e?.message || e));
-        }
       } catch (e) { console.warn('doc_page_index sync', e); }
     };
     const onChange = () => {
@@ -1366,92 +896,13 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       <DocEditorContextMenu editor={editor}
                             onNotice={(message) => feedback.toast({ type: 'info', message })}
                             onOpenLinkPicker={openLinkPicker}
-                            onAddComment={addComment.open}
-                            closeTagHover={() => setTagHover(null)}
-                            onTagSelection={editable && scope?.docCardId ? openTagSelection : null}
-                            onRemoveTag={editable && scope?.docCardId ? async (info) => {
-                              try {
-                                const removed = await untagDocRange({
-                                  workspaceId,
-                                  docCardId: scope.docCardId,
-                                  pageId,
-                                  tagId: info.tagId,
-                                  sourceAnchor: info.sourceAnchor,
-                                });
-                                undoToast(feedback, {
-                                  message: tt`Tag removed`,
-                                  onUndo: async () => {
-                                    try {
-                                      await restoreDocTagRows({
-                                        workspaceId, docCardId: scope.docCardId, pageId,
-                                        tagId: info.tagId, rows: removed,
-                                      });
-                                    } catch (err) {
-                                      feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tt`Restore failed: ${ph({ reason: shownError(err) })}` });
-                                    }
-                                  },
-                                });
-                              } catch (err) {
-                                feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tt`Remove tag failed: ${ph({ reason: shownError(err) })}` });
-                              }
-                            } : null} />
+                            onAddComment={addComment.open} />
       )}
-      {/* Page-level applied-tag chip strip removed — margin dots are
-          the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
       {!isPublic && editable && bubble && (
         <DocSelectionBubble editor={editor} at={bubble} onLink={() => openLinkPicker(editor)}
                             onComment={!isPublic ? () => addComment.open(editor) : null} />
       )}
-      <DocTagGutter
-        editor={editor}
-        ranges={appliedTagRanges}
-        // Leaving the dot schedules the popover away (cancelled if the pointer
-        // reaches the popover, whose own onMouseEnter clears the timers) — a
-        // brush-past used to pin the popover over the doc indefinitely.
-        onLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 250); }}
-        onOpen={(e, range, opts) => {
-          const anchor = e?.currentTarget?.getBoundingClientRect?.()
-            || e?.target?.getBoundingClientRect?.()
-            || null;
-          if (!anchor) return;
-          cancelHoverTimers();
-          setLinkHover(null);
-          setTagHover({
-            anchor,
-            tagId: range.tagId,
-            tagName: range.tagName,
-            tagColor: range.tagColor,
-            source: range.source,
-            sourceAnchor: {
-              pHash: range.pHash,
-              startOffset: range.startOffset,
-              length: range.length,
-            },
-          });
-        }}
-      />
-      <DocCandidateGutter
-        editor={editor}
-        editable={editable}
-        onConfirm={(cand, anchor) => {
-          // ✓ — open the type picker right at the gutter button. Picking a
-          // type runs promoteCandidate (reads candidatePrompt) → tagDocRange
-          // pins the exact span via cand.el, same as tapping the word.
-          cancelHoverTimers();
-          setLinkHover(null);
-          setTagHover(null);
-          setCandidatePrompt({
-            anchor,
-            name: cand.name,
-            count: cand.count,
-            sample: cand.sample,
-            entityType: cand.entityType || null,
-            el: cand.el,
-          });
-        }}
-        onDismiss={(cand) => dismissCandidate(cand)}
-      />
       {addComment.node}
       {linkHover && (
         <EntityHoverPopover
@@ -1472,79 +923,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
             setLinkHover(null);
             if (r) setBacklinksRef(name ? { ...r, _name: name } : r);
           }}
-        />
-      )}
-      {tagHover && (
-        <TagRangeHoverPopover
-          anchor={tagHover.anchor}
-          tagId={tagHover.tagId}
-          tagName={tagHover.tagName}
-          tagColor={tagHover.tagColor}
-          source={tagHover.source}
-          workspaceId={workspaceId}
-          sourceAnchor={tagHover.sourceAnchor}
-          onRemove={editable && tagHover.sourceAnchor && scope?.docCardId ? async (anchor) => {
-            setTagHover(null);
-            const removedTagId = tagHover.tagId;
-            try {
-              const removed = await untagDocRange({
-                workspaceId,
-                docCardId: scope.docCardId,
-                pageId,
-                tagId: removedTagId,
-                sourceAnchor: anchor,
-              });
-              undoToast(feedback, {
-                message: tt`Tag removed`,
-                onUndo: async () => {
-                  try {
-                    await restoreDocTagRows({
-                      workspaceId, docCardId: scope.docCardId, pageId,
-                      tagId: removedTagId, rows: removed,
-                    });
-                  } catch (err) {
-                    feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tt`Restore failed: ${ph({ reason: shownError(err) })}` });
-                  }
-                },
-              });
-            } catch (err) {
-              feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tt`Remove tag failed: ${ph({ reason: shownError(err) })}` });
-            }
-          } : null}
-          onMouseEnter={cancelHoverTimers}
-          onMouseLeave={() => { hoverTimers.current.close = setTimeout(() => setTagHover(null), 200); }}
-          onClose={() => setTagHover(null)}
-        />
-      )}
-      {docTagPicker && (
-        <TagPicker
-          open
-          anchorRect={docTagPicker.rect}
-          onClose={() => setDocTagPicker(null)}
-          tags={docTagPicker.tags}
-          appliedIds={new Set()}
-          onToggle={(t) => tagSelectionWith(t, 'selection')}
-          onCreate={async (name) => {
-            try {
-              const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
-              await tagSelectionWith(t, 'selection_create');
-            } catch (err) {
-              feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tt`Tag failed: ${ph({ reason: shownError(err) })}` });
-            }
-          }}
-        />
-      )}
-      {candidatePrompt && editable && (
-        <CandidatePromptPopover
-          anchor={candidatePrompt.anchor}
-          name={candidatePrompt.name}
-          count={candidatePrompt.count}
-          sample={candidatePrompt.sample}
-          suggestedType={candidatePrompt.entityType}
-          busy={candidateBusy}
-          onPromote={promoteCandidate}
-          onDismiss={dismissCandidate}
-          onClose={() => setCandidatePrompt(null)}
         />
       )}
       {backlinksRef && (
@@ -1683,7 +1061,7 @@ function DocSelectionBubble({ editor, at, onLink, onComment = null }) {
   );
 }
 
-// Right-click context menu — concise; quick formatting + comment + remove tag.
+// Right-click context menu — concise; quick formatting + comment.
 // Headings/lists/quote/highlight/code/strikethrough live on the always-visible
 // top toolbar so they're not duplicated here.
 // Is the pointer over a word (not whitespace, not an empty block)? Browsers
@@ -1718,7 +1096,7 @@ function pointIsOnWord(x, y) {
 // Windows/Linux, where ⌘ is the wrong key.
 const CLIP_MOD = (typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '')) ? '⌘' : 'Ctrl+';
 
-function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTagHover, onRemoveTag, onTagSelection, onNotice }) {
+function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, onNotice }) {
   const [pos, setPos] = useState(null);
   useEffect(() => {
     const root = editor?.view?.dom;
@@ -1726,30 +1104,19 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     const onCtx = (e) => {
       // Shift+right-click is always the browser's own menu.
       if (e.shiftKey) return;
-      // Capture tag-range data if the click landed on a tagged word so
-      // we can offer "Remove tag" for it. Reuse readTagRangeFromEl —
-      // same helper the popover uses — to keep parsing consistent.
-      const tagRange = readTagRangeFromEl(e.target);
-      const tagInfo = tagRange && tagRange.tagId && tagRange.sourceAnchor
-        ? { tagId: tagRange.tagId, tagName: tagRange.tagName, sourceAnchor: tagRange.sourceAnchor }
-        : null;
       // Right-clicking a word with nothing selected gets the browser's menu:
       // spelling suggestions (spellcheck is on), Look Up, Cut/Copy/Paste.
-      // Ours stays for a selection, a tagged word, and empty space.
-      if (!tagInfo && editor.state.selection.empty && pointIsOnWord(e.clientX, e.clientY)) return;
+      // Ours stays for a selection and empty space.
+      if (editor.state.selection.empty && pointIsOnWord(e.clientX, e.clientY)) return;
       e.preventDefault();
-      // Close any hover popover (esp. the tag popover) so it doesn't
-      // overlap the right-click menu.
-      closeTagHover?.();
       setPos({
         x: e.clientX, y: e.clientY,
         hasSelection: !editor.state.selection.empty,
-        tagInfo,
       });
     };
     root.addEventListener('contextmenu', onCtx);
     return () => root.removeEventListener('contextmenu', onCtx);
-  }, [editor, closeTagHover]);
+  }, [editor]);
   useEffect(() => {
     if (!pos) return;
     const onDown = (e) => {
@@ -1846,19 +1213,6 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
           <CtxSep />
           <CtxItem icon="ChatCircle" label={tt`Add comment`} shortcut={isMacPlatform() ? '⌘⌥M' : 'Ctrl+Alt+M'}
                 onClick={run(() => onAddComment?.())} />
-          {onTagSelection && (
-            <CtxItem icon="Tag" label={tt`Tag selection…`}
-                  onClick={run(() => onTagSelection())} />
-          )}
-        </>
-      )}
-      {pos.tagInfo && onRemoveTag && (
-        <>
-          <CtxSep />
-          <CtxItem icon="X"
-                label={pos.tagInfo.tagName ? tt`Remove "${ph({ tagName: pos.tagInfo.tagName })}"` : tt`Remove tag`}
-                danger
-                onClick={run(() => onRemoveTag(pos.tagInfo))} />
         </>
       )}
     </div>

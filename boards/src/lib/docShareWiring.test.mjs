@@ -49,10 +49,10 @@ test('every way in is held: the open doc’s header, the canvas menu, the list m
   const at = canvas.indexOf("acts['share-doc'] =");
   const viewer = canvas.lastIndexOf('    if (!canEdit) {', at);
   assert.ok(viewer > 0 && /return finish\(multi\s+\? multiMenu\(selected\.size, \{ canEdit: false \}, acts\)\s+: cardMenu\(c, \{ canEdit: false, title: name \}, acts\)\);/.test(canvas.slice(viewer, at)), 'a viewer never reaches Share doc…');
-  // …and one card only: the act sits inside the 4-space `if (!multi) {` whose else is the selection's.
+  // …and one card only: the act sits inside the 4-space `if (!multi) {`, which closes right after (tags, and their several-cards else, are gone).
   const one = canvas.lastIndexOf('\n    if (!multi) {\n', at);
   assert.ok(one > viewer && !/\n    \}/.test(canvas.slice(one + 1, at)), 'Share doc… is a one-card row');
-  assert.match(canvas.slice(at), /^[\s\S]*?\n    \} else if \(!isPublic\) \{/);
+  assert.match(canvas.slice(at), /^[\s\S]*?\n    \}\n/);
   const rows = src('./menus/rows.js');
   assert.match(rows, /'share-doc': R\('ShareNetwork', \(\) => t`Share doc…`\)/);
   assert.match(src('./menus/cardMenu.js'), /const SHARE = \[[^\]]*'share-doc'/);

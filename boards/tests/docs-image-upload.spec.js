@@ -15,7 +15,7 @@ import path from 'node:path';
 const PHOTO = path.resolve('src/local/qa-photos/street.jpg');
 
 async function openWithUploads(page) {
-  // A workspace makes the doc reach for Supabase (tags, backlinks); the suite's
+  // A workspace makes the doc reach for Supabase (backlinks); the suite's
   // backend is a stand-in host, so keep those calls off the network.
   await page.route(/example\.supabase\.co/, (route) => route.abort());
   await page.goto('/?docqa=1&uploads=1');

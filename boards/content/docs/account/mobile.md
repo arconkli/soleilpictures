@@ -5,7 +5,7 @@ h1: Mobile and tablet
 navLabel: Mobile and tablet
 section: account
 order: 4
-updated: 2026-11-15
+updated: 2026-11-17
 answer: Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 faq:
   - q: Is there a real app?
@@ -43,7 +43,7 @@ added to your home screen. They are the same app.
 | Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws |
 | Touch and hold empty canvas, then let go | The board's menu, with **Select…** in it |
 | Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu) |
-| Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's |
+| Touch and hold anything else | Its menu: a group label's, an arrow's |
 | **⋯** on the selection | The menu for every selected card |
 
 While you hold empty canvas, a ring fills under your finger; once it is full,

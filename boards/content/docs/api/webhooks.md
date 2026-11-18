@@ -1,12 +1,12 @@
 ---
 title: Webhooks — Soleil Clusters API
-metaDescription: Get notified when boards, cards, comments and tags change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.
+metaDescription: Get notified when boards, cards and comments change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.
 h1: Webhooks
 navLabel: Webhooks
 section: developers
 order: 12
-updated: 2026-10-26
-answer: Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
+updated: 2026-11-17
+answer: Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads and comments change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 faq:
   - q: Do webhooks fire for changes made in the app?
     a: Yes. That is the main point. Events come from the database itself, so a card someone drags on the canvas fires the same event as one added through the API.
@@ -86,10 +86,8 @@ fires — "subscribed and silent" is the hardest webhook failure to diagnose.
 | `comment.reopened` | A resolved thread is opened again |
 | `comment.deleted` | A comment is deleted (it can still be restored) |
 | `comment.restored` | A deleted comment is brought back |
-| `tag.applied` | A tag is put on cards, groups, boards or doc pages |
-| `tag.removed` | A tag is taken off them |
 
-**Card, upload and tag events are grouped.** A single operation on a board
+**Card and upload events are grouped.** A single operation on a board
 produces one event carrying a count, not one per card — so importing a thousand
 cards is one delivery, not a thousand. The ids come with it, the first
 {{fact:webhookIdsShown}} as a courtesy; past that, read the board.
@@ -116,9 +114,8 @@ between being sent and being read — worse, it goes stale *silently*. You get
 enough to know what to look at; call back for current state, with
 [`?since=`](/docs/api/boards) if you want everything that moved.
 
-`resource.id` is the comment's id for a comment event and the tag's id for a
-tag event. A grouped card or upload event covers several things at once, so
-its `resource.id` is the board's.
+`resource.id` is the comment's id for a comment event. A grouped card or upload
+event covers several things at once, so its `resource.id` is the board's.
 
 ### What `data` holds
 
@@ -128,15 +125,17 @@ its `resource.id` is the board's.
 | `card.moved` | `count`, `card_ids` (as they are now, on `board`), `from_board_id`, `from_card_ids` (the same cards' ids where they were, in the same order: a card whose id was taken on arrival gets a new one) |
 | `image.created` | `count`, `image_keys` (each one's key for [`GET /images/:key`](/docs/api/images)); `board` is null for an upload that isn't on a board |
 | `comment.*` | `id`, `thread_id`, `reply`, `on` (`card`, `group`, `point` or `board`, or `doc` with a `page_id` for a comment made on a doc before its comments moved into the doc), `card_id` or `group_id` where it is pinned, `author_id`, `resolved` |
-| `tag.applied`, `tag.removed` | `id` (the tag's), `auto` (true when automatic tagging put it on or took it off), `count`, `items`: each thing it is on, `{kind, id}` with `kind` one of `card`, `group`, `board` or `doc_page` (a doc page adds `page_id`) |
 
 A comment's words are not in its event. Read them through the API, under the
 permissions of the person whose token you use.
 
 A move between two workspaces fires `card.moved` in both, so the workspace the
-cards left hears of it too. Merging two tags reads as `tag.removed` for the tag
-merged away and `tag.applied` for the one it merged into. Confirming a tag that
-automatic tagging put on changes no tag, so it fires nothing.
+cards left hears of it too.
+
+**There are no tag events.** `tag.applied` and `tag.removed` were removed along
+with tags. A webhook that listed them keeps working for its other events, and
+`["*"]` simply no longer includes them. A create or update that still names
+them has them dropped; one that names nothing else answers `400`.
 
 ## Verifying a delivery
 

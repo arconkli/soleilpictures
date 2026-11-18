@@ -1,8 +1,8 @@
 # Groups
 
-> Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on and tagged as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.
+> Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/groups · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/canvas/groups · Updated 2026-11-17_
 
 A group says "these belong together" without moving anything anywhere.
 
@@ -35,7 +35,6 @@ for colour-coding sections of a big board at a glance.
 | Add to group | Pull another card in |
 | Ungroup | Remove the grouping; cards stay put |
 | Group comment | A [comment](/docs/collaborate/comments) anchored to the whole group |
-| Group tag | A [tag](/docs/organize/tags) applied to the group as a unit |
 | Group info | What is inside it |
 | Turn into cluster… | Move the group's cards into a new [cluster](/docs/clusters#making-a-cluster-from-cards-you-already-have) named after it |
 
@@ -47,14 +46,11 @@ of the outline — it leaves the group.
 Clicking selects the group. Click again on a specific card to select just that
 card inside it.
 
-## Comments and tags on a group
+## Comments on a group
 
-Both attach to the group rather than to any one card. A comment on a group reads
-as being about the set — "this sequence runs long" — which is usually what
-someone reviewing a board wants to say.
-
-A tag on a group means the [tag's detail view](/docs/organize/tags) lists the
-group as a unit, rather than listing eight cards individually.
+A comment attaches to the group rather than to any one card. It reads as being
+about the set — "this sequence runs long" — which is usually what someone
+reviewing a board wants to say.
 
 ## When the canvas gets crowded
 

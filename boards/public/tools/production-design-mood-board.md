@@ -2,7 +2,7 @@
 
 > Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.
 
-_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-11-17_
 
 A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
 
@@ -28,9 +28,9 @@ A set board is not only pictures. Drop period photography and film frames beside
 
 Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — pinned to the reference, not a paragraph in an email — and a vote card beside each chair settles “which of these three” without a meeting.
 
-## Tag by setting and character
+## Find by setting and character
 
-Tags cut across the nesting. Type a tag as a setting — the diner — and its view gathers every reference for that place from anywhere in the workspace, including the costume and camera boards. Tag a character, and their room, their props and their wardrobe come back in one view.
+Search cuts across the nesting. Search a setting — the diner — and every reference for that place comes back from anywhere in the workspace, including the costume and camera boards. Search a character’s name, and every reference that carries it — their room, their props, their wardrobe — comes back together.
 
 ## What it does not do
 

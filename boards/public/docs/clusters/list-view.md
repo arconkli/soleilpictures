@@ -2,7 +2,7 @@
 
 > Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-10-27_
+_Source: https://clusters.soleilpictures.com/docs/clusters/list-view · Updated 2026-11-17_
 
 The board is for arranging. Files is for finding.
 
@@ -288,7 +288,7 @@ Under a picture, **More like this** shows the pictures in your workspace that
 look most like it, matched by what is in them rather than by name. Click one
 to open it in place; `←` / `→` carry on through the files. The strip appears
 only when something is close, and not in a workspace whose
-[AI suggestions](/docs/account/data-and-privacy#pictures-and-ai) are off.
+[AI for pictures and search](/docs/account/data-and-privacy#pictures-and-ai) is off.
 
 On an audio row in the List layout, `Space` still auditions it in place, so a
 pack plays through with `↓` and `Space`.

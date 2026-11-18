@@ -97,7 +97,6 @@ import { MAKE } from '../src/lib/makeLink.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
 import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { COMMENTS } from '../src/lib/apiComments.js';
-import { TAGS } from '../src/lib/apiTags.js';
 import {
   TOOLS as MCP_TOOLS, FETCH_MAX_CHARS, SEARCH_DEFAULT, SEARCH_MAX, TREE_MAX, UPDATE_BOARDS_MAX, PLACE_CHOICES, ADD_LAYS_OUT_FROM,
 } from '../src/lib/mcpTools.js';
@@ -291,7 +290,7 @@ if (!newAccountHours || !newAccountWorkspaces) {
 // How many ids a grouped webhook event carries: the [1:N] slice every grouping
 // webhook_emit_* trigger takes (0222, 0702, 0703). One number for all of them.
 const webhookIdSlices = ['webhook_emit_cards_ins', 'webhook_emit_cards_upd', 'webhook_emit_cards_del',
-  'webhook_emit_images_ins', 'webhook_emit_tags_ins', 'webhook_emit_tags_upd', 'webhook_emit_tags_del']
+  'webhook_emit_images_ins']
   .map((fn) => [...(latestDefinition(fn)?.body.matchAll(/\)\[1:(\d+)\]/g) || [])].map((m) => m[1]));
 if (webhookIdSlices.some((s) => !s.length) || new Set(webhookIdSlices.flat()).size !== 1) {
   throw new Error('gen-docs: the webhook triggers disagree on how many ids an event carries — update the extractor');
@@ -409,14 +408,6 @@ for (const f of migrationFiles()) {
 }
 if (!apiAudit) {
   throw new Error('gen-docs: no cron.schedule(...) running purge_api_request_log(N) was found — update the extractor');
-}
-
-// How much text automatic tagging may send for embedding per account per day
-// (tags_embed_budget_take, migration 0381).
-const embedBudget = latestSqlDefining('tags_embed_budget_take')
-  ?.match(/c_user_day\s+constant\s+bigint\s*:=\s*(\d+)/);
-if (!embedBudget) {
-  throw new Error('gen-docs: the embedding budget was not found — update the extractor');
 }
 
 // The free drive must equal the enforced free quota: the default in
@@ -673,8 +664,6 @@ export const FACTS = {
   requestOriginRetentionDays: originRetention[1],
   // Days an error record is kept before the nightly purge deletes it (0108).
   clientErrorRetentionDays: errorRetention[1],
-  // Characters of text automatic tagging reads per account per day (0381).
-  embedCharsPerDay: Number(embedBudget[1]).toLocaleString('en-US'),
   maxCardsPerCall: String(api.maxCardsPerCall),
   maxBoardsPerCall: String(api.maxBoardsPerCall),
   maxPartsPerCall: String(api.maxPartsPerCall),
@@ -787,12 +776,6 @@ export const FACTS = {
   // The Trash window and how long API call records are kept (see above).
   trashDays: trashWindow[0],
   apiAuditDays: apiAudit,
-  // Tags over the API (lib/apiTags.js).
-  tagCardsMax: String(TAGS.maxCards),
-  tagNamesMax: String(TAGS.maxNames),
-  tagNameMax: String(TAGS.maxName),
-  tagItemsDefault: String(TAGS.defaultItems),
-  tagItemsMax: String(TAGS.maxItems),
   tokenPrefix: api.tokenPrefix,
   maxPage: String(api.maxPage),
   defaultPage: String(api.defaultPage),

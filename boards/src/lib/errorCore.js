@@ -291,7 +291,7 @@ export function channelFailure(status, err) {
 
 // A channel's name cut to its leading words: the rest is ids (a cluster's, a
 // person's, a conversation's) and a random suffix. "comments:<id>:<sfx>" is
-// comments, "autotag-tags-<id>-<sfx>" autotag-tags.
+// comments.
 export function channelLabel(name) {
   const words = [];
   for (const part of String(name || '').split(':')[0].split('-')) {

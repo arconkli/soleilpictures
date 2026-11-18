@@ -4,10 +4,9 @@
 // is pure, so node --test covers it.
 //
 // A description is a picture's private metadata. It lives in
-// image_descriptions (0593), never in card_index's title or body: the
-// word-match autotag trigger would apply tags from vision words, and vision
-// only ever SUGGESTS tags. It never goes into events, logs, alerts or webhook
-// payloads, which carry ids and counts only.
+// image_descriptions (0593), never in card_index's title or body. It never
+// goes into events, logs, alerts or webhook payloads, which carry ids and
+// counts only.
 
 import { parseJsonLoose, responseText } from '../worker-llm.js';
 import { bytesToBase64 } from './gallery.js';

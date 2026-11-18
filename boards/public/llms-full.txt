@@ -181,7 +181,7 @@ A: Only if you invite them as an editor. A public link is view-only. Editors do 
 ========================================================================
 # Core concepts
 URL: https://clusters.soleilpictures.com/docs/concepts
-Updated: 2026-10-21
+Updated: 2026-11-17
 
 Soleil Clusters has four nested ideas. A workspace holds your clusters. A cluster is a board, which holds cards and can hold other clusters without limit. A card is a single thing on that board — an image, a note, a document, a file. Every cluster has two views of the same contents: Board, an infinite canvas, and Files, a browsable grid or list.
 
@@ -226,11 +226,9 @@ Switching views does not move or convert anything. A cluster is one set of conte
 
 What is not a container
 
-Two things look like containers and are not:
+One thing looks like a container and is not:
 
-Groups are a selection on a canvas given a name and an outline. They travel together and can be commented on and tagged as a unit, but they do not have their own inside — the cards remain cards on the same board.
-
-Tags cut across everything. A tag is not a location; the same card can carry several, and a tag's detail view gathers every board, group and card that carries it from anywhere in the workspace.
+Groups are a selection on a canvas given a name and an outline. They travel together and can be commented on as a unit, but they do not have their own inside — the cards remain cards on the same board.
 
 ## Frequently asked questions
 
@@ -247,7 +245,7 @@ A: No. A personal workspace is created for you the first time you need one, incl
 ========================================================================
 # Keyboard shortcuts
 URL: https://clusters.soleilpictures.com/docs/keyboard-shortcuts
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
@@ -282,7 +280,7 @@ Esc in a right-click menu | Step back out of a submenu, then close the menu — 
 
 Every menu row that has a keyboard shortcut shows it.
 
-⌘K is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — "share", "trash", "theme", "invite" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you.
+⌘K is the fastest way to get anywhere. It searches cluster names, card contents, notes and docs, and it also runs commands — "share", "trash", "theme", "invite" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you.
 
 Sidebar
 
@@ -517,7 +515,7 @@ A: Yes. Every Cmd shortcut listed here is Ctrl on Windows and Linux. The in-app 
 ========================================================================
 # Coming from another tool
 URL: https://clusters.soleilpictures.com/docs/migrating
-Updated: 2026-10-21
+Updated: 2026-11-17
 
 There is no connector to another app. Moving to Soleil Clusters means downloading your files and dragging them in, which is usually one drag: drop the folder, or the zip a cloud drive gives you, and its folders become nested clusters. What differs by tool is what you lose and what you gain — this page maps the concepts across from the six tools people most often arrive from.
 
@@ -541,7 +539,6 @@ Board / canvas / project | Cluster
 Folder | A nested cluster — nesting is unlimited
 Frame / panel | A grid cell
 Sticky note | A note
-Tag / label | A tag, which can also be a typed entity
 Comment | A comment, anchored to a card, group, point or text range
 Share link | A public link, always view-only
 
@@ -668,11 +665,11 @@ Right-click
 
 Right-clicking is the fastest path to almost everything, and the menu differs by what is under the cursor.
 
-On empty canvas: a row of buttons on top that add a note, a picture, a cluster, a doc or a link; then Add › (everything else you can add), Paste here, Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy link, Tag cluster…, Cluster info, and Clear all drawings when there are drawings. ⌘0 still resets the zoom.
+On empty canvas: a row of buttons on top that add a note, a picture, a cluster, a doc or a link; then Add › (everything else you can add), Paste here, Select all, Tidy up ›, Fit everything, Background ›, Export ›, Share…, Copy link, Cluster info, and Clear all drawings when there are drawings. ⌘0 still resets the zoom.
 
-On a card: a row of icon buttons on top — Cut, Copy, Duplicate, Delete — then everything specific to that card kind, plus the universal operations — layer order, tag, comment, copy link, and Send to….
+On a card: a row of icon buttons on top — Cut, Copy, Duplicate, Delete — then everything specific to that card kind, plus the universal operations — layer order, comment, copy link, and Send to….
 
-On a group: Rename group…, Add comment, Tag group…, Outline, Label, Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup.
+On a group: Rename group…, Add comment, Outline, Label, Outline shape ›, Outline color…, Turn into cluster…, Group info, Ungroup.
 
 Inside text you are editing: your browser's own menu, not ours. Right-clicking mid-sentence in a note is a text gesture, so you get Paste, Copy, Look Up and Emoji & Symbols rather than card operations. Click away first to get the card menu.
 
@@ -723,11 +720,11 @@ A: Yes. One finger pans and a pinch zooms. Touch and hold empty canvas, then dra
 ========================================================================
 # Cards
 URL: https://clusters.soleilpictures.com/docs/canvas/cards
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 
-Everything on a canvas is a card. They differ in what they hold and nothing else — position, size, stacking order, selection, grouping, tagging, commenting and duplication work identically on all of them.
+Everything on a canvas is a card. They differ in what they hold and nothing else — position, size, stacking order, selection, grouping, commenting and duplication work identically on all of them.
 
 Every kind
 
@@ -774,8 +771,6 @@ Cut and paste — ⌘X / ⌘V, including across clusters. Cut-paste keeps standa
 Move to another cluster — drag cards onto a cluster card, or onto a cluster's name in the sidebar to put them in its Files, off its board, or right-click → Move to cluster to send them to any cluster in the workspace, including one that isn't on this canvas. A move is one action: its toast undoes both sides at once. Moving cards doesn't change how many you have.
 
 Group — select several and press ⌘G. See Groups.
-
-Tag — right-click → tag. See Tags.
 
 Comment — right-click → Add comment, which puts a pin at the corner of that card. See Comments.
 
@@ -837,7 +832,7 @@ A: Cmd-Z undoes it. Deletions also show an undo toast. Deleting a whole cluster 
 ========================================================================
 # Images and photo editing
 URL: https://clusters.soleilpictures.com/docs/canvas/images
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
@@ -889,7 +884,7 @@ Three ways in, depending on how much room you need:
 
 Edit popover — a compact panel beside the image with the essentials.
 Full screen editor — everything, with the image large.
-Lightbox — click an image to fill the screen; click again for 1:1 and drag to pan. Under it, More like this shows the pictures in your workspace that look most like it, matched by what is in them, and a click opens one there. It appears only when something is close, and not in a workspace whose AI suggestions are off.
+Lightbox — click an image to fill the screen; click again for 1:1 and drag to pan. Under it, More like this shows the pictures in your workspace that look most like it, matched by what is in them, and a click opens one there. It appears only when something is close, and not in a workspace whose AI for pictures and search is off.
 
 Adjustments are stored as settings on the card. The uploaded file is never touched, so Reset returns you to the original exactly, and a collaborator who downloads the image gets to choose whether your edits come with it.
 
@@ -940,7 +935,7 @@ A: Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) a
 ========================================================================
 # Notes
 URL: https://clusters.soleilpictures.com/docs/canvas/notes
-Updated: 2026-11-09
+Updated: 2026-11-17
 
 A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 
@@ -976,7 +971,7 @@ Enter starts the next item unticked, even after a ticked one; at the very start 
 
 Mentions
 
-Type @ to mention another cluster, document, card, tag or person. The mention becomes a real link with a hover preview, and it registers as a backlink on the thing you mentioned — so that item's panel can show everywhere it is referenced.
+Type @ to mention another cluster, document, card or person. The mention becomes a real link with a hover preview, and it registers as a backlink on the thing you mentioned — so that item's panel can show everywhere it is referenced.
 
 See Links and mentions.
 
@@ -984,7 +979,7 @@ Automatic links
 
 Paste or type a URL into a note and it becomes a link, with a preview card on hover. You do not have to do anything to make this happen. Words pasted with a link — from a web page, an email or a document — keep their address, so they stay clickable.
 
-Names that match an existing tag or entity are also detected and quietly underlined, so a note that says "Diner" connects itself to the Diner entity you already created elsewhere.
+Names that match an existing cluster, card or document are also detected and quietly underlined, so a note that says "Diner" connects itself to the Diner cluster you already created elsewhere.
 
 Working together
 
@@ -1017,7 +1012,7 @@ A: Drag its corner. Notes also grow downward on their own as you type past the b
 ========================================================================
 # Shapes and drawing
 URL: https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing
-Updated: 2026-08-27
+Updated: 2026-11-17
 
 Press D to draw freehand anywhere on a canvas. Four brushes — pen, marker, highlighter and pencil — and a stylus's pressure varies the line. Shapes are proper cards — rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star — with stroke, fill, width and dash controls. There is also a full-screen sketch pad with layers and storyboard frame formats, and an art canvas card for a drawing that belongs to the board as a movable object.
 
@@ -1057,7 +1052,7 @@ Shapes
 
 From the rail's + menu → Tools → Shape.
 
-Eight kinds: rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star. Each is a real card, so it moves, resizes, layers, groups and gets tagged like anything else.
+Eight kinds: rectangle, ellipse, line, arrow, diamond, triangle, hexagon and star. Each is a real card, so it moves, resizes, layers and groups like anything else.
 
 Per-shape controls: stroke colour, fill colour, stroke width, and solid or dashed. Settings → Card defaults sets what new shapes start with, so you are not restyling every one.
 
@@ -1095,7 +1090,7 @@ The board's own draw options get the same treatment on a phone: the sketch pad, 
 
 Art canvas
 
-An art canvas is a card with a drawing surface inside it. Unlike free-draw, it has edges, and it behaves like every other card — move it, resize it, group it, tag it, put it in a grid cell.
+An art canvas is a card with a drawing surface inside it. Unlike free-draw, it has edges, and it behaves like every other card — move it, resize it, group it, put it in a grid cell.
 
 Drawing or erasing on an art canvas is one ⌘Z step per line or erase pass; editing one in the sketch pad saves the whole session as a single step.
 
@@ -1200,9 +1195,9 @@ A: So they stay individually visible instead of overlapping into one thick line.
 ========================================================================
 # Groups
 URL: https://clusters.soleilpictures.com/docs/canvas/groups
-Updated: 2026-10-21
+Updated: 2026-11-17
 
-Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on and tagged as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.
+Select several cards and press Cmd-G to make a group. A group has a name and a visible outline, moves as one object, and can be commented on as a unit. It is not a container — the cards stay on the same board, they are just marked as belonging together.
 
 A group says "these belong together" without moving anything anywhere.
 
@@ -1231,7 +1226,6 @@ Outline shape / colour | Restyle the boundary
 Add to group | Pull another card in
 Ungroup | Remove the grouping; cards stay put
 Group comment | A comment anchored to the whole group
-Group tag | A tag applied to the group as a unit
 Group info | What is inside it
 Turn into cluster… | Move the group's cards into a new cluster named after it
 
@@ -1241,11 +1235,9 @@ Dragging any member moves the whole group. To move one card out, drag it clear o
 
 Clicking selects the group. Click again on a specific card to select just that card inside it.
 
-Comments and tags on a group
+Comments on a group
 
-Both attach to the group rather than to any one card. A comment on a group reads as being about the set — "this sequence runs long" — which is usually what someone reviewing a board wants to say.
-
-A tag on a group means the tag's detail view lists the group as a unit, rather than listing eight cards individually.
+A comment attaches to the group rather than to any one card. It reads as being about the set — "this sequence runs long" — which is usually what someone reviewing a board wants to say.
 
 When the canvas gets crowded
 
@@ -1732,7 +1724,7 @@ A: Drop the new file onto the old one — on the board or in Files — and it be
 ========================================================================
 # PDFs
 URL: https://clusters.soleilpictures.com/docs/files/pdf
-Updated: 2026-11-09
+Updated: 2026-11-17
 
 Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 
@@ -1744,7 +1736,7 @@ Dropping a PDF gives you a card showing the first page as a thumbnail, plus the 
 
 A PDF whose first page couldn't be drawn as it arrived, or that came in from a message or the API, gets it the next time someone who can edit opens the cluster. A password-protected PDF keeps the PDF mark.
 
-The card behaves like any other — move, resize, group, tag, comment, put it in a grid cell.
+The card behaves like any other — move, resize, group, comment, put it in a grid cell.
 
 The viewer
 
@@ -2106,7 +2098,7 @@ A: To the trash, for 30 days, from which they can be restored. See Trash and rec
 ========================================================================
 # The sidebar
 URL: https://clusters.soleilpictures.com/docs/clusters/sidebar
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\ hides Files, and F opens the full Files page.
 
@@ -2119,7 +2111,7 @@ The top card:
 The workspace — its name opens the switcher, to change workspace or start a new one. Under it, who else is here right now, or whose workspace it is when it was shared with you.
 Search — the magnifying glass, or ⌘K, searches everything in the workspace. See search.
 Home and Messages — Home is where your projects are; Messages opens over the cluster you are in and shows an unread count.
-Your clusters — the cluster tree, with Shared with you and your tags below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu: Open, Send to…, Share…, Copy link; Rename…, New cluster inside, Move to…, Color and cover ›; Star (or Unstar), Info, More › (Copy, Paste into this cluster, Always open in Files); and Delete (or Remove from my list for a cluster shared with you). See the usual cluster actions.
+Your clusters — the cluster tree, with Shared with you below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu: Open, Send to…, Share…, Copy link; Rename…, New cluster inside, Move to…, Color and cover ›; Star (or Unstar), Info, More › (Copy, Paste into this cluster, Always open in Files); and Delete (or Remove from my list for a cluster shared with you). See the usual cluster actions.
 
 Shared with you
 
@@ -2185,7 +2177,7 @@ The board they are already in | A file waiting in Files goes onto the board ther
 
 Hold Option (⌥) on a Mac, or Ctrl on Windows, while you let go to copy instead. On Windows, Alt copies too. Move to… and Copy to… in a file's menu do the same with a list of clusters to pick from.
 
-A move takes the file's name, tags, comments, star and share link with it. The toast that follows says where it went, offers Put on board for files that landed in Files, and Undo puts everything back where it was.
+A move takes the file's name, comments, star and share link with it. The toast that follows says where it went, offers Put on board for files that landed in Files, and Undo puts everything back where it was.
 A copy is a new card showing the same stored file: nothing is uploaded again and it takes no extra storage, but it counts toward your plan's card limit. The original stays where it was, with its comments, star and share link. A note or doc is copied whole.
 Files stay in their workspace. A cluster in another workspace — one shared with you, say — won't take them, and the label says why before you let go.
 A cluster you can only view can't take files, and its files can only be copied out of it, never moved.
@@ -2232,7 +2224,7 @@ A: Yes. Each card has its own size: drag its right edge, its bottom edge or its 
 ========================================================================
 # Files view
 URL: https://clusters.soleilpictures.com/docs/clusters/list-view
-Updated: 2026-10-27
+Updated: 2026-11-17
 
 Every cluster has a board and its files. The files are always listed in the sidebar; press F, or ⤢ on the sidebar's Files card, and they fill the screen — folders, a grid of previews or a list, with search, sorting, type filters and Info. F again brings the board back. Nothing is converted; it is one set of contents with two ways to look at it.
 
@@ -2369,7 +2361,7 @@ Double-click a file, or highlight it and press Space, to see it big without leav
 
 A bar floats along the top: the file's name and where it is among the files (Image · 3 of 30), then Show on board (or Show in cluster, for a file you're browsing in another cluster), Download and Info.
 
-Under a picture, More like this shows the pictures in your workspace that look most like it, matched by what is in them rather than by name. Click one to open it in place; ← / → carry on through the files. The strip appears only when something is close, and not in a workspace whose AI suggestions are off.
+Under a picture, More like this shows the pictures in your workspace that look most like it, matched by what is in them rather than by name. Click one to open it in place; ← / → carry on through the files. The strip appears only when something is close, and not in a workspace whose AI for pictures and search is off.
 
 On an audio row in the List layout, Space still auditions it in place, so a pack plays through with ↓ and Space.
 
@@ -2453,7 +2445,7 @@ A: For the files a project is working from, largely yes. You can browse, sort, f
 ========================================================================
 # Home
 URL: https://clusters.soleilpictures.com/docs/clusters/home-graph
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 
@@ -2518,7 +2510,6 @@ When to use something else
 
 Looking for one specific thing you can name — ⌘K
 Browsing the contents of one cluster — Files
-Finding everything on a theme — tags
 
 ## Frequently asked questions
 
@@ -2618,7 +2609,7 @@ A: An unusual number of deletions in a short window raises an alert. It is there
 ========================================================================
 # Documents
 URL: https://clusters.soleilpictures.com/docs/documents
-Updated: 2026-10-24
+Updated: 2026-11-17
 
 A document is a multi-page rich-text editor that lives as a card on your canvas. It has a page tree, one row of formatting tools, tables you can grow, images, code blocks and embedded boards, real-time co-editing with visible cursors, and a side panel with every comment and a find and replace across all its pages. Open it full screen or docked beside the canvas.
 
@@ -2757,13 +2748,11 @@ Structure: ⌘Z with the document open but the caret elsewhere undoes page opera
 
 Both undo only your edits, never a collaborator's.
 
-Comments, tags and links
+Comments and links
 
 The margins do a lot of work:
 
 Inline comments on a text range, with dots in the right margin, and every one of them in the side panel
-Tag ranges underlining text, with dots in the left margin
-Suggested entities — names the app noticed, with a tick or a cross in the margin to confirm or dismiss
 Links and mentions — @ anything, with hover previews
 Backlinks — everywhere this document is referenced from
 
@@ -2804,7 +2793,7 @@ A: Yes. A viewer keeps Find, the zoom and Export, and reads every comment; only 
 ========================================================================
 # Screenplay mode
 URL: https://clusters.soleilpictures.com/docs/documents/screenplay
-Updated: 2026-10-24
+Updated: 2026-11-17
 
 Screenplay mode turns a document into a properly formatted script — Courier, correct margins, scene headings, action, character, dialogue and parenthetical elements, with Tab and Enter moving between them the way script software does. Pagination is line-accurate, so the pages you see are the pages that print, and you can import and export Final Draft and Fountain files.
 
@@ -2853,7 +2842,7 @@ Alongside the board
 
 The reason to write a script here rather than in dedicated software is what surrounds it: the references, the storyboard grid and the shot list are all on the same board, and the document can be docked beside the canvas while you work.
 
-Scene headings can be tagged and locations mentioned, which connects a scene in the script to the reference wall for that location.
+Locations can be mentioned, which connects a scene in the script to the reference wall for that location.
 
 Working out the shots as well? See the shot list maker guide.
 
@@ -2934,11 +2923,11 @@ A: Fountain is plain text — it opens anywhere, diffs cleanly in version contro
 
 
 ========================================================================
-# Comments, tags and backlinks in documents
-URL: https://clusters.soleilpictures.com/docs/documents/comments-and-tags
-Updated: 2026-11-15
+# Comments and backlinks in documents
+URL: https://clusters.soleilpictures.com/docs/documents/comments-and-backlinks
+Updated: 2026-11-17
 
-Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
+Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Type @ to mention a cluster, document, card or person, and backlinks show everywhere the document is referenced from.
 
 Documents carry annotation in the margins, so the text stays clean and the apparatus stays visible.
 
@@ -2966,29 +2955,9 @@ Comments thread, resolve, and support @ mentions that notify the person you name
 
 Because a text comment is part of the document, it follows edit access. A viewer sees the dots and reads every thread, by clicking the words or in the side panel; adding, replying to, resolving or deleting a comment needs edit access. Among people who can edit, only the person who wrote a comment can change its words.
 
-Tags on a range
-
-A tag can apply to a passage rather than the whole document: select the words, right-click and choose Tag selection…. Tagged text is underlined, with dots in the left margin.
-
-A tag chip in a document has its own menu, with Open tag and Remove tag. ⇧F10 opens it from the keyboard.
-
-This is what lets a script's mention of a location connect to the reference wall for that location — the tag's page lists this passage among everything else carrying it.
-
-Words that clearly refer to one of your tags are underlined on their own, marked auto, in prose and in screenplay blocks alike. Right-click one to remove it, which keeps that tag off the page. A tag you put on a word follows the word as you edit around it, and stays on the page if the word goes.
-
-Suggested entities
-
-As you write, names that look like entities — characters, locations, organizations — are detected and offered in the margin with a tick and a cross.
-
-Nothing is applied until you accept it. A suggested name is a suggestion; it does not become a tag behind you.
-
-Accepting one creates or links the entity, so the next occurrence anywhere is recognised automatically.
-
-Names are found without AI. With the workspace's AI suggestions on, the AI also guesses what kind of name each one is; with them off (Settings → Workspace), that guess is left out and no text is sent.
-
 Links and mentions
 
-Type @ to reference a cluster, document, card, tag or person. Mentions render as links with hover previews and register as backlinks on the target.
+Type @ to reference a cluster, document, card or person. Mentions render as links with hover previews and register as backlinks on the target.
 
 URLs typed or pasted become links automatically.
 
@@ -2998,7 +2967,7 @@ Backlinks
 
 The Referenced by panel lists everywhere this document is linked or mentioned from — other documents, notes, cards, messages.
 
-Backlinks are the reason mentioning things is worth the keystroke: a location's entity page ends up listing the script scene, the reference board and the message thread that all pointed at it, without anybody maintaining an index.
+Backlinks are the reason mentioning things is worth the keystroke: a location's cluster ends up listing the script scene, the reference board and the message thread that all pointed at it, without anybody maintaining an index.
 
 Bookmarks
 
@@ -3009,107 +2978,16 @@ Not annotation but adjacent: bookmarks are durable anchors into specific places 
 Q: What happens to a comment if I edit the text it is attached to?
 A: It follows the text. Comments anchor to the range, not to a character offset, so editing around them keeps them attached to the right passage.
 
-Q: What are the dots in the margins?
-A: Right margin is comments. Left margin is tags and suggested entities. Click one to open it.
-
-Q: Can I turn off the AI in documents?
-A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. The automatic underlines stop and no text goes to a model. Suggested names still appear, without the AI's guess at what kind of name each is, and nothing becomes a tag until you accept it.
-
-
-========================================================================
-# Tags and entities
-URL: https://clusters.soleilpictures.com/docs/organize/tags
-Updated: 2026-11-09
-
-A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.
-
-Tags are the cross-cutting layer. Clusters give you hierarchy; tags give you everything that does not fit a hierarchy.
-
-Tagging
-
-A card — right-click it and choose Tag…. The picker suggests as you type, and Enter creates a tag that does not exist yet.
-Several cards at once — select them and press Tag in the selection bar (or right-click one and choose Tag…). Each tag shows how many of the selected cards carry it (✓ all, – some); clicking puts it on all of them, or takes it off all of them when they all have it. Dropping a tag from the sidebar onto a selected card tags the whole selection.
-A group, as a unit — right-click its label and choose Tag group….
-A whole cluster — right-click an empty part of it and choose Tag cluster…, or drag a tag from the sidebar onto it.
-A passage of text — in a document, select the words, right-click and choose Tag selection…; a name the app has noticed can also become a tag right where it appears.
-
-An item can carry several tags. A card's show as chips just under it (four, then a +N for the rest). A tag is not a location. Tagging moves nothing.
-
-Lighting a tag up on a cluster
-
-Click a tag chip — on a card, on a group's label, or on the cluster's own strip at the top — and the cluster lights up that tag: its cards stay as they are and everything else recedes. Nothing moves and nothing is hidden. A pill at the top says what is showing and how many cards carry it ("Showing Onyx · 6 of 14 cards"); Esc, the ×, or clicking the same chip again ends it. A card in a tagged group counts.
-
-The tag page
-
-Open a tag from the sidebar, from the tag in the spotlight pill, from a chip's right-click menu (Open tag), or from its hover card, and you get everything carrying it, from anywhere in the workspace — clusters, then groups, then cards — and the document pages it is on. A tagged group or cluster shows what is inside it. Its header counts both: "12 tagged · 40 inside" is twelve things carrying the tag (the number the sidebar shows) and forty more inside the tagged clusters and groups.
-
-This is the payoff. "Show me everything about the diner" spans a script scene, a reference wall, a group of location photos and a note, and no folder structure could have anticipated that grouping.
-
-Entity types
-
-A tag can be typed:
-
-Type | For
-Character | People in the work
-Setting | Locations
-Organization | Companies, departments, crews
-Topic | Themes, ideas, looks
-Thing | Objects, props, assets
-
-The type shows on a tag's hover card and its page, the sidebar groups tags by it, and it drives the hover previews and backlinks in links and mentions.
-
-Automatic tagging
-
-Automatic tagging works from text — card titles, notes, documents, and the names of groups and clusters — and only uses tags you have already made, so a workspace with no tags gets none. Pictures are read too, but they only ever get suggestions (see below).
-
-An exact name match is applied, marked auto. Tag names can be in any script: where the script puts spaces between words a name matches whole words only, in Korean it also matches with a particle after it (서울 in 서울에서), and in Chinese, Japanese and Thai it is found inside running text. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
-In documents, clear mentions are underlined, marked auto: the AI underlines words that clearly refer to one of your tags, even when they are not its exact name.
-Anything looser is only suggested. The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under Manage.
-Pictures are suggested, never tagged. Each picture added to a cluster is described by an AI model. When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands, without a reload; hover the chip and it says it came from the picture. A picture is never tagged on its own.
-
-The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
-
-The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no card or document text and no picture to a model: there are no suggestions or underlines, the workspace's picture descriptions are deleted, and exact-name matches and the tags you add work as before. An AI app you connect yourself, through the API or MCP, still reads what you ask it to.
-
-Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page.
-
-Removing, deleting and merging — all reversible
-
-Removing a tag from one item shows an undo toast; undoing also lifts the "don't suggest this again" that a removal writes, so the matcher behaves as if the removal never happened.
-
-Deleting a tag removes it everywhere, but softly: the tag and every one of its applications stay recoverable for 30 days — from the undo toast, or by recreating a tag with the same name, which revives the old one intact.
-
-Merging one tag into another can also be undone from its toast: applications move back, and the merged-away tag returns. Anything you had taken the merged tag off stays off under the tag it merged into.
-
-Finding by tag
-
-The sidebar lists workspace tags, grouped by type; the arrow keys walk them and Enter opens one. A tag's ⋯ (or right-click) renames, recolors, merges, types or deletes it
-⌘K finds tags by name, and # with a tag's name lists everything carrying it
-The tag page is the full browse
-
-Scripts and AI assistants read and apply tags the same way, through the Tags API and the MCP server.
-
-## Frequently asked questions
-
-Q: Do tags move things?
-A: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
-
-Q: Does Clusters tag things without asking?
-A: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested, and so is everything from pictures. Remove an automatic tag and it stays off that item for good.
-
-Q: What is an entity type?
-A: A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it.
-
-Q: Can I turn the AI off?
-A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no text or picture to a model, and picture descriptions are deleted. Tags you add, and exact-name matches, still work. An AI app you connect yourself still reads what you ask it to.
+Q: What are the dots in the margin?
+A: Comments. Each commented passage has a dot in the right margin. Click one to open its thread.
 
 
 ========================================================================
 # Links and mentions
 URL: https://clusters.soleilpictures.com/docs/organize/links-and-mentions
-Updated: 2026-10-20
+Updated: 2026-11-17
 
-Type @ anywhere you can write to mention a cluster, document, card, tag or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.
+Type @ anywhere you can write to mention a cluster, document, card or person. Mentions become real links with hover previews, and they register as backlinks so the thing you mentioned can show everywhere it is referenced from. URLs and names of things you already created are detected and linked automatically.
 
 Mentions are how separate parts of a workspace find out about each other.
 
@@ -3117,7 +2995,7 @@ Mentioning
 
 Type @ in a note, a document, a card title or a message, then start typing a name.
 
-You can mention a cluster, document, card, note, image, palette, group, tag, URL or person.
+You can mention a cluster, document, card, note, image, palette, group, URL or person.
 
 The result is a real link. Hovering shows a preview appropriate to the type — an image shows the image, a board shows its thumbnail, a person shows who they are. Clicking navigates.
 
@@ -3127,7 +3005,7 @@ Two things happen without you asking.
 
 URLs typed or pasted become links, with previews on hover. Pasted onto an empty canvas, a URL becomes a full link card instead.
 
-Known names are detected. Once a tag or entity exists, later occurrences of its name in your writing are quietly underlined and connected. Writing "Diner" in a note after creating a Diner entity links the two without any @.
+Known names are detected. Once a cluster, card or document exists, later occurrences of its name in your writing are quietly underlined and connected. Writing "Diner" in a note after creating a Diner cluster links the two without any @.
 
 Backlinks
 
@@ -3135,7 +3013,7 @@ The reverse direction, and the reason mentions are worth the keystroke.
 
 Anything that gets mentioned can show a Referenced by panel listing everywhere it was mentioned from — documents, notes, cards, messages, boards.
 
-A location entity ends up listing the script scene, the reference wall and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally.
+A location cluster ends up listing the script scene, the reference wall and the message thread that all pointed at it. Nobody built that index; it is a by-product of writing normally.
 
 Deep links
 
@@ -3161,7 +3039,7 @@ Everything described here feeds the Home graph, which renders these relationship
 ## Frequently asked questions
 
 Q: What can I mention?
-A: Clusters, documents, cards, notes, images, palettes, groups, tags, URLs and people. Each gets a preview appropriate to what it is.
+A: Clusters, documents, cards, notes, images, palettes, groups, URLs and people. Each gets a preview appropriate to what it is.
 
 Q: What are backlinks?
 A: The reverse direction. If a document mentions a location, that location's panel lists the document. You get an index of what references what without maintaining one.
@@ -3173,9 +3051,9 @@ A: Yes. Copy link on any card gives a URL that opens the board with that card se
 ========================================================================
 # Search and the command palette
 URL: https://clusters.soleilpictures.com/docs/organize/search
-Updated: 2026-11-09
+Updated: 2026-11-17
 
-Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
+Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents and files by name, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
 ⌘K, or / when you are not typing into something.
 
@@ -3186,11 +3064,10 @@ Clusters — by name, and one shared with you also by who shared it
 Workspaces — the other workspaces you are in, by their name or their owner's, while you type; choosing one switches to it
 Cards and notes — by title, and by the first 500 characters of their text
 Files — by the name the file was uploaded with, so a photo nobody captioned is found as diner_ext_dusk_04.jpg (photos and videos uploaded since names were kept; audio, PDFs and attachments always had theirs)
-Pictures — by what is in them. Each picture is described by an AI model a few minutes after it lands, so red car or night exterior finds the photo even when nobody named or captioned it. A picture found this way shows a small preview and says In the picture. Not in a workspace whose AI suggestions are off
-Tags — by name. Type # and a tag's name, as in #diner, to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place
+Pictures — by what is in them. Each picture is described by an AI model a few minutes after it lands, so red car or night exterior finds the photo even when nobody named or captioned it. A picture found this way shows a small preview and says In the picture. Not in a workspace whose AI for pictures and search is off
 Docs — by title, and by the words on every page: a match shows the line it came from, under Inside docs, and opens the document at that page
 
-Search ignores accents, so cafe finds Café and strasse finds Straße, and one character is enough to search Chinese, Japanese and Korean. Search a picture in your own language too, say 바다: the words are put into English to match the descriptions. They go to an AI model for that, so it is off in a workspace whose AI suggestions are off.
+Search ignores accents, so cafe finds Café and strasse finds Straße, and one character is enough to search Chinese, Japanese and Korean. Search a picture in your own language too, say 바다: the words are put into English to match the descriptions. They go to an AI model for that, so it is off in a workspace whose AI for pictures and search is off.
 
 A document written before search learned to read it is indexed the next time it, or anything else in its cluster, is edited. Inside one long document, ⌘F finds every occurrence on the page you are on.
 
@@ -3223,7 +3100,6 @@ The same interface is reused wherever the app needs you to choose something — 
 When to use something else
 
 Browsing one cluster's contents by type, size or date — Files
-Everything on a theme, across the workspace — tags
 Seeing how things relate rather than finding one — Home graph
 Inside one long document — ⌘F find and replace
 
@@ -3710,7 +3586,7 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.
 
@@ -4044,7 +3920,7 @@ A: No. The button in a product email opens a resume link that signs you in on on
 ========================================================================
 # Publishing to Explore
 URL: https://clusters.soleilpictures.com/docs/publish/explore
-Updated: 2026-10-11
+Updated: 2026-11-17
 
 Explore is the public directory of boards at /explore. Publishing is opt-in and reviewed — you submit from the share dialog and it appears once approved. A published board gets a clean permanent URL, is indexable by search engines, and appears in the directory with search, sorting and topic filters.
 
@@ -4074,7 +3950,7 @@ A clean URL | A permanent, readable address rather than a token
 Indexable | Search engines may index it — unlike a plain share link
 Listed | Appears in the directory with a thumbnail
 Link previews | Unfurls with its own name and a thumbnail of its contents
-Alt text | Each picture carries alt text: yours if you wrote some, otherwise a short AI description of what is in it, unless the workspace's AI suggestions are off
+Alt text | Each picture carries alt text: yours if you wrote some, otherwise a short AI description of what is in it, unless the workspace's AI for pictures and search is off
 
 The board renders in a real canvas — visitors pan, zoom and open images at full size — with no account required. A cluster you have set to Files opens in Files here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it.
 
@@ -4825,7 +4701,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
@@ -4844,7 +4720,7 @@ Tap outside the note you are typing in | Finish; the keyboard goes down
 Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws
 Touch and hold empty canvas, then let go | The board's menu, with Select… in it
 Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu)
-Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's
+Touch and hold anything else | Its menu: a group label's, an arrow's
 ⋯ on the selection | The menu for every selected card
 
 While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was.
@@ -4978,7 +4854,7 @@ A: Nothing that matters is removed, but dense surfaces like long documents are m
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -5003,9 +4879,9 @@ When a picture is added to a cluster, Clusters asks an AI model what is in it: a
 
 This runs on Cloudflare Workers AI, the provider that already stores your files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models (Cloudflare's policy).
 
-The description is stored beside the picture, and Clusters doesn't show it on screen: it suggests tags, finds the picture in search and in More like this, and screen readers read it. Only people who can see the picture can reach it, and an app you connect through the API or MCP reads them as you would. On a published cluster a picture's description is its alt text, the words search engines and screen readers read, unless someone wrote alt text for it, so anyone can read it there; a browser also shows alt text when a picture fails to load. A description is never written into the cluster itself and never sent with errors or usage events.
+The description is stored beside the picture, and Clusters doesn't show it on screen: it finds the picture in search and in More like this, and screen readers read it. Only people who can see the picture can reach it, and an app you connect through the API or MCP reads them as you would. On a published cluster a picture's description is its alt text, the words search engines and screen readers read, unless someone wrote alt text for it, so anyone can read it there; a browser also shows alt text when a picture fails to load. A description is never written into the cluster itself and never sent with errors or usage events.
 
-The owner or a co-owner can turn this off with AI suggestions in Settings → Workspace. Off, Clusters sends no picture or text to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to.
+The owner or a co-owner can turn this off with AI for pictures and search in Settings → General. Off, Clusters sends no picture or search words to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to.
 
 Retention
 
@@ -5034,10 +4910,10 @@ Only want to use a different email? You don't need to delete anything: sign out 
 
 Settings → Profile → Delete account. Before it asks you to confirm, it tells you what will actually happen to your account — how many clusters go, and what becomes of anything you share:
 
-Workspaces only you are in are deleted, with every cluster, card, comment, tag and uploaded file in them — and so is a workspace where everyone else can only view.
+Workspaces only you are in are deleted, with every cluster, card, comment and uploaded file in them — and so is a workspace where everyone else can only view.
 Workspaces you created where someone else can edit are not deleted. Ownership passes to a co-owner if there is one, and otherwise to the longest-standing of the people who can edit, who is named on the confirmation screen and becomes its owner. A viewer never inherits a workspace. Their work is never destroyed by your leaving.
 Workspaces you were only a member of simply lose you.
-Comments, tags and votes you left on other people's clusters stay where they are, with your name removed — deleting them would take away context that belongs to someone else.
+Comments and votes you left on other people's clusters stay where they are, with your name removed — deleting them would take away context that belongs to someone else.
 Any subscription is canceled as part of the deletion, so nothing bills a removed account.
 Your analytics and error records are anonymised, not merely unlinked: the session identifier is dropped too, so the rows cannot be tied back to you.
 
@@ -5208,7 +5084,7 @@ A: Export boards and documents, download original files, or read everything prog
 ========================================================================
 # Security
 URL: https://clusters.soleilpictures.com/docs/security
-Updated: 2026-11-05
+Updated: 2026-11-17
 
 Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.
 
@@ -5239,7 +5115,7 @@ Your account, clusters, cards, documents, comments and messages | Supabase (Post
 Uploaded files, and their backup copy | Cloudflare R2. Some message attachments and a few older card pictures are in Supabase storage
 The website, the API and the MCP server | Cloudflare Workers
 Live editing: who's here, and changes as they happen | Cloudflare Durable Objects
-Picture descriptions for search and tags | Cloudflare Workers AI, which doesn't keep the picture or train on it
+Picture descriptions for search | Cloudflare Workers AI, which doesn't keep the picture or train on it
 Payments | Stripe. Card details are typed on Stripe's page and never reach Clusters
 Email | Resend
 Making videos and audio play in every browser, previews of photos and documents browsers can't open, and Scout | Fly.io
@@ -5369,7 +5245,7 @@ A: A deleted cluster waits in the trash and can be restored from there. See Tras
 ========================================================================
 # The REST API
 URL: https://clusters.soleilpictures.com/docs/api
-Updated: 2026-10-27
+Updated: 2026-11-17
 
 The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.
 
@@ -5412,10 +5288,6 @@ POST /boards/:id/comments | Comment on a card, a group, a spot, the board or wor
 PATCH /boards/:id/comments | Resolve or reopen several threads at once
 PATCH /boards/:id/comments/:commentId | Resolve or reopen a thread
 DELETE /boards/:id/comments/:commentId | Delete your own comment — restorable on the canvas
-GET /workspaces/:id/tags | A workspace's tags, each with how many things carry it
-GET /tags/:id | Everything carrying a tag, on every board
-GET /boards/:id/tags | The tags on a board, and what carries each
-POST /boards/:id/tags | Put tags on cards or take them off, by name or id
 POST /uploads | Upload an image, get a key back
 GET /images/:key | Read an image back
 GET /resolve | Find an object by a foreign identifier
@@ -5441,13 +5313,14 @@ DELETE /service-accounts/:id/tokens/:tokenId | Revoke one token
 
 GET /api/v1 returns this list plus your current scopes, so the one URL a person types by hand answers usefully.
 
-Comments, docs and tags
+Tags were removed from Clusters. The tag endpoints that used to sit beside the comment ones are gone, and a request to one answers 410 with the code gone and the message "Tags were removed from Clusters." See errors.
 
-Three groups of endpoints have a page of their own:
+Comments and docs
+
+Two groups of endpoints have a page of their own:
 
 Comments — read every thread on a board, docs included, and add, reply, resolve or delete
 Docs — read and write a doc card's pages as Markdown, without overwriting anyone's changes
-Tags — list a workspace's tags, see what carries one, and tag cards or untag them
 
 Authentication
 
@@ -6870,117 +6743,6 @@ A: Yes. The MCP server's list_comments, add_comment and resolve_comments tools a
 
 
 ========================================================================
-# Tags API
-URL: https://clusters.soleilpictures.com/docs/api/tags
-Updated: 2026-10-25
-
-GET /workspaces/:id/tags lists a workspace's tags, each with how many things carry it, and GET /tags/:id lists everything carrying one tag, on every board. GET /boards/:id/tags shows the tags on one board, and POST /boards/:id/tags puts tags on its cards or takes them off, by name or by id, exactly as the Tag menu in the app does.
-
-A workspace's tags are read and applied here. Everything runs as you, so the API does with a tag exactly what the app does.
-
-GET /workspaces/:id/tags
-
-The workspace's tags, by name.
-
-{
-  "workspace_id": "5b2e…",
-  "tags": [
-    { "id": "0c9a…", "name": "Diner", "color": null, "entity_type": "setting",
-      "description": null, "items": 14, "created_at": "2026-09-30T18:02:11Z" }
-  ],
-  "limit": 100, "offset": 0, "has_more": false
-}
-
-items is how many things carry the tag, the number the sidebar shows (null when it can't be counted just then). color is the one picked in the app, or null for the colour it gives the tag from its name. entity_type is one of character, setting, organization, concept (Topic, in the app) and thing, or null.
-
-Parameter | 
-name | Just the tag of that name, in any case
-limit | Tags per page: 100 by default, at most 500
-offset | Where the page starts
-
-GET /tags/:id
-
-Everything carrying a tag, on every board in its workspace, the most recently tagged first: the tag's page, as data.
-
-{
-  "tag": { "id": "0c9a…", "name": "Diner", "workspace_id": "5b2e…", "…": "…" },
-  "items": [
-    { "kind": "card", "card_kind": "image", "board_id": "9f1c…", "board_name": "Locations",
-      "card_id": "c-3", "title": "Booth, night", "excerpt": null,
-      "auto": false, "tagged_at": "2026-10-20T09:14:02Z", "url": "https://…" },
-    { "kind": "doc_page", "board_id": "9f1c…", "card_id": "d-4", "page_id": "p-2",
-      "title": "Opening", "excerpt": "INT. DINER — NIGHT…", "auto": true, "…": "…" }
-  ],
-  "has_more": false
-}
-
-Each item's kind is card, group (with group_id and cards, how many cards it holds), board (a whole cluster), or doc_page (a page of a doc, with card_id and page_id). auto marks what was tagged automatically rather than by a person, and url opens it in the app. limit takes 100 by default, at most 500.
-
-GET /boards/:id/tags
-
-The tags on one board, and what carries each.
-
-{
-  "board_id": "9f1c…",
-  "tags": [
-    { "id": "0c9a…", "name": "Diner", "…": "…", "on_board": false,
-      "cards": ["c-3", "c-7"], "groups": [], "pages": [{ "card_id": "d-4", "page_id": "p-2" }] }
-  ],
-  "url": "https://…"
-}
-
-on_board is true when the board itself carries the tag, and each list is in the order things were tagged. A card deleted from the board keeps its tags in case the delete is undone, and isn't listed; when the board can't be read just then, a note says deleted cards may be.
-
-POST /boards/:id/tags
-
-Puts tags on cards of this board and takes tags off them.
-
-{ "card_ids": ["c-3", "c-7"], "add": ["Diner", "night exterior"], "remove": ["0c9a…"] }
-
-Field | 
-card_ids | Required. Up to 200 cards on this board
-add | Tags to put on them, up to 10: names, or ids from the lists above
-remove | Tags to take off them, up to 10, the same way
-
-Send add, remove, or both. A name is matched in any case, and a leading # is ignored. Each works as the Tag… menu does:
-
-A name the workspace has no tag for makes the tag, up to 80 characters. As a tag made in the app does, it then also goes on whatever else in the workspace says its name, marked auto.
-A deleted tag's name brings that tag back with everything it was on, as recreating it in the app does.
-Taking a tag off a card keeps it off that card for good: automatic tagging never puts it back there. Putting it on again yourself lifts that.
-
-{
-  "board_id": "9f1c…",
-  "added": [
-    { "id": "0c9a…", "name": "Diner", "…": "…", "created": false, "card_ids": ["c-7"] },
-    { "id": "77d1…", "name": "night exterior", "…": "…", "created": true, "card_ids": ["c-3", "c-7"] }
-  ],
-  "removed": [{ "id": "3f2b…", "name": "Day", "…": "…", "card_ids": ["c-3"] }],
-  "not_found": { "card_ids": [], "tags": [] },
-  "url": "https://…"
-}
-
-Each tag's card_ids are the cards that changed: one that already had the tag, or never had the one taken off, isn't listed, so sending the same call twice changes nothing the second time. created marks a new tag and revived: true one brought back. An id that isn't a tag of this workspace, or a tag to take off that it doesn't have, is listed in not_found.tags, and a card that isn't on the board in not_found.card_ids.
-
-Who can do what
-
-Tags belong to a workspace. Its members read them; anyone who can edit the workspace tags things in it, and anyone else gets 403. Someone a board is shared with sees no tags. A board you can't open, or none of the cards on it, answers 404. Tagging reads the board to find its cards: when it can't be read just then, nothing is written and the answer is 503 room_unavailable, so try again.
-
-## Frequently asked questions
-
-Q: Does tagging a card by a new name make the tag?
-A: Yes, as typing a new name into the app's Tag menu does. The new tag then also goes on whatever else in the workspace says its name, marked auto, as a tag made in the app does.
-
-Q: Will automatic tagging put back a tag I removed?
-A: No. Taking a tag off a card over the API keeps it off that card for good, as removing it in the app does. Putting it back on yourself lifts that.
-
-Q: Who can tag things over the API?
-A: Tags belong to a workspace. Its members can read them, and anyone who can edit the workspace can tag things in it, as in the app. Someone a board is shared with sees no tags.
-
-Q: Can an AI assistant tag cards?
-A: Yes. The MCP server's list_tags and tag_cards tools are these endpoints, so an assistant can see how a workspace is tagged and tag the cards it is asked to.
-
-
-========================================================================
 # Images API
 URL: https://clusters.soleilpictures.com/docs/api/images
 Updated: 2026-10-25
@@ -7750,7 +7512,7 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-11-14
+Updated: 2026-11-17
 
 Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.
 
@@ -7956,7 +7718,6 @@ read_board | board_id, response_format?, full?, include?, source?, since?, pagin
 view_board | board_id, limit? (default 12, up to 24), cursor?, card_ids? (up to 4, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card
 show_board | board_id — show the person the board as it is laid out: drawn in the chat where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each (a section with more says +N more), and ends with a line giving its link to pass on
 list_comments | board_id, status? (open|resolved|all), limit? (up to 200), cursor? — the board's comment threads, those inside its docs and notes with the text they are on
-list_tags | workspace_id?, board_id?, tag? (a name or an id), limit? (up to 500) — a workspace's tags, the tags on one board, or with tag everything carrying it
 list_audit | since?, cursor? — recent writes and image fetches
 
 Writing
@@ -7979,7 +7740,6 @@ update_cards | board_id, cards[] — up to 1000, each an id and any field add_ca
 edit_doc_page | board_id, card_id, page_id, and markdown with page_hash, or edits[] (up to 50), or title · marked destructive, since a rewrite takes words away; the board goes to Version history first
 arrange_board | board_id, layout?, card_ids?, order? (card ids to put first, in order; those in no section come first, at the top-left), dry_run? — lay a board out or tidy it: auto unless another layout is named — columns, the pictures leading, or blocks, whichever suits the board — which also brings notes made earlier up to date
 move_cards | from_board_id, to_board_id, card_ids[]
-tag_cards | board_id, card_ids[] (up to 200), add[]?, remove[]? (tag names or ids, up to 10 each) — put tags on cards or take them off, as the Tag menu does; a new name makes the tag
 resolve_comments | board_id, comment_ids[] (up to 50), resolved? — resolve threads, or reopen them with false; lists any refused, with why
 restore_board | board_id
 share_board | board_id, include_subboards? — the board's view-only link, made only when it has none; call it only when the person asks to share
@@ -7991,14 +7751,16 @@ Tool | Input
 delete_cards | board_id, card_ids[] — one, or up to 1000
 delete_board | board_id
 
+list_tags and tag_cards are gone. Calling either answers that the tool is gone and that tags were removed from Clusters, for example "list_tags is gone: Tags were removed from Clusters."
+
 Card kind is audio, doc, file, image, link, note, palette, pdf, video, defaulting to note.
 
 add_cards once lacked audio and pdf while the REST API took both, so an agent could not create the two kinds Soleil Scout makes from a text message. Both work now, and a file_key from upload_file is what any of video, audio, pdf or file is built from. palette joined them so a moodboard's colours are a palette card rather than hex codes in a note.
 
 Every tool carries a title and annotations — readOnlyHint, destructiveHint, idempotentHint, openWorldHint — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision.
 
-Read-only: whoami, search, fetch, list_boards, resolve_identifier, read_board, view_board, show_board, list_comments, list_tags and list_audit. They change nothing and can be repeated freely.
-Destructive: update_boards, update_cards, edit_doc_page, arrange_board, move_cards, tag_cards, resolve_comments, unshare_board, delete_cards and delete_board, since each can take something away or write over it (words, positions, tags, a thread's state, a link, cards, a cluster). Only a write that purely adds is marked non-destructive, even where the same call could put things back.
+Read-only: whoami, search, fetch, list_boards, resolve_identifier, read_board, view_board, show_board, list_comments and list_audit. They change nothing and can be repeated freely.
+Destructive: update_boards, update_cards, edit_doc_page, arrange_board, move_cards, resolve_comments, unshare_board, delete_cards and delete_board, since each can take something away or write over it (words, positions, a thread's state, a link, cards, a cluster). Only a write that purely adds is marked non-destructive, even where the same call could put things back.
 Open-world: import_urls, which fetches addresses on the web, and share_board, which makes a link anyone can open. The rest act only on the person's own clusters.
 
 Answers to the card writers are compact. add_cards, update_cards and arrange_board answer with each card's id, kind, title, section, position and size, and its url where it points somewhere, not the card whole; read_board has the rest.
@@ -8252,7 +8014,7 @@ A: Yes. A new account is free up to 25 cards and 5GB. When a board has more card
 ========================================================================
 # Errors and status codes
 URL: https://clusters.soleilpictures.com/docs/api/errors
-Updated: 2026-10-25
+Updated: 2026-11-17
 
 Every error is JSON carrying a machine-readable code and a human sentence. Branch on the code, not the prose. Only 429 and 5xx are worth retrying; everything in the 400 range is a permanent statement about the request. A retried POST must reuse the same Idempotency-Key or it becomes a second real write.
 
@@ -8274,6 +8036,7 @@ Status | code | Means | Retry?
 409 | conflict | Idempotency key in flight, a refused reparent, a doc page from an older layout, or a comment thread's state | Sometimes
 409 | page_changed | A doc page changed after you read it; read it again | No
 409 | identifier_conflict | An identifier already belongs to something else | No
+410 | gone | The endpoint was removed — the tag endpoints answer this with "Tags were removed from Clusters." | No
 413 | payload_too_large | An image over 25 MB, or more Markdown than a doc write takes | No
 415 | unsupported_media_type | Upload with a missing or unrecognised Content-Type | No
 429 | — | Rate limited | Yes, after retry-after
@@ -8293,6 +8056,8 @@ The ones worth explaining
 404 — returned both for things that do not exist and for things you cannot see. Do not retry it and do not treat it as transient.
 
 409 — two causes. An Idempotency-Key whose first attempt is still in flight, in which case waiting briefly and retrying with the same key is correct; or a reparent that would create a cycle, which is permanent.
+
+410 — the endpoint no longer exists and will not come back. Do not retry it; stop calling it.
 
 429 — respect the retry-after header, in seconds. Every response carries x-ratelimit-remaining and x-ratelimit-reset, so a well-behaved client never has to hit the wall to discover the wall.
 
@@ -8348,9 +8113,9 @@ A: 402 means a quota — the card cap or storage. 403 means permission — an in
 ========================================================================
 # Webhooks
 URL: https://clusters.soleilpictures.com/docs/api/webhooks
-Updated: 2026-10-26
+Updated: 2026-11-17
 
-Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads, comments and tags change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
+Register an HTTPS endpoint and Soleil Clusters posts to it when boards, cards, uploads and comments change — including changes made by people working in the app, not only changes made through the API. Every delivery is signed with HMAC-SHA256 over the timestamp and body, retried with exponential backoff for over twelve hours, and recorded in a delivery log you can inspect and replay.
 
 Register an HTTPS endpoint and we post to it when something changes.
 
@@ -8395,10 +8160,8 @@ comment.resolved | A thread is resolved
 comment.reopened | A resolved thread is opened again
 comment.deleted | A comment is deleted (it can still be restored)
 comment.restored | A deleted comment is brought back
-tag.applied | A tag is put on cards, groups, boards or doc pages
-tag.removed | A tag is taken off them
 
-Card, upload and tag events are grouped. A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. The ids come with it, the first 25 as a courtesy; past that, read the board.
+Card and upload events are grouped. A single operation on a board produces one event carrying a count, not one per card — so importing a thousand cards is one delivery, not a thousand. The ids come with it, the first 25 as a courtesy; past that, read the board.
 
 Comments on the canvas fire comment events. The comments inside a doc or a note live in the doc itself, so they fire none: read them with GET /boards/:id/comments.
 
@@ -8415,7 +8178,7 @@ The payload
 
 Deliberately thin. A payload is a copy of the truth, and a copy goes stale between being sent and being read — worse, it goes stale silently. You get enough to know what to look at; call back for current state, with ?since= if you want everything that moved.
 
-resource.id is the comment's id for a comment event and the tag's id for a tag event. A grouped card or upload event covers several things at once, so its resource.id is the board's.
+resource.id is the comment's id for a comment event. A grouped card or upload event covers several things at once, so its resource.id is the board's.
 
 What data holds
 
@@ -8424,11 +8187,12 @@ card.created, card.updated, card.deleted | count, card_ids
 card.moved | count, card_ids (as they are now, on board), from_board_id, from_card_ids (the same cards' ids where they were, in the same order: a card whose id was taken on arrival gets a new one)
 image.created | count, image_keys (each one's key for GET /images/:key); board is null for an upload that isn't on a board
 comment.* | id, thread_id, reply, on (card, group, point or board, or doc with a page_id for a comment made on a doc before its comments moved into the doc), card_id or group_id where it is pinned, author_id, resolved
-tag.applied, tag.removed | id (the tag's), auto (true when automatic tagging put it on or took it off), count, items: each thing it is on, {kind, id} with kind one of card, group, board or doc_page (a doc page adds page_id)
 
 A comment's words are not in its event. Read them through the API, under the permissions of the person whose token you use.
 
-A move between two workspaces fires card.moved in both, so the workspace the cards left hears of it too. Merging two tags reads as tag.removed for the tag merged away and tag.applied for the one it merged into. Confirming a tag that automatic tagging put on changes no tag, so it fires nothing.
+A move between two workspaces fires card.moved in both, so the workspace the cards left hears of it too.
+
+There are no tag events. tag.applied and tag.removed were removed along with tags. A webhook that listed them keeps working for its other events, and ["*"] simply no longer includes them. A create or update that still names them has them dropped; one that names nothing else answers 400.
 
 Verifying a delivery
 
@@ -8793,13 +8557,13 @@ Yes, once you are in. Linking the account you already have comes with your invit
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/mood-board-maker
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # Mood Board Maker
 
 > Soleil Clusters is a free online mood board maker: drag images, links, video, color palettes and any other file onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-11-17_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
@@ -8807,10 +8571,10 @@ Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Everything in one place, not fifteen tabs
 
-A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.
+A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Nest boards inside boards and search every board at once, so a growing project stays findable.
 
 - Drag in images, links, video, PDFs — any file, at any size
-- Tags gather references from every board into one view
+- Search finds references from every board in one place
 - Color palettes and notes sit right beside the imagery
 
 ## Build it together, in real time
@@ -9260,13 +9024,13 @@ In the app, no: a board needs an account to belong to, and the account is free. 
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/reference-board-maker
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # An Online Reference Board Maker for Working Artists
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-11-17_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
@@ -9298,7 +9062,7 @@ Clusters treats a reference board as a working surface, not a gallery.
 - Steal the palette — sample swatches off any image with the eyedropper and keep them on the board beside the work they came from.
 - Reference beyond stills — boards hold video, audio, PDFs, links, and rich-text notes alongside images; any other file lands as a card too, at any size.
 - Sketch over it — draw directly on the canvas to mark a gesture line or call out a detail.
-- One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and tag an image once to find it from any board.
+- One board per problem — nest boards inside boards so a project’s costume, lighting, and environment reference each stay findable, and search finds an image from any board.
 
 ## Free to start, flat when you grow
 
@@ -9444,13 +9208,13 @@ Yes. The free plan holds 25 cards or 5GB of files, whichever comes first, cluste
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/shared-reference-board
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # Shared Reference Boards for Studio Art Teams
 
 > Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.
 
-_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-11-17_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
@@ -9474,10 +9238,10 @@ Feedback in a chat thread drifts away from the picture it is about. In Clusters 
 
 ## Organised the way a studio thinks
 
-Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Tags cut across the nesting: type a tag as a character, a setting or a thing, and its view gathers every reference carrying it from anywhere in the workspace. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.
+Nest a cluster per character, environment or shot and the project stays navigable at hundreds of references. Search reaches across the nesting, so every reference for a character, a setting or a thing is one query away. Non-destructive adjustments — black and white for reading values, warmth, contrast — and swatches sampled off any image keep the reference working as reference, not just a gallery.
 
 - Nested clusters per character, environment or shot
-- Typed tags gather a character’s references across boards
+- Search finds a character’s references across boards
 - Black-and-white value checks, and swatches sampled off any image
 
 ## One plan for the team, not a licence per seat
@@ -9493,7 +9257,7 @@ If an artist needs reference floating always-on-top over their paint app on a fl
 1. **Make the project’s board** — Create one cluster for the project and nest a cluster inside it per discipline or asset — characters, environments, props, FX.
 2. **Invite the team** — Invite artists as editors by email or with an invite link. Up to 10 people edit free on Free and Creator, and everyone lands in the same live board.
 3. **Pull reference in bulk** — Select everything in a folder and drag it in at once, paste image links, or bring in video, PDFs and any other file, at any size. Everything lands as cards you can arrange.
-4. **Mark what matters** — Comment on a card or a group, tag references by character or setting, and put a vote card beside each option when the team has to pick one.
+4. **Mark what matters** — Comment on a card or a group, and put a vote card beside each option when the team has to pick one.
 5. **Show the supervisor** — Send a view-only link — no account needed, set to expire after 7 or 30 days if you like — or invite them to comment.
 
 ## What it costs
@@ -9546,13 +9310,13 @@ Free for 25 cards or 5GB of files across the workspace — clusters themselves a
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/directors-treatment
-Updated: 2026-11-14
+Updated: 2026-11-17
 
 # Director’s Treatment Template
 
 > A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.
 
-_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-11-17_
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
@@ -9563,7 +9327,7 @@ Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
 2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
 3. **Look and light** — Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.
-4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
+4. **Casting** — Faces and types, with a note on each. Put each character’s name on its reference so search finds every image of them.
 5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
 6. **Locations** — Scout photos and found references, a cluster per setting.
 7. **Edit, music and pace** — How it moves: reference clips as video cards, tracks as audio cards, and the rhythm you are after.
@@ -9661,13 +9425,13 @@ Free for 25 cards or 5GB of files, whichever comes first — clusters themselves
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/production-design-mood-board
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # Production Design Mood Boards
 
 > Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.
 
-_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-11-17_
 
 A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
 
@@ -9693,9 +9457,9 @@ A set board is not only pictures. Drop period photography and film frames beside
 
 Set decoration, props and graphics can work in the same project at once, each in their own nested cluster, with live cursors showing who is where. The director and producer comment on the exact image — pinned to the reference, not a paragraph in an email — and a vote card beside each chair settles “which of these three” without a meeting.
 
-## Tag by setting and character
+## Find by setting and character
 
-Tags cut across the nesting. Type a tag as a setting — the diner — and its view gathers every reference for that place from anywhere in the workspace, including the costume and camera boards. Tag a character, and their room, their props and their wardrobe come back in one view.
+Search cuts across the nesting. Search a setting — the diner — and every reference for that place comes back from anywhere in the workspace, including the costume and camera boards. Search a character’s name, and every reference that carries it — their room, their props, their wardrobe — comes back together.
 
 ## What it does not do
 
@@ -9755,13 +9519,13 @@ Free across the workspace for 25 cards or 5GB of files, whichever comes first �
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/costume-design-mood-board
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # Costume Design Mood Boards
 
-> Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.
+> Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and search finds every reference for that character across the project.
 
-_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-11-17_
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 
@@ -9779,9 +9543,9 @@ Costume is a story told across scenes, so one mood board for the whole film flat
 
 Photograph fabrics and trims as you buy them and drop them beside the look they belong to. Sample colours off a swatch photo or a reference with the eyedropper and keep the hex values on the board. After a fitting, the photos go straight into the character’s cluster, so the next decision is made looking at the real garment rather than a description of it. A supplier’s PDF, a pattern file or the sketch itself can sit beside the look too — any file lands on the board as a card, at any size.
 
-## One character tag, every reference
+## One search, every reference
 
-Tags in Clusters can be typed as characters. Tag a reference with the character once, and the tag’s view gathers every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the tag just finds it.
+Put a character’s name on a reference once, and search finds every image of them from wherever it lives in the workspace — your boards, the production designer’s, the camera team’s. Nothing moves; the search just finds it.
 
 ## Assistants, buyers and the director, live
 
@@ -10065,13 +9829,13 @@ Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps with a 
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/storyflow
-Updated: 2026-11-14
+Updated: 2026-11-17
 
 # A Storyflow Alternative for Crews That Work Live
 
 > Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
 
-_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-11-17_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
 
@@ -10090,7 +9854,7 @@ Storyflow is an AI visual workspace. You describe a board and its assistant draf
 A production is not one board. In Clusters the mood board, the storyboard grid, the visual shot list and the screenplay are nested boards in one project, connected by a relationship graph, with docs beside the imagery. Any file, at any size, rides on every plan; Creator holds 1TB. And the assistant question is answered the open way: connect Claude or any MCP client with one URL and ask it to build or tidy a board — your assistant and your plan, not a meter inside ours.
 
 - Mood board, storyboard, shot list and screenplay as nested boards
-- Tags and a relationship graph across the whole project
+- A relationship graph across the whole project
 - Connect Claude or any MCP client with one URL — no in-app allowance
 
 ## A free plan you can use today, and a flat price after it
@@ -10112,7 +9876,7 @@ Both of these tools come from small teams, and you should weigh that either way.
 ## How to move a Storyflow project to Clusters
 
 1. **Export what you made** — Storyflow exports boards as PNG, SVG or PDF and documents as files. Keep the original images you gathered as well — those are the references, and they are yours.
-2. **Drop them on a new board** — Drag the whole set onto a fresh cluster in one drop, then group and tag the references as you rebuild.
+2. **Drop them on a new board** — Drag the whole set onto a fresh cluster in one drop, then group the references as you rebuild.
 3. **Rebuild the structure as nested boards** — A mood board, a storyboard grid and a shot list become linked boards in one project rather than one long canvas.
 4. **Share one link** — Send it to the crew or the client. It opens in the browser, no account is needed to view, and everyone you invite edits free.
 
@@ -10192,13 +9956,13 @@ Yes. Clusters runs in the mobile browser and can be added to the home screen as 
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/eagle
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # An Eagle Alternative for Teams That Build Boards Together
 
 > Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.
 
-_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-11-17_
 
 Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
 
@@ -10241,7 +10005,7 @@ How the two compare. Eagle figures are from its own store, blog and support page
 | Real-time collaboration | Yes — live cursors and presence | No; teams share a library on a NAS or a synced folder |
 | Works offline, on your own disk | No — it lives in the cloud | Yes |
 | AI search by image or description | No | Yes — the AI Search plugin, offline |
-| Organising | Tags and nested clusters | Tags, smart folders and colour search |
+| Organising | Nested clusters and search | Tags, smart folders and colour search |
 | Notes, docs and a screenplay beside the images | Yes | Notes on each asset |
 | Comments and votes from a team | Yes | No |
 | Any file, any size | Yes — video, audio and PDFs play or open on the card; the drive is the only limit (5GB free, 1TB on Creator) | Yes — any format, previews for images, GIFs, video and audio |
@@ -10297,13 +10061,13 @@ As of October 2026, Eagle’s store lists US$34.95 as a one-time purchase with f
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/google-drive
-Updated: 2026-10-02
+Updated: 2026-11-17
 
 # A Google Drive Alternative for Creative Work
 
 > Soleil Clusters is a Google Drive alternative for a creative team’s working files: drop a folder and it becomes nested boards, every file kept under its own name and laid out where the whole team can see it, comment and decide. Keep Drive for backup, sync and offline copies; use Clusters for the work.
 
-_Source: https://clusters.soleilpictures.com/vs/google-drive · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/google-drive · Updated 2026-11-17_
 
 Drive stores your files. Clusters shows them — every reference on one canvas your team builds on together, organised the way your folders were.
 
@@ -10388,7 +10152,7 @@ No. Nothing syncs in either direction: Clusters keeps its own copy of what you d
 
 ### Can I find a file by its name in Clusters?
 
-Yes. Search finds photos and videos by the name their file had, along with cluster names, card text and tags, and list view sorts and filters a cluster like a folder.
+Yes. Search finds photos and videos by the name their file had, along with cluster names and card text, and list view sorts and filters a cluster like a folder.
 
 ### Is there a Clusters app for my phone?
 
@@ -10398,13 +10162,13 @@ Clusters runs in the mobile browser and can be added to the home screen as a web
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/pureref
-Updated: 2026-10-02
+Updated: 2026-11-17
 
 # PureRef Online: The Closest Thing, in Your Browser
 
 > PureRef has no web version — it is a desktop app and always has been. Soleil Clusters is the closest thing online: the same drop-images-and-arrange reference wall, free in any browser, synced across devices and shareable with one link. PureRef still wins for a small always-on-top offline overlay.
 
-_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-11-17_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
 
@@ -10436,10 +10200,10 @@ A reference board is rarely just pictures. Clusters cards can be images, notes, 
 
 ## Switching from PureRef takes an afternoon
 
-Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and tags and nested boards keep it organized as the project grows.
+Bring your references over in one pass: export the images from PureRef (or gather the original files you pinned) and drag the whole set onto a new Clusters board. The images land in one drop, ready to arrange, so the afternoon goes into rebuilding the layout you had — and nested boards keep it organized as the project grows.
 
 - Select a folder’s references and drag them all in at once
-- Tags and nested boards keep a growing board findable
+- Nested boards keep a growing board findable
 - One board per project — or nest boards inside it
 
 ## Reference boards your whole team can stand around
@@ -10553,13 +10317,13 @@ In Clusters, yes — connect Claude, ChatGPT, Cursor, VS Code or any other MCP a
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/vs/miro
-Updated: 2026-11-04
+Updated: 2026-11-17
 
 # A Miro Alternative for Filmmakers and Creative Teams
 
 > Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.
 
-_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-11-17_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 
@@ -10572,7 +10336,7 @@ Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note s
 - Image-first cards with photo adjustments and palettes
 - Video, audio, PDFs and any other file on the board, at any size
 - Docs and screenplay mode built in
-- Tags and a relationship graph across boards
+- A relationship graph across boards
 
 ## Lighter, and made for showing work
 
@@ -10714,13 +10478,13 @@ Visit the Explore gallery to browse curated public boards made with Clusters, th
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/pureref-alternatives
-Updated: 2026-10-05
+Updated: 2026-11-17
 
 # The 10 Best PureRef Alternatives in 2026
 
 > For shared, team reference boards, Soleil Clusters (clusters.soleilpictures.com) is the best PureRef alternative in 2026 — the same drop-and-arrange feel, in the browser, shared with one link and edited in real time, free to start. BeeRef is the best open-source desktop clone, Eagle the best one-time-purchase reference library, and Milanote the best for structured client presentations.
 
-_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-05_
+_Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-11-17_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
@@ -10875,7 +10639,7 @@ The reference wall that follows the project — in the browser, shared with one 
 
 Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.
 
-The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
+The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. A relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.
 
 A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.
 
@@ -10883,7 +10647,7 @@ It runs in the browser on desktop and mobile, including touch and iPad. The free
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
-- Tags on cards, groups and boards; a relationship graph connects boards across a project
+- A relationship graph connects boards across a project
 - Boards hold images, video, audio, PDFs, links, notes, docs (with screenplay mode), palettes, grids, and vote cards
 - Non-destructive photo adjustments; nested boards with live thumbnails
 - Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live
@@ -11205,13 +10969,13 @@ Soleil Clusters — the only tool on this list designed as a team reference wall
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/milanote-alternatives
-Updated: 2026-11-14
+Updated: 2026-11-17
 
 # The 12 Best Milanote Alternatives in 2026
 
 > Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to 25 cards or 5GB of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.
 
-_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-11-17_
 
 Twelve tools, ranked by the only question that matters: what does your board have to become next?
 
@@ -11352,7 +11116,7 @@ The honest limits: Clusters is browser-only — no offline mode, no always-on-to
 
 - Real-time multiplayer canvas with live cursors, presence, and pinned comments
 - Boards hold images, video, audio, PDFs, links, notes, docs, palettes, grids, and vote cards
-- Tags on cards, groups and boards; a relationship graph connects the project
+- A relationship graph connects the project
 - Screenplay mode in docs; non-destructive photo adjustments
 - One-link sharing — viewers need no account; free editors can collaborate
 - Nested boards with live thumbnails; published template boards open live
@@ -11711,13 +11475,13 @@ Kosmik shut down. The founder announced the wind-down on April 24, 2026, and the
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/best/mood-board-apps
-Updated: 2026-11-14
+Updated: 2026-11-17
 
 # The 12 Best Mood Board Apps in 2026
 
 > Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.
 
-_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-11-14_
+_Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2026-08-04 · Updated 2026-11-17_
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
@@ -11783,7 +11547,7 @@ The honest limits: Clusters runs in the browser only — no offline desktop app,
 
 - Real-time multiplayer canvas: live cursors, presence, pinned comments
 - One-link sharing — viewers need no account; free editors can collaborate
-- Tags on cards, groups and boards; a relationship graph connects the project
+- A relationship graph connects the project
 - Boards hold images, video, audio, PDFs, notes, palettes, grids, and docs with screenplay mode
 - Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad
 
@@ -12646,13 +12410,51 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-11-10
+Updated: 2026-11-17
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-11-17 — Tags are gone
+
+Tags are removed from cards, groups, clusters and documents, along with the tag pages and the sidebar list. Nothing anyone made was deleted, and search still finds pictures by what is in them.
+
+### Tags are gone
+
+- You can no longer tag a card, a group, a cluster or a passage in a document.
+  The Tag button, the tag chips, the tag pages and the **Tags** list in the
+  sidebar are gone, and so are the underlines and margin dots that suggested
+  names and tags in documents and notes.
+- Nothing you made was deleted. Your clusters, cards, groups and documents are
+  as they were; only the tags on them stopped showing. An old @-mention of a tag
+  stays in your writing as plain text, in the name it had.
+- Search no longer lists tags, and `#` followed by a name no longer finds
+  anything. Everything else about [search](/docs/organize/search) is as it was,
+  and finding a picture by what is in it still works, as does **More like this**.
+- @-mentions, **Referenced by** and the underlines on names of clusters, cards
+  and documents work as before. See
+  [links and mentions](/docs/organize/links-and-mentions) and
+  [comments and backlinks](/docs/documents/comments-and-backlinks).
+- **AI suggestions** in **Settings → General** is now **AI for pictures and
+  search**. It still turns picture descriptions and searches typed in another
+  language on or off. Notes and documents are no longer read by AI to suggest
+  tags. See [pictures and AI](/docs/account/data-and-privacy#pictures-and-ai).
+
+### For developers
+
+- The tag endpoints of the [API](/docs/api) answer `410` with the code `gone`
+  and the message "Tags were removed from Clusters." See
+  [errors](/docs/api/errors).
+- The AI connector's `list_tags` and `tag_cards` tools answer that tags were
+  removed from Clusters. See [MCP](/docs/mcp).
+- The webhook events `tag.applied` and `tag.removed` are gone. A webhook that
+  listed them keeps working for its other events. See
+  [webhooks](/docs/api/webhooks).
+- The old pages on tags now lead to [search](/docs/organize/search), the
+  [API](/docs/api) and [comments and backlinks](/docs/documents/comments-and-backlinks).
 
 ## 2026-11-10 — Help improve Clusters
 

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runWorkersAiChat, parseJsonLoose, parseJsonArrayLoose, responseText } from '../worker-llm.js';
-import { handleTagsRoute, verdictsOf } from '../worker-tags.js';
+import { handleSearchRoute } from '../worker-search.js';
 import { runChat } from './scoutIntent.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -61,14 +61,10 @@ test("Scout's REST path reads a parsed answer as text, and its classifier can re
   assert.match(pipeline, /await runChat\(\s*cfg, '@cf\/google\/gemma-4-26b-a4b-it'/);
 });
 
-test('doc word-tagging runs on a model Cloudflare still serves', () => {
-  const src = read('../worker-tags.js');
+test("Scout runs on a model Cloudflare still serves", () => {
   // The plain id was retired on 2026-05-30 (error 5028), the fp8 build on 2026-11-20.
-  assert.doesNotMatch(src, /'@cf\/meta\/llama-3\.1-8b-instruct'/);
-  assert.doesNotMatch(src, /llama-3\.1-8b-instruct-fp8/);
   assert.doesNotMatch(read('./scoutIntent.js'), /llama-3\.1-8b-instruct-fp8/);
   assert.doesNotMatch(read('../../../scout/src/pipeline.js'), /llama-3\.1-8b-instruct-fp8/);
-  assert.match(src, /const APPLY_MODEL = '@cf\/google\/gemma-4-26b-a4b-it';/);
 });
 
 test('runWorkersAiChat turns thinking off only when asked', async () => {
@@ -101,7 +97,7 @@ test("Scout's REST path sends enable_thinking: false when asked", async () => {
 // Gemma 4 reasons its whole answer away unless thinking is off, so every call
 // to it must say noThinking.
 test('every call that reaches Gemma 4 passes noThinking: true', () => {
-  const files = ['../worker-tags.js', '../worker-ai.js', './scoutIntent.js', '../../../scout/src/pipeline.js'];
+  const files = ['./scoutIntent.js', '../../../scout/src/pipeline.js'];
   for (const f of files) {
     const src = read(f);
     let seen = 0;
@@ -128,25 +124,9 @@ test('every call that reaches Gemma 4 passes noThinking: true', () => {
   assert.match(part[0], /noThinking: true/);
 });
 
-test('emergent-theme naming is retired: no route, no client, no discovery', () => {
-  // It named clusters that no screen showed (useDiscoveredTags was never
-  // imported), on every client, every session.
-  const worker = read('../worker-tags.js');
-  assert.doesNotMatch(worker, /cluster-name|handleClusterName|CLUSTER_NAME/);
-  assert.doesNotMatch(read('./tagsClient.js'), /nameCluster|cluster-name/);
-  assert.doesNotMatch(read('../hooks/useAiTagger.js'), /runWorkspaceDiscovery|aiDiscovery/);
-  assert.throws(() => read('./aiDiscovery.js'), /ENOENT/);
-});
-
-test('the canvas scorer never suggests a tag the card already carries', () => {
-  const src = read('../hooks/useAiTagger.js');
-  assert.match(src, /const toInbox = suggestable\.filter\(c => !alreadyApplied\.has\(c\.tag\.id\)\);/);
-  assert.match(src, /if \(toInbox\.length > 0 && target\?\.kind && target\?\.id\) \{\s*const rows = toInbox\.map\(/);
-});
-
-// The tag routes against a stand-in Supabase: the token is always good, and the
-// daily budget answers `budget`. Records what each call was charged and what
-// reached the model.
+// The translation route against a stand-in Supabase: the token is always good,
+// the workspace's AI switch is on, and the daily budget answers `budget`.
+// Records what each call was charged and what reached the model.
 async function withRoutes(budget, fn) {
   const charged = [];
   const runs = [];
@@ -154,12 +134,13 @@ async function withRoutes(budget, fn) {
     SUPABASE_URL: 'https://sb.test', SUPABASE_ANON_KEY: 'anon',
     AI: { run: async (model, input) => {
       runs.push({ model, input });
-      return { response: { name: 'Scene Coverage', description: 'Shots', verdicts: [] } };
+      return { translated_text: 'a red car' };
     } },
   };
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     if (String(url).endsWith('/auth/v1/user')) return new Response(JSON.stringify({ id: 'u1' }));
+    if (String(url).includes('/rest/v1/workspaces')) return new Response(JSON.stringify([{ ai_tagger_enabled: true }]));
     if (String(url).includes('/rpc/tags_embed_budget_take')) {
       charged.push(JSON.parse(init.body).p_chars);
       if (budget === 'error') return new Response('boom', { status: 500 });
@@ -167,65 +148,30 @@ async function withRoutes(budget, fn) {
     }
     throw new Error('unexpected fetch ' + url);
   };
-  const call = (path, body) => handleTagsRoute(new URL('https://x.test' + path),
-    new Request('https://x.test' + path, {
+  const call = (body) => handleSearchRoute(new URL('https://x.test/api/search/translate'),
+    new Request('https://x.test/api/search/translate', {
       method: 'POST', headers: { authorization: 'Bearer t' }, body: JSON.stringify(body),
     }), env);
   try { await fn({ call, charged, runs }); } finally { globalThis.fetch = realFetch; }
 }
-const applyBody = { cards: [{ id: 'p1', text: 'MARA steps onto the porch.', candidate_tags: [{ id: 'mara', name: 'Mara' }] }] };
+const translateBody = { q: 'voiture rouge', source_lang: 'fr', workspace_id: '11111111-1111-4111-8111-111111111111' };
 
-test('doc word-tagging reaches the model only on a budget yes', async () => {
+test('a translation reaches the model only on a budget yes', async () => {
   await withRoutes(false, async ({ call, runs }) => {
-    assert.equal((await call('/api/tags/apply', applyBody)).status, 429);
+    assert.equal((await call(translateBody)).status, 429);
     assert.equal(runs.length, 0, 'a no never reaches the model');
   });
   await withRoutes(true, async ({ call, charged, runs }) => {
-    assert.equal((await call('/api/tags/apply', applyBody)).status, 200);
+    assert.equal((await call(translateBody)).status, 200);
     assert.equal(runs.length, 1);
-    // Each call is charged everything it sends, the instructions included.
-    runs.forEach(({ input }, i) => {
-      const [system, user] = input.messages;
-      assert.equal(charged[i], system.content.length + user.content.length);
-      assert.ok(system.content.length > 1000, 'the instructions are counted');
-    });
-  });
-});
-
-test('one doc word-tagging call is capped however much a client sends', async () => {
-  const many = Array.from({ length: 100 }, (_, i) => ({ id: `tag-${i}`, name: 'N'.repeat(500), description: 'D'.repeat(900) }));
-  await withRoutes(true, async ({ call, runs }) => {
-    const res = await call('/api/tags/apply', { cards: [{ id: 'x'.repeat(900), text: 'T'.repeat(20000), candidate_tags: many }] });
-    assert.equal(res.status, 200);
-    const sent = JSON.parse(runs[0].input.messages[1].content.split('\n\nReturn ONLY')[0]);
-    const card = sent.cards[0];
-    assert.equal(card.candidate_tags.length, 30);
-    assert.ok(card.candidate_tags.every(t => t.name.length === 80 && t.description.length === 200 && t.id.length <= 200));
-    assert.equal(card.text.length, 4000);
-    assert.equal(card.id.length, 200);
-  });
-  // A malformed tag list is no tags, not a crash.
-  await withRoutes(true, async ({ call, runs }) => {
-    assert.equal((await call('/api/tags/apply', { cards: [{ id: 'p', text: 't', candidate_tags: 'oops' }] })).status, 200);
-    assert.deepEqual(JSON.parse(runs[0].input.messages[1].content.split('\n\nReturn ONLY')[0]).cards[0].candidate_tags, []);
+    assert.equal(charged[0], translateBody.q.length + 200);
   });
 });
 
 test('a failed budget check is a 503 (retry in a minute), not a spent budget (429, an hour)', async () => {
   await withRoutes('error', async ({ call, runs }) => {
-    assert.equal((await call('/api/tags/apply', applyBody)).status, 503);
-    assert.equal((await call('/api/tags/embed', { cards: [{ id: 'c', text: 'hello' }] })).status, 503);
+    // A different query: an answer already cached never asks the budget.
+    assert.equal((await call({ ...translateBody, q: 'chat noir' })).status, 503);
     assert.equal(runs.length, 0);
   });
-});
-
-test('tag verdicts reach the client as card_id and tag_id, whichever names the model used', () => {
-  const got = verdictsOf({ verdicts: [
-    { id: 'c1', tags: [{ id: 't1', confidence: 'high', words: [] }, null] },
-    { card_id: 'c2', tags: [{ tag_id: 't2', confidence: 'low', words: [] }] },
-    'junk',
-  ] });
-  assert.deepEqual(got.map((v) => [v.card_id, v.tags.map((t) => t.tag_id)]), [['c1', ['t1']], ['c2', ['t2']]]);
-  assert.deepEqual(verdictsOf({}), []);
-  assert.deepEqual(verdictsOf(null), []);
 });

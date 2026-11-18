@@ -7,7 +7,7 @@ import { createNameIndex } from './entityNameTrie.js';
 
 const run = (names, text) => {
   const ix = createNameIndex();
-  names.forEach((n, i) => ix.add({ kind: 'tag', id: String(i), name: n }));
+  names.forEach((n, i) => ix.add({ kind: 'card', id: String(i), name: n }));
   return [...ix.findMatches(text)].map(m => [m.start, m.end]);
 };
 
@@ -49,9 +49,16 @@ test('scripts', () => {
 
 test('records and clear', () => {
   const ix = createNameIndex();
-  ix.add({ kind: 'tag', id: '1', name: 'Café' });
+  ix.add({ kind: 'card', id: '1', name: 'Café' });
   assert.equal(ix.records.length, 1);
   ix.clear();
   assert.equal(ix.records.length, 0);
   assert.deepEqual([...ix.findMatches('Café')], []);
+});
+
+test('an old tag record resolves to no ref, and coerces to none', async () => {
+  const { recordToRef } = await import('./scanForAutoLinks.js');
+  const { coerceRef } = await import('./entityRef.js');
+  assert.equal(recordToRef({ kind: 'tag', id: 't1', name: 'Night' }), null);
+  assert.equal(coerceRef({ kind: 'tag', id: 't1' }), null);
 });

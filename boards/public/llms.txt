@@ -12,7 +12,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Changelog
 
-- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, in dated entries. Most recent entry: 2026-11-10. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
+- [Changelog](https://clusters.soleilpictures.com/changelog): Every user-visible change to Soleil Clusters, newest first, in dated entries. Most recent entry: 2026-11-17. Raw Markdown at https://clusters.soleilpictures.com/changelog.md, RSS at https://clusters.soleilpictures.com/changelog.xml.
 
 ## Pricing
 
@@ -34,7 +34,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Notes](https://clusters.soleilpictures.com/docs/canvas/notes): Rich-text notes on the Soleil Clusters canvas — formatting, checklists, @-mentions, auto-linking and real-time co-typing with other people.
 - [Shapes and drawing](https://clusters.soleilpictures.com/docs/canvas/shapes-and-drawing): Draw freehand on a Soleil Clusters canvas, add shapes with stroke and fill control, use the sketch pad overlay, or place a bounded art canvas card.
 - [Arrows](https://clusters.soleilpictures.com/docs/canvas/arrows): Connect cards with arrows in Soleil Clusters. Arrows anchor to cards, re-route as you move things, and carry labels, colours, thickness and head styles.
-- [Groups](https://clusters.soleilpictures.com/docs/canvas/groups): Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on, tagged and coloured as a unit.
+- [Groups](https://clusters.soleilpictures.com/docs/canvas/groups): Group cards on a Soleil Clusters canvas. Named, outlined selections that move as one and can be commented on and coloured as a unit.
 - [Grids](https://clusters.soleilpictures.com/docs/canvas/grids): Grid cards in Soleil Clusters split into resizable cells holding any content — storyboards, contact sheets, comparisons. Split, merge, or generate a matrix.
 - [Vote cards](https://clusters.soleilpictures.com/docs/canvas/vote-cards): Vote cards in Soleil Clusters are up/down polls you can anchor anywhere on a board, so a team can decide between options without a thread of comments.
 - [Colour palettes and the picker](https://clusters.soleilpictures.com/docs/canvas/palettes-and-color): Palette cards, the colour picker with eyedropper and hex input, recent colours, and how board colours stay readable in light and dark themes.
@@ -60,13 +60,12 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Documents](https://clusters.soleilpictures.com/docs/documents): Write long-form documents inside Soleil Clusters. Multi-page editor with a page tree, formatting, tables, board embeds, comments, find and replace.
 - [Screenplay mode](https://clusters.soleilpictures.com/docs/documents/screenplay): Write screenplays in Soleil Clusters with industry formatting, accurate pagination, a scene navigator, title page, and Final Draft and Fountain support.
 - [Exporting documents](https://clusters.soleilpictures.com/docs/documents/export): Export a Soleil Clusters document as PDF, Markdown or HTML, and screenplays as Final Draft .fdx or Fountain. Exports work from a phone or tablet browser too.
-- [Comments, tags and backlinks in documents](https://clusters.soleilpictures.com/docs/documents/comments-and-tags): Comment on a text range in a Soleil Clusters document, tag passages, confirm suggested entities from the margin, and see everywhere a document is referenced.
+- [Comments and backlinks in documents](https://clusters.soleilpictures.com/docs/documents/comments-and-backlinks): Comment on a text range in a Soleil Clusters document, mention anything with @, and see everywhere a document is referenced.
 
 ## Organize and find
 
-- [Tags and entities](https://clusters.soleilpictures.com/docs/organize/tags): Tag cards, clusters and passages in Soleil Clusters, type tags as entities, and see everything carrying a tag on one page. The AI only suggests.
-- [Links and mentions](https://clusters.soleilpictures.com/docs/organize/links-and-mentions): Mention any board, document, card, tag or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.
-- [Search and the command palette](https://clusters.soleilpictures.com/docs/organize/search): Cmd-K in Soleil Clusters searches clusters, cards, notes, docs and tags, and runs commands — share, invite, trash, theme, settings — from the keyboard.
+- [Links and mentions](https://clusters.soleilpictures.com/docs/organize/links-and-mentions): Mention any board, document, card or person with @ in Soleil Clusters. Automatic link detection, hover previews, backlinks and deep links.
+- [Search and the command palette](https://clusters.soleilpictures.com/docs/organize/search): Cmd-K in Soleil Clusters searches clusters, cards, notes and docs, and runs commands — share, invite, trash, theme, settings — from the keyboard.
 
 ## Collaborate
 
@@ -107,7 +106,6 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Cards API](https://clusters.soleilpictures.com/docs/api/cards): Add, read, update, move and delete Soleil Clusters cards over REST. Field reference, size limits, auto-placement and the delete-is-the-undo pattern.
 - [Docs API](https://clusters.soleilpictures.com/docs/api/docs): Read and write Soleil Clusters doc cards as Markdown over REST. Make a doc with its pages, add pages, rewrite or edit a page without losing anyone's changes.
 - [Comments API](https://clusters.soleilpictures.com/docs/api/comments): List every comment thread on a Soleil Clusters board over REST, docs included, and add, reply, resolve, delete or restore comments.
-- [Tags API](https://clusters.soleilpictures.com/docs/api/tags): List a Soleil Clusters workspace's tags over REST, see everything carrying one, and put tags on cards or take them off, by name or by id.
 - [Images API](https://clusters.soleilpictures.com/docs/api/images): Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.
 - [Import](https://clusters.soleilpictures.com/docs/api/import): Bring reference in from wherever it lives now — a shared drive folder, a CDN, any list of URLs — with an import you can safely run twice.
 - [Arrange](https://clusters.soleilpictures.com/docs/api/arrange): Tidy a board in one call — each section its own block, every picture whole — or lay cards out as justified rows, masonry or a grid, or place them by hand.
@@ -117,7 +115,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [MCP server](https://clusters.soleilpictures.com/docs/mcp): Connect Claude or any MCP client to Soleil Clusters — hosted over a URL, or run locally. Tools for reading, building, importing and exporting boards.
 - [The make-it link](https://clusters.soleilpictures.com/docs/make-link): Any AI can write a Soleil Clusters board into a link or as text. Open it to see the board at once, and keep it free with your email.
 - [Errors and status codes](https://clusters.soleilpictures.com/docs/api/errors): Every Soleil Clusters API error code and what to do about it — which are retryable, which are permanent, and how idempotency interacts with retries.
-- [Webhooks](https://clusters.soleilpictures.com/docs/api/webhooks): Get notified when boards, cards, comments and tags change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.
+- [Webhooks](https://clusters.soleilpictures.com/docs/api/webhooks): Get notified when boards, cards and comments change, including changes made in the app. Signed deliveries, a delivery log you can inspect, and redelivery.
 - [Service accounts](https://clusters.soleilpictures.com/docs/api/service-accounts): Create a credential owned by a workspace rather than by a person, so an integration keeps working after the person who built it leaves.
 - [Audit log](https://clusters.soleilpictures.com/docs/api/audit): Read who changed what through the API, and who fetched image bytes, with cursor paging. Covers your own calls and your service accounts'.
 

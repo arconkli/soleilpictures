@@ -70,7 +70,8 @@ const errorSchema = {
         'not_found', 'conflict', 'bad_request', 'limit_reached',
         'unsupported_media_type', 'payload_too_large', 'method_not_allowed',
         'idempotency_in_progress', 'session_unavailable', 'storage_unavailable',
-        'upstream_rejected', 'upstream_error', 'internal_error',
+        'upstream_rejected', 'upstream_error', 'internal_error', 'gone',
+        'room_unavailable', 'page_changed',
       ],
     },
   },
@@ -210,27 +211,6 @@ export function openapiDocument(origin) {
           operationId: 'listWorkspaces',
           responses: { 200: okJson('Workspaces', { type: 'object' }) },
         },
-      },
-      '/workspaces/{id}/tags': {
-        get: op('listTags', 'The workspace\'s tags, each with how many things carry it', {
-          description: 'By name. name finds one tag, in any case. items is how many things carry the '
-            + 'tag (null when it could not be counted). Members of the workspace only.',
-          parameters: [
-            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-            q('name', 'Just the tag of this name'),
-            limitParam, offsetParam,
-          ],
-        }),
-      },
-      '/tags/{id}': {
-        get: op('listTagged', 'Everything carrying a tag, on every board', {
-          description: 'The most recently tagged first: cards, groups, boards and doc pages, each with '
-            + 'a url and whether it was tagged automatically (auto).',
-          parameters: [
-            { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
-            q('limit', 'How many to list', { type: 'integer', minimum: 1 }),
-          ],
-        }),
       },
       '/search': {
         get: {
@@ -1037,23 +1017,6 @@ export function openapiDocument(origin) {
       '/boards/{id}/comments/{commentId}/restore': {
         post: op('restoreComment', 'Bring a deleted comment back', {
           parameters: [boardIdParam, { name: 'commentId', in: 'path', required: true, schema: { type: 'string' } }],
-        }),
-      },
-      '/boards/{id}/tags': {
-        get: op('listBoardTags', 'The tags on a board, and the cards, groups and doc pages carrying each', {
-          parameters: [boardIdParam],
-        }),
-        post: op('tagCards', 'Put tags on cards of the board, or take them off', {
-          description: 'Tags by name or id. A name the workspace has no tag for makes one, which then '
-            + 'also tags whatever else in the workspace says its name; a deleted tag\'s name brings it '
-            + 'back. A tag taken off a card stays off: automatic tagging never puts it back. The answer '
-            + 'lists, per tag, the cards that changed. Anyone who can edit the workspace.',
-          parameters: [boardIdParam],
-          requestBody: jsonBody({
-            card_ids: { type: 'array', items: { type: 'string' } },
-            add: { type: 'array', items: { type: 'string' }, description: 'Tag names or ids to put on' },
-            remove: { type: 'array', items: { type: 'string' }, description: 'Tag names or ids to take off' },
-          }, ['card_ids']),
         }),
       },
       '/boards/{id}/share-link': {

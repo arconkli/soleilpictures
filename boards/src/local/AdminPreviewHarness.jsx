@@ -30,7 +30,6 @@ import { AdminWaitlistTab } from '../pages/admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from '../pages/admin/AdminFeedbackTab.jsx';
 import { AdminErrorsTab } from '../pages/admin/AdminErrorsTab.jsx';
 import { AdminApiTab } from '../pages/admin/AdminApiTab.jsx';
-import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
 import { AdminEmailsTab } from '../pages/admin/AdminEmailsTab.jsx';
 import { AdminBoardsTab } from '../pages/admin/AdminBoardsTab.jsx';
@@ -168,7 +167,7 @@ const FIXTURE_UNIVERSE_STATS = {
   total_clusters_made: 1170, total_studios: 640,
   total_links: 2140, nodes_created_24h: 96, total_seconds_in_app: 40_000_000,
   last_24h: { users: 7, workspaces: 4, boards: 13, clusters_made: 9, cards: 72 },
-  today: { users: 7, workspaces: 4, boards: 12, cards: 138, tags: 22, links: 0 },
+  today: { users: 7, workspaces: 4, boards: 12, cards: 138, links: 0 },
 };
 
 // The REAL <UniverseView>, over the synthetic corpus.
@@ -262,7 +261,6 @@ const TABS = [
   { id: 'feedback',  label: 'Feedback',  Component: AdminFeedbackTab },
   { id: 'errors',    label: 'Errors',    Component: AdminErrorsTab },
   { id: 'api',       label: 'API',       Component: AdminApiTab },
-  { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
   { id: 'emails',    label: 'Emails',    Component: AdminEmailsTab },
   { id: 'discover',  label: 'Discover',  Component: DiscoverQaTab },
   { id: 'boards',    label: 'Boards',    Component: BoardsQaTab },

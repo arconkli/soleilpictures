@@ -127,13 +127,8 @@ import { PersonFace } from './components/PersonFace.jsx';
 import './lib/entityKinds.js';
 import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
-import { SidebarTags } from './components/SidebarTags.jsx';
 // The Shared page (held: sharedFilesAllowed), loaded when it is opened.
 const SharedPage = lazyWithReload(() => import('./components/shared/SharedPage.jsx').then((m) => ({ default: m.SharedPage })));
-import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
-import { useAutotagWorker } from './hooks/useAutotagWorker.js';
-import { useAiTagger } from './hooks/useAiTagger.js';
-import { isAiTaggerEnabled } from './lib/aiTaggerFlag.js';
 import { WorkspaceMenu } from './components/WorkspaceMenu.jsx';
 import {
   useTeamPreview, useTeamPage, openTeamPage, closeTeamPage, readTeamPreviewName, consumeTeamPageOnBoot,
@@ -355,7 +350,7 @@ import { openClusterColor, openClusterThumb } from './lib/clusterCoverBus.js';
 import { openInfo } from './lib/infoBus.js';
 import { openSend, sendAvailable } from './lib/sendBus.js';
 import { copyClusterLink as copyClusterLinkToClipboard } from './lib/cardLink.js';
-import { canManageWorkspace, canWriteWorkspace } from './lib/workspaceRoles.js';
+import { canManageWorkspace } from './lib/workspaceRoles.js';
 // Lazy for the same reason, one step removed: DocCard is the CanvasSurface
 // chunk's, and it reaches the TipTap stack. Importing it statically here would
 // haul both toward AppShell for every signed-in user, when only the people who
@@ -396,7 +391,6 @@ const NewWorkspaceDialog = lazyWithReload(() => import('./components/team/NewWor
 const WorkspaceLimitDialog = lazyWithReload(() => import('./components/WorkspaceLimitDialog.jsx'));
 const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
-const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
 const EntityBacklinksPanel = lazyWithReload(() => import('./components/EntityBacklinksPanel.jsx').then(m => ({ default: m.EntityBacklinksPanel })));
 // What a first click most often opens, fetched once the board has settled
 // (lib/afterBoot.js: its first picture, or a while after its paint) so that
@@ -1108,7 +1102,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Global search + ⌘K command palette (distinct from the boards-only
   // BoardPicker above, which stays the "link a board onto canvas" surface).
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // Sidebar scroll region (the board/tag list between the pinned nav and
+  // Sidebar scroll region (the board list between the pinned nav and
   // footer). useScrollEdges toggles fade-top/fade-bottom on it so the edges
   // fade only when there's hidden content above/below.
   const sidebarScrollRef = useRef(null);
@@ -2178,7 +2172,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // is also the browser's: each new entry adds one history entry, and the
   // phone's Back, the iOS edge swipe and the Back/Forward buttons all walk the
   // same list (lib/modalGuard.js, "Back closes the top layer, then goes where
-  // you were"). There a `place` rides along, so Home, Shared and a tag page
+  // you were"). There a `place` rides along, so Home and Shared
   // are entries too and Back from a cluster opened on Home returns to Home.
   // A mouse passes no place: its history is clusters only and writes nothing
   // to the browser's.
@@ -2187,7 +2181,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const recordNav = (pane, paneStack, place = null) => {
     const h = navHistRef.current[pane];
     const off = place && place.surface !== 'board';
-    const key = off ? `@${place.surface}${place.tag?.id ? `:${place.tag.id}` : ''}` : paneStack.join('/');
+    const key = off ? `@${place.surface}` : paneStack.join('/');
     let added = false;
     if (h.silent) {
       h.silent = false;
@@ -2195,7 +2189,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       h.entries = h.entries.slice(0, h.index + 1);
       // The id, not the index, is what a browser history entry remembers: the
       // 100 cap below shifts indexes.
-      h.entries.push({ id: newNavId(), key, stack: [...paneStack], surface: off ? place.surface : 'board', tag: off ? place.tag || null : null });
+      h.entries.push({ id: newNavId(), key, stack: [...paneStack], surface: off ? place.surface : 'board' });
       h.index = h.entries.length - 1;
       added = true;
       // Unbounded history would grow forever in long sessions.
@@ -2235,7 +2229,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (pane === 'split') { setSplitStack(to.stack); return; }
     if (navTouchRef.current) setCurrentNav(to.id);
     if (offBoard) {
-      if (to.surface === 'tag') setActiveTag(to.tag);
       setCurrentSurface(to.surface);
     } else { setStack(to.stack); setCurrentSurface('board'); }
   };
@@ -5926,8 +5919,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSurface, boardsLoading]);
   //   'board' = existing canvas/doc surface; 'home' = HomeGraph;
-  //   'tag'   = TagDetailView keyed by activeTag
-  const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
   //   'shared' = the Shared page (files shared with you / by you; held)
   const sharedFiles = useSharedFiles({ enabled: sharedFilesAllowed() });
   // The Shared page opens on a tab, optionally with its search focused; n makes
@@ -5952,66 +5943,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // about which side of a split you are on. A docked document has no board
   // trail of its own, so the trail (and the tab) keep naming the canvas.
   const tabTitle = useMemo(() => {
-    if (currentSurface === 'tag') return activeTag?.name || null;
     if (currentSurface === 'shared') return tr`Shared`;
     if (currentSurface !== 'board') return null;   // home graph → served title
     const paneId = (activePaneId === 'split' && splitId && !splitDoc) ? splitId : currentId;
     return boards[paneId]?.name || (paneId === rootBoard.id ? rootBoard.name : null);
-  }, [currentSurface, activeTag, activePaneId, splitId, splitDoc, currentId, boards, rootBoard]);
+  }, [currentSurface, activePaneId, splitId, splitDoc, currentId, boards, rootBoard]);
   useDocumentTitle(tabTitle);
   // Mobile shell: any navigation closes the drawer — tapping a board in the
   // drawer used to leave it open, hiding the very board it just opened.
   useEffect(() => {
     if (mobileShell) setMobileNavOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stack, currentSurface, activeTag]);
-  const openTagSurface = (tag) => {
-    setActiveTag(tag);
-    setCurrentSurface('tag');
-  };
+  }, [stack, currentSurface]);
   // The in-app history under a finger: clusters AND the places off the board
   // (see recordNav). A mouse records from the [stack] effect beside recordNav.
-  const activeTagId = activeTag?.id || null;
   useEffect(() => {
-    if (isTouch) recordNav('main', stack, { surface: currentSurface, tag: currentSurface === 'tag' ? activeTag : null });
+    if (isTouch) recordNav('main', stack, { surface: currentSurface });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTouch, stack, currentSurface, activeTagId]);
-  // Workspace tags drive the sidebar Tags section. We pass the same
-  // list down so the count badges + sort ordering line up with the
-  // canvas chip surfaces.
-  const wsTagsForSidebar = useWorkspaceTags({ workspaceId: workspace.id, boardId: null });
-  // Keep an open tag/entity profile in sync with the realtime-backed workspace
-  // tag list: activeTag is a snapshot taken at open time, so a type/rename/
-  // recolor change made from the sidebar row menu (or by a peer) would leave
-  // the profile hero stale. Re-derive it by id when a real field changes.
-  useEffect(() => {
-    if (currentSurface !== 'tag' || !activeTag?.id) return;
-    const fresh = (wsTagsForSidebar.tags || []).find(t => t.id === activeTag.id);
-    // Gone from a loaded list = deleted or merged away (here or by a peer).
-    // Don't leave a profile up whose actions all hit a dead tag. (A merge
-    // made from the sidebar opens the surviving tag itself.)
-    if (!fresh) {
-      if (wsTagsForSidebar.loaded) { setActiveTag(null); setCurrentSurface('board'); }
-      return;
-    }
-    if (fresh && (fresh.entity_type !== activeTag.entity_type
-                  || fresh.name !== activeTag.name
-                  || fresh.color !== activeTag.color)) {
-      setActiveTag(fresh);
-    }
-  }, [wsTagsForSidebar.tags, wsTagsForSidebar.loaded, currentSurface, activeTag]);
-
-  // Tag suggester. AI engine on by default; legacy TF-IDF stays available
-  // as a fallback if anyone explicitly opts out (`localStorage.soleil.ai_tagger = '0'`).
-  // Both hooks accept null workspaceId as a no-op so the inactive one
-  // doesn't waste resources.
-  const aiTaggerEnabled = isAiTaggerEnabled();
-  const legacy = useAutotagWorker(aiTaggerEnabled ? null : workspace.id);
-  const ai = useAiTagger(aiTaggerEnabled ? workspace.id : null, {
-    canWrite: canWriteWorkspace(workspaceRole || (workspace.created_by === user?.id ? 'owner' : workspace._myRole)),
-  });
-  const { suggestTags: autotagSuggest, ready: autotagReady } = aiTaggerEnabled ? ai : legacy;
-
+  }, [isTouch, stack, currentSurface]);
   // Track which doc-card overlay (if any) is currently open + its active
   // page + scroll. Doc cards are docs nested inside canvas boards, so
   // currentBoard.view === 'canvas' but the user is actually editing a
@@ -6368,7 +6317,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [currentId, currentSurface]);
   // "Build this together" banner CTA → the Share panel scrolled to the
   // invite-link section. The nudge passes the board it fired for, so an
-  // off-board surface (tag view, cluster browser home) first navigates to
+  // off-board surface (cluster browser home) first navigates to
   // that board and THEN opens the panel — previously it dumped the user in
   // the generic account Invite tab, losing the board context entirely. Only
   // when there's no board at all do we fall back to the Invite tab.
@@ -6539,17 +6488,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           }));
         });
         return r;
-      },
-      tag: (ref) => {
-        // A tag is a full-pane surface (TagDetailView). Route through the
-        // existing `soleil-open-tag` document listener, which resolves the id
-        // to the full tag row and opens it — so this needs no extra memo deps.
-        // Fixes the prior no-op: coerceRef already understood tag refs, but
-        // navHandlers had no `tag` key, so navigate({kind:'tag'}) (e.g. from
-        // DocPageTagChips / EntityHoverPopover) silently warned and did nothing.
-        if (ref?.id) {
-          document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId: ref.id } }));
-        }
       },
     };
   }, [recents, openBoardAnywhere, openMessageThread, openDmWith, setTweak]);
@@ -8318,7 +8256,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // that the server refused — a stale cached count, or a cap that moved under
   // us. Refetch the tier so the client stops guessing, and show the same wall
   // the client-side gate would have shown. Without this the card renders from
-  // the Y.Doc but is missing from search/tags/graph, and the user is told
+  // the Y.Doc but is missing from search/graph, and the user is told
   // nothing at the one moment the cap is meant to be converting them.
   useEffect(() => {
     const onCapped = (e) => {
@@ -8353,7 +8291,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
         } catch (_) {}
         // Kept is not the same as fine: the card is on the canvas but missing
-        // from search, tags and the graph, and the person who just added one
+        // from search and the graph, and the person who just added one
         // from a tab that still thought it was paid (or uncapped) was told
         // nothing. Say so, quietly — a toast, never the wall. Visible board
         // only, and once per card (syncCardIndex announces each id once).
@@ -8363,12 +8301,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               type: 'warning',
               message: ownRejected
                 ? plural(nKept, {
-                  one: "# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search or tags until there's room.",
-                  other: "# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search or tags until there's room.",
+                  one: "# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search until there's room.",
+                  other: "# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search until there's room.",
                 })
                 : plural(nKept, {
-                  one: "# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search or tags until there's room.",
-                  other: "# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search or tags until there's room.",
+                  one: "# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search until there's room.",
+                  other: "# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search until there's room.",
                 }),
               ttl: 9000,
             });
@@ -8388,8 +8326,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Withdraw the cards the server refused that this tab had just placed
       // through the cap gate (syncCardIndex sends only those as cardIds).
       // They render from the Y.Doc but never reach card_index, so leaving them
-      // means a card the user can see and drag that is absent from search,
-      // tags and the graph. Origin 'upload' (deleteCardsSilent) keeps this off
+      // means a card the user can see and drag that is absent from search
+      // and the graph. Origin 'upload' (deleteCardsSilent) keeps this off
       // the undo stack on purpose: undoing would resurrect a card the server
       // will refuse again.
       //
@@ -10224,7 +10162,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       userId: user.id, tier: myTier.tier,
     }).canEdit;
   }, [boards, workspace, workspaceMembers, sharedBoards, user.id, myTier.tier]);
-  // Viewers opened far from a pane (the tag view, hover popovers) ask this
+  // Viewers opened far from a pane (hover popovers) ask this
   // to decide whether to offer Share (lib/fileShareBus.js).
   useEffect(() => {
     setShareRightsResolver(canEditBoard);
@@ -10557,21 +10495,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     document.addEventListener('soleil-open-backlinks', onOpen);
     return () => document.removeEventListener('soleil-open-backlinks', onOpen);
   }, []);
-
-  // Right-click "open tag" chips and other prop-drill-less callers
-  // dispatch soleil-open-tag { tagId }. Resolve to the tag row and
-  // open the tag detail surface.
-  useEffect(() => {
-    const onOpen = (e) => {
-      const { tagId } = e.detail || {};
-      if (!tagId) return;
-      const tag = (wsTagsForSidebar.tags || []).find(t => t.id === tagId);
-      if (tag) openTagSurface(tag);
-    };
-    document.addEventListener('soleil-open-tag', onOpen);
-    return () => document.removeEventListener('soleil-open-tag', onOpen);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsTagsForSidebar.tags]);
 
   // Drag-onto-board: CanvasSurface fires this when a card drag releases
   // over a board card. We load the target board's snapshot, inject the
@@ -12025,8 +11948,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            onDismissJustAdded={() => setJustAddedTemplate(null)}
                            selectedTool={selectedTool} setSelectedTool={setSelectedTool}
                            mutators={muts} autoFocusId={autoFocusId} clearAutoFocus={clearAutoFocus}
-                           autotagSuggest={autotagSuggest}
-                           autotagReady={autotagReady}
                            sessionId={yh?.sessionId || null}
                            paneId={paneId}
                            hasSplit={!!splitId || dockPanel}
@@ -12074,7 +11995,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <div className={`surface-wrap ${isMain ? '' : 'is-split'}${showsCanvas ? ' is-canvas' : ''}`}>
         {/* No chrome of its own — no bar (that read as a second toolbar) and no
             floating close either. Every corner of a canvas is already spoken
-            for: comments eye and tags strip top-left, hint and selection count
+            for: comments eye top-left, hint and selection count
             top-centre, presence and the upgrade chip top-right, zoom
             bottom-right, the tool rail down the left. A close floated into any
             of them collides the moment that state appears — which is exactly
@@ -12480,7 +12401,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           {!filesSidebar && sbTop}
 
           {/* Scrollable middle — the ONLY scroll region: shared boards, the
-              BOARDS tree, and tags. Pinned nav above, pinned footer below.
+              BOARDS tree. Pinned nav above, pinned footer below.
               Class is .sb-list (NOT .sb-scroll) — SignInBackdrop's global
               .sb-scroll rule would otherwise hijack this element's layout. */}
           {filesSidebar ? (
@@ -12543,16 +12464,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   activeBoardId={currentSurface === 'board' ? activeBoardId : null} activeRootId={activeSharedRootId}
                   onOpenBoard={(id) => openSharedCluster(id, 'sidebar')} onCopyLink={copyClusterLink} onRemove={removeSharedCluster}
                   allShared={allSharedRow}
-                />
-              )}
-              tagsSection={(
-                <SidebarTags
-                  workspaceId={workspace.id}
-                  userId={user.id}
-                  tags={wsTagsForSidebar.tags}
-                  activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
-                  onOpenTag={openTagSurface}
-                  onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
                 />
               )}
               meterProps={{
@@ -12625,15 +12536,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             peersHereByBoard={peersHereByBoard}
             peersBelowByBoard={peersBelowByBoard}
             onJumpToPeer={jumpToPeer}
-          />
-
-          <SidebarTags
-            workspaceId={workspace.id}
-            userId={user.id}
-            tags={wsTagsForSidebar.tags}
-            activeTagId={currentSurface === 'tag' ? activeTag?.id : null}
-            onOpenTag={openTagSurface}
-            onWorkspaceTagsChanged={wsTagsForSidebar.refresh}
           />
           </div>
           )}{/* /.sb-list */}
@@ -13157,39 +13059,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                         onOpenBoard={(id) => openSharedCluster(id, 'page')} onOpenOwnBoard={openOwnSharedCluster}
                         onRemoveCluster={removeSharedCluster} onCopyClusterLink={copyClusterLink} onManageClusterSharing={manageClusterSharing} />
           </Suspense>
-        ) : currentSurface === 'tag' && activeTag ? (
-          // Keyed by tag: switching tags must start from empty state, not
-          // render the previous tag's items under the new name.
-          <Suspense fallback={<div className="tag-detail tag-profile" />}>
-          <TagDetailView
-            key={activeTag.id}
-            tag={activeTag}
-            workspaceId={workspace.id}
-            userId={user.id}
-            onClose={() => { setActiveTag(null); setCurrentSurface('board'); }}
-            onOpenItem={(item) => {
-              // Item is a row from get_things_tagged: { kind, board_id, card_id, ... }.
-              // Resolve to the right surface and navigate.
-              setActiveTag(null);
-              setCurrentSurface('board');
-              if (item.kind === 'docPos') {
-                // "Appears in" row: open the doc at that page (resolving the
-                // cluster when card_index didn't know it), not just its card.
-                navHandlers.docPos({
-                  kind: 'docPos', docCardId: item.card_id,
-                  pageId: item.page_id || null, boardId: item.board_id || undefined,
-                }).catch((err) => console.warn('[tags] open page failed', err));
-              } else if (item.kind === 'board') {
-                // Through navHandlers, like every other link: the cluster opens
-                // with its breadcrumb, or a toast says it is in the Trash.
-                navHandlers.board({ kind: 'board', id: item.id });
-              } else if (item.board_id) {
-                // Selects + centres the clicked card once its board mounts.
-                navHandlers.card({ kind: 'card', boardId: item.board_id, cardId: item.card_id || null });
-              }
-            }}
-          />
-          </Suspense>
         ) : (
           /* Always render the same outer container so toggling split doesn't
              re-mount the main pane (and any open doc-card modals inside).
@@ -13550,7 +13419,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onOpenCluster={(id) => {
           if (!boards[id]) return;
           setStack(ancestorPath(boards, id)); recents.push(id);
-          setCurrentSurface('board'); setActiveTag(null);
+          setCurrentSurface('board');
         }}
         onReveal={(boardId, ids) => {
           // Already on screen in the split pane: just fly to it there.
@@ -13558,7 +13427,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             setFocusRequest({ boardId, ids, token: Date.now() });
             return;
           }
-          setCurrentSurface('board'); setActiveTag(null);
+          setCurrentSurface('board');
           showInCluster(boardId, ids);
         }}
       />

@@ -37,32 +37,6 @@ test.beforeEach(async ({ page }) => {
   await page.waitForLoadState('domcontentloaded');
 });
 
-test('VS-PANELS-01: the tag page header keeps the name, Manage and close on screen on a phone', async ({ page }) => {
-  await page.setViewportSize(PHONE);
-  await probe(page, 'mountTagDetail');
-  const head = page.locator('.panels-probe-host .tag-detail-head');
-  await expect(head).toBeVisible();
-  const name = await rect(head.locator('.tag-detail-name'));
-  expect(name.w, 'the tag name must not collapse').toBeGreaterThan(60);
-  for (const sel of ['.tag-detail-count', '.tag-detail-manage-btn', '.tag-detail-close']) {
-    const r = await rect(head.locator(sel));
-    expect(r.r, `${sel} must end inside the viewport`).toBeLessThanOrEqual(PHONE.width);
-    expect(r.l).toBeGreaterThanOrEqual(0);
-  }
-  // Name, count, Manage and close share the first row; the chips go below.
-  const close = await rect(head.locator('.tag-detail-close'));
-  expect(Math.abs(close.t - name.t), 'close sits on the name row').toBeLessThan(name.h);
-  // The header itself no longer overflows; the chip strip scrolls instead.
-  const sw = await head.evaluate((el) => el.scrollWidth - el.clientWidth);
-  expect(sw).toBeLessThanOrEqual(0);
-  const chips = head.locator('.tag-profile-typeswitch');
-  expect(await chips.evaluate((el) => getComputedStyle(el).overflowX)).toBe('auto');
-  await setTheme(page, 'light');
-  await page.screenshot({ path: test.info().outputPath('tag-390-light.png') });
-  await setTheme(page, 'dark');
-  await page.screenshot({ path: test.info().outputPath('tag-390-dark.png') });
-});
-
 test('VS-PANELS-02: Settings takes focus, keeps Tab inside, and gives focus back on close', async ({ page }) => {
   await page.setViewportSize(DESKTOP);
   await probe(page, 'mountSettings', 'profile', 'owner');

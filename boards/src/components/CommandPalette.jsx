@@ -4,7 +4,7 @@ import { Icon } from './Icon.jsx';
 import './commandPaletteLook.css';
 import {
   Search, X, LayoutGrid, FileText, StickyNote, Image as ImageIcon,
-  Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon, ChevronRight,
+  Palette, Calendar, Link as LinkIcon, User, ChevronRight,
 } from '../lib/icons.js';
 import { searchEntities, searchDocPages, searchPicturesByWords } from '../lib/entitySearch.js';
 import { queryLanguage, translateQuery, pictureWords } from '../lib/searchTranslate.js';
@@ -13,8 +13,6 @@ import { foundOnlyInPicture } from '../lib/entitySearchFilter.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { pickVariantKey } from '../lib/imageVariantPick.js';
 import { R2Image } from './R2Image.jsx';
-import { supabase } from '../lib/supabase.js';
-import { tagFallbackColor } from '../lib/tagColor.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -25,7 +23,7 @@ import { LoadFailed } from './LoadFailed.jsx';
 import { useRetry } from '../hooks/useRetry.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey, minSearchLength, searchLength } from '../lib/textFold.js';
-import { t as tr, ph, plural } from '@lingui/core/macro';
+import { t as tr, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { matchesFind, findHitKind } from '../lib/sharedPeople.js';
 import { trackFindUsed } from '../lib/findUsed.js';
@@ -33,10 +31,10 @@ import { trackFindUsed } from '../lib/findUsed.js';
 // Global search + ⌘K command palette.
 //
 // One surface for: finding boards (instant, from the in-memory map) AND
-// finding content inside boards (cards/notes/docs/tags via the entity_search
+// finding content inside boards (cards/notes/docs via the entity_search
 // backend, debounced) AND running app actions (commands). Selecting a result
-// NAVIGATES — a board opens, a card opens its board and flashes the card, a tag
-// opens its detail, a command runs. Distinct from BoardPicker, which stays the
+// NAVIGATES — a board opens, a card opens its board and flashes the card, a command
+// runs. Distinct from BoardPicker, which stays the
 // boards-only "link a board onto canvas" picker.
 //
 // Modeled on EntityPicker.jsx (debounced searchEntities + kind-grouping +
@@ -52,11 +50,10 @@ const KIND_ICON = {
   schedule: Calendar,
   url: LinkIcon,
   user: User,
-  tag: TagIcon,
 };
 
 // Section caps keep the DOM small even on big workspaces.
-const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, tags: 6, docs: 6, docPages: 6, recent: 5, workspaces: 6 };
+const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, docs: 6, docPages: 6, recent: 5, workspaces: 6 };
 
 // A picture found only by what's in it shows itself: its small stored size at
 // 32px, once its sizes are known, and the kind's icon until then (an original
@@ -81,7 +78,6 @@ function rowToTarget(row) {
   if (row.kind === 'board') return { kind: 'board', id: row.board_id };
   if (row.kind === 'doc')   return { kind: 'doc', docCardId: row.card_id };
   if (row.kind === 'user')  return { kind: 'user', id: row.id, title: row.title };
-  if (row.kind === 'tag')   return { kind: 'tag', id: row.id, title: row.title };
   return { kind: 'card', boardId: row.board_id, cardId: row.card_id };
 }
 
@@ -138,14 +134,14 @@ function EmptySearchHelp({ q, emptyHelp, onClose }) {
   return (
     <div className="cmdk-empty-help">
       {short ? (
-        <p><Trans>Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.</Trans></p>
+        <p><Trans>Keep typing — a word finds cluster and group names, notes, docs, captions, file names and what’s in pictures.</Trans></p>
       ) : (
         <>
           <p>
-            <Trans>Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.</Trans>
+            <Trans>Search sees cluster and group names, notes, docs, captions, file names and what’s in pictures.</Trans>
             {' '}
             {emptyHelp.hasImages
-              ? <Trans>A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI suggestions are off. To find one by your own words, hover it and choose Caption.</Trans>
+              ? <Trans>A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI for pictures and search is off. To find one by your own words, hover it and choose Caption.</Trans>
               : <Trans>Pictures are found by their caption, their file name or what’s in them.</Trans>}
           </p>
           {emptyHelp.onBrowseList && (
@@ -173,7 +169,7 @@ export function CommandPalette({
   onOpenBoard,
   mobileShell = false,
   // Boards-only "pick" mode — the link-a-board / split-view picker. Shows only
-  // boards (no cards/tags/commands), and selecting one calls onPickBoard(board)
+  // boards (no cards/commands), and selecting one calls onPickBoard(board)
   // instead of navigating. Empty query lists every board for browse-and-pick.
   mode = 'search',
   onPickBoard,
@@ -188,8 +184,6 @@ export function CommandPalette({
   const [asyncRows, setAsyncRows] = useState([]);
   // Pages whose WORDS match — searchDocPages over doc_page_index.
   const [pageHits, setPageHits] = useState([]);
-  // `#name`: the tag it names, and everything carrying it.
-  const [tagHits, setTagHits] = useState(null); // { tag, rows } | null
   // Pictures found through the English translation of a query in another
   // language (searchTranslate.js): { english, rows } | null.
   const [translatedPics, setTranslatedPics] = useState(null);
@@ -217,38 +211,13 @@ export function CommandPalette({
   const q = query.trim();
   const lq = searchKey(q);
 
-  // Debounced content search (cards/notes/docs/tags + boards-by-meta). Last
+  // Debounced content search (cards/notes/docs + boards-by-meta). Last
   // query wins via the cancelled flag. No-op without a workspace (local shell).
   useEffect(() => {
     if (!open) return;
-    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTagHits(null); setTranslatedPics(null); setLoading(false); setSearchFailed(false); return; }
+    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTranslatedPics(null); setLoading(false); setSearchFailed(false); return; }
     let cancelled = false;
     setLoading(true);
-    // `#name` lists everything carrying the tag it names (the tag page's
-    // items) rather than searching for the text "#name".
-    if (!isPick && q.startsWith('#') && q.length > 1) {
-      const id = setTimeout(async () => {
-        const name = q.slice(1).trim().toLowerCase();
-        const found = await searchEntities({ workspaceId, query: name, limit: 6, kinds: ['tag'] }).catch(() => null);
-        let failed = found == null;
-        const tag = (found || []).find(t => (t.title || '').toLowerCase() === name) || (found || [])[0] || null;
-        let rows = [];
-        if (tag) {
-          const { data, error } = await supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 40 });
-          if (!error && Array.isArray(data)) rows = data;
-          else failed = true;
-        }
-        if (cancelled) return;
-        setSearchFailed(failed);
-        setAsyncRows([]);
-        setPageHits([]);
-        setTranslatedPics(null);
-        setTagHits(tag ? { tag, rows } : null);
-        setLoading(false);
-      }, 200);
-      return () => { cancelled = true; clearTimeout(id); };
-    }
-    setTagHits(null);
     setTranslatedPics(null);
     const id = setTimeout(async () => {
       const [rows, pages] = await Promise.all([
@@ -375,14 +344,13 @@ export function CommandPalette({
   // a raw-UUID breadcrumb over the root canvas, and a card on one did nothing,
   // so a row whose cluster isn't live here is not offered at all.
   const asyncGroups = useMemo(() => {
-    const asyncBoards = [], cards = [], tags = [], docs = [];
+    const asyncBoards = [], cards = [], docs = [];
     const onLiveBoard = (r) => !r.board_id || !!boards?.[r.board_id];
     for (const r of asyncRows) {
-      if (r.kind !== 'tag' && r.kind !== 'user' && !onLiveBoard(r)) continue;
+      if (r.kind !== 'user' && !onLiveBoard(r)) continue;
       if (r.kind === 'board') {
         if (!localBoardIds.has(r.board_id) && r.board_id !== rootId && !excludeIds.includes(r.board_id)) asyncBoards.push(r);
       }
-      else if (r.kind === 'tag') tags.push(r);
       else if (r.kind === 'doc') docs.push(r);
       else if (r.kind === 'user') { /* people are out of scope for the palette */ }
       else cards.push(r); // note / image / palette / schedule / url / card / group
@@ -390,7 +358,6 @@ export function CommandPalette({
     return {
       asyncBoards: asyncBoards.slice(0, CAP.asyncBoards),
       cards: cards.slice(0, CAP.cards),
-      tags: tags.slice(0, CAP.tags),
       docs: docs.slice(0, CAP.docs),
     };
   }, [asyncRows, localBoardIds, rootId, excludeIds, boards]);
@@ -399,37 +366,6 @@ export function CommandPalette({
   const sections = useMemo(() => {
     const out = [];
     const close = () => onClose?.();
-
-    // `#name`: the tag's page first, then what carries it, opened in place.
-    if (!isPick && tagHits?.tag) {
-      const { tag, rows } = tagHits;
-      const tagTitle = tag.title || '';
-      const shownCount = rows.length;
-      const open = (r) => {
-        close();
-        if (r.kind === 'board') onOpenBoard?.(r.board_id || r.id);
-        else if (r.kind === 'group') onOpenBoard?.(r.board_id);
-        else if (r.kind === 'doc') onNavigateRef?.({ kind: 'doc', docCardId: r.card_id, pageId: r.page_id || null });
-        else onNavigateRef?.({ kind: 'card', boardId: r.board_id, cardId: r.card_id });
-      };
-      out.push({
-        id: 'tagged', label: tr`Tagged ${tagTitle}`.trim(),
-        items: [
-          {
-            key: `tag:${tag.id}`, kind: 'tag', accent: tag.meta?.color || tagFallbackColor(tag.title || tag.id),
-            title: tr`Everything tagged ${tagTitle}`.trim(), sub: rows.length ? plural(shownCount, { one: '# shown', other: '# shown' }) : tr`Nothing carries it yet`,
-            activate: () => { close(); onNavigateRef?.(rowToTarget(tag)); },
-          },
-          ...rows.map(r => ({
-            key: `tagged:${r.id}`, kind: r.kind, icon: r.kind === 'board' || r.kind === 'group' ? LayoutGrid : (KIND_ICON[r.kind] || FileText),
-            title: r.title || r.meta?.fileName || tr`Untitled`,
-            sub: r.kind === 'board' ? null : (r.board_name || r.body || null),
-            activate: () => open(r),
-          })),
-        ],
-      });
-      return out;
-    }
 
     // Boards-only pick mode: Recent + (matches | all boards). Select = pick.
     if (isPick) {
@@ -540,15 +476,6 @@ export function CommandPalette({
       if (items.length) out.push({ id: 'pictures-translated', label: tr`Pictures`, items });
     }
 
-    if (asyncGroups.tags.length) out.push({
-      id: 'tags', label: tr`Tags`,
-      items: asyncGroups.tags.map(r => ({
-        key: r.id, kind: 'tag', accent: r.meta?.color || tagFallbackColor(r.title || r.id),
-        title: r.title || tr`Untitled`, sub: null,
-        activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
-      })),
-    });
-
     if (asyncGroups.docs.length) out.push({
       id: 'docs', label: tr`Docs`,
       items: asyncGroups.docs.map(r => ({
@@ -571,7 +498,7 @@ export function CommandPalette({
     });
 
     return out;
-  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, workspaceHits, onSwitchWorkspace, recentBoards, localBoards, asyncGroups, translatedPics, pageHits, tagHits, q, onClose, onOpenBoard, onNavigateRef]);
+  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, workspaceHits, onSwitchWorkspace, recentBoards, localBoards, asyncGroups, translatedPics, pageHits, q, onClose, onOpenBoard, onNavigateRef]);
 
   const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const flatIndexByKey = useMemo(() => {
@@ -643,7 +570,7 @@ export function CommandPalette({
             ref={inputRef}
             className="cmdk-input"
             dir="auto"
-            placeholder={placeholder || (isPick ? tr`Search boards to link…` : tr`Search boards, cards, tags — or run a command`)}
+            placeholder={placeholder || (isPick ? tr`Search boards to link…` : tr`Search boards and cards — or run a command`)}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -690,7 +617,7 @@ export function CommandPalette({
             <div className="cmdk-empty">
               {isPick
                 ? tr`No boards to link yet.`
-                : tr`Search boards, cards, notes, docs and tags — or jump to an action.`}
+                : tr`Search boards, cards, notes and docs — or jump to an action.`}
             </div>
           )}
           {sections.map(section => (
@@ -709,8 +636,6 @@ export function CommandPalette({
                   >
                     {item.kind === 'workspace' ? (
                       <span className="cmdk-row-icon cmdk-ws-tile" aria-hidden="true" style={item.ws.color ? { background: item.ws.color } : undefined}>{item.ws.letter}</span>
-                    ) : item.kind === 'tag' ? (
-                      <span className="cmdk-tag-dot" aria-hidden="true" style={{ '--tag-c': item.accent }} />
                     ) : item.picture ? (
                       <PictureThumb src={item.picture} />
                     ) : (

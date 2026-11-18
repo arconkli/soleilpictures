@@ -5,13 +5,13 @@
 //                                 match it against the English picture
 //                                 descriptions (entity_search.seen).
 //
-// App-internal, like /api/tags/*: signed-in callers only, AI switch and the
+// App-internal: signed-in callers only, AI switch and the
 // daily AI budget respected (it spends the same budget as embeddings).
 
 import { verifyUser } from './lib/workerAuth.js';
 import { answeredWith } from './lib/workerErrors.js';
 import { M2M100_LANGS } from './lib/searchTranslate.js';
-import { json, workspaceAiOff, takeEmbedBudget, budgetRefusal } from './worker-tags.js';
+import { json, workspaceAiOff, takeEmbedBudget, budgetRefusal } from './worker-aiShared.js';
 
 const MODEL = '@cf/meta/m2m100-1.2b';
 const TIMEOUT_MS = 8000;
@@ -49,7 +49,7 @@ async function handleTranslate(request, env) {
   if (typeof body.workspace_id !== 'string' || !UUID.test(body.workspace_id)) return json({ error: 'invalid workspace_id' }, 400);
 
   if (await workspaceAiOff(env, request, body.workspace_id)) {
-    return json({ error: 'AI suggestions are off for this workspace' }, 403);
+    return json({ error: 'AI for pictures and search is off for this workspace' }, 403);
   }
 
   const key = lang + '\u0000' + q;

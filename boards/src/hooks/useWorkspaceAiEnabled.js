@@ -1,12 +1,10 @@
 // One answer to "may this workspace's content go to an AI model?".
 //
-// Off when the workspace's owner turned AI suggestions off (Settings →
-// Workspace, workspaces.ai_tagger_enabled) or this browser opted out
-// (lib/aiTaggerFlag.js). Every client path that sends card or doc text to a
-// model asks this first: the embedding tagger, the doc paragraph cascade, the
-// doc mention verdicts and the candidate-name classifier. Before, only the
-// embedding tagger read the workspace switch, so an opted-out workspace's
-// docs still went to the models.
+// Off when the workspace's owner turned "AI for pictures and search" off
+// (Settings → Workspace, workspaces.ai_tagger_enabled) or this browser opted
+// out (lib/aiTaggerFlag.js). The switch gates picture descriptions, More like
+// this and search translation; every client path that sends card or doc text
+// to a model asks this first.
 
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';

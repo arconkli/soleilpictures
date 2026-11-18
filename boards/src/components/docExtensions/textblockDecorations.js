@@ -1,7 +1,6 @@
 // Decorations that each belong to one textblock, kept up to date by redoing
-// only the textblocks an edit touched. The underline plugins (AutoDetectPlugin,
-// CandidateNamePlugin) used to re-run the name trie over every text node of
-// the doc on every keystroke — a few milliseconds each in a long doc, per key.
+// only the textblocks an edit touched. The underline plugin (AutoDetectPlugin)
+// used to re-run the name trie over every text node of the doc on every keystroke — a few milliseconds each in a long doc, per key.
 //
 // What changed is found by comparing the two docs, not by reading the
 // transaction's steps: ProseMirror keeps every node an edit didn't touch the
@@ -75,18 +74,4 @@ export function redecorate(set, mapping, doc, touched, decorate) {
   if (stale.length) out = out.remove(stale);
   if (fresh.length) out = out.add(doc, fresh);
   return out;
-}
-
-// Whether ranges outside the touched span are the old ones moved by `mapping`
-// (the applied tag ranges, which suppress underlines under them): if one
-// outside appeared, vanished or moved on its own, the textblocks it covers
-// need redrawing too, so the caller redraws everything instead.
-export function sameRangesOutside(prevRanges, nextRanges, mapping, touched) {
-  const outside = (r) => r.to <= touched.from || r.from >= touched.to;
-  const key = (r) => `${r.from}:${r.to}`;
-  const moved = (prevRanges || [])
-    .map((r) => ({ from: mapping.map(r.from, 1), to: mapping.map(r.to, -1) }))
-    .filter(outside).map(key).sort();
-  const now = (nextRanges || []).filter(outside).map(key).sort();
-  return moved.length === now.length && moved.every((k, i) => k === now[i]);
 }
