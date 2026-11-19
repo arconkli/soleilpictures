@@ -115,6 +115,9 @@ const PAGES = [
   //   impression-weighted position — must hold; query rows for "pureref
   //   alternative" are read only as the labelled partial breakdown.
   //   Title and meta are untouched; the router is body copy.
+  //   2026-11-19: the hold ended and the page got the sun stage under its hero
+  //   (landingStage.js), with its words, title and links unchanged. Any read of
+  //   this page that spans the ship carrying that change mixes the two.
   {
     "path": "/best/pureref-alternatives",
     "kind": "listicle",

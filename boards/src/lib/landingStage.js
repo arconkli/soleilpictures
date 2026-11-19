@@ -33,12 +33,10 @@ export const KEPT_CLOSE = [
   '/tools/mood-board-maker',
 ];
 
-// Pages that keep today's look until a date. /best/pureref-alternatives is
-// pre-registered "no other copy changes" while its title test reads
-// (seoListicles.js); it gets the stage after that.
-export const STAGE_HELD = {
-  '/best/pureref-alternatives': '2026-11-19',
-};
+// Pages that keep today's look until a date (path -> 'YYYY-MM-DD'). Empty
+// since 2026-11-19, when /best/pureref-alternatives, held while its router test
+// read (seoListicles.js), got the stage like the other ranked lists.
+export const STAGE_HELD = {};
 
 // The pages that get a stage at all: the tool, comparison and ranked-list
 // pages and /use-cases. Not /scout (its own product page), not the template

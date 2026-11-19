@@ -28,13 +28,12 @@ test('the pages that convert best keep their hero, with suns behind it', () => {
 });
 
 test('the other tool, comparison and ranked pages and /use-cases get the full stage', () => {
-  for (const p of ['/tools/storyboard-maker', '/vs/milanote', '/best/milanote-alternatives', '/use-cases']) {
+  for (const p of ['/tools/storyboard-maker', '/vs/milanote', '/best/milanote-alternatives', '/best/pureref-alternatives', '/use-cases']) {
     assert.equal(stageMode(p), 'full', p);
   }
 });
 
 test('a held page keeps today\'s look; pages outside the search set get no stage', () => {
-  assert.ok(STAGE_HELD['/best/pureref-alternatives'], 'the title test on /best/pureref-alternatives holds its look');
   for (const p of Object.keys(STAGE_HELD)) assert.equal(stageMode(p), null, p);
   for (const p of ['/', '/scout', '/templates', '/pricing', '/docs', '/c/japandi-living-room', '', null, undefined]) {
     assert.equal(stageMode(p), null, String(p));
@@ -75,7 +74,7 @@ test('a link preview is drawn in the sun look exactly when the page shows a boar
   const byPath = Object.fromEntries(all.map((s) => [s.path, s]));
   assert.equal(ogStageSlug(byPath['/vs/pureref']), byPath['/vs/pureref'].exampleSlugs[0]);
   assert.equal(ogStageSlug(byPath['/best/milanote-alternatives']), byPath['/best/milanote-alternatives'].exampleSlugs[0]);
-  assert.equal(ogStageSlug(byPath['/best/pureref-alternatives']), null, 'held: keeps its card');
+  assert.equal(ogStageSlug(byPath['/best/pureref-alternatives']), byPath['/best/pureref-alternatives'].exampleSlugs[0]);
   assert.equal(ogStageSlug(byPath['/scout']), null);
   assert.equal(ogStageSlug(null), null);
   for (const spec of all) {
