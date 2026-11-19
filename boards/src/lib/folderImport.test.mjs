@@ -243,3 +243,97 @@ test('one folder import runs at a time — a second drop is told to wait, not me
   // …and a released held folder waiting its turn is woken the same way.
   assert.match(fn, /finally \{ folderImportBusyRef\.current = false; idle\(\); \}/, 'released however the run ends');
 });
+
+// A dropped connection gets the file one more go, with the same card id.
+const oneFile = () => planFolderImport(dir(null, [], [dir('Solo', [f('a.jpg')])])).nodes;
+const netErr = () => new Error('Failed to fetch');
+
+test('a network failure then success places the card once, same card id, no failure', async () => {
+  const w = world();
+  const ids = [];
+  let waits = 0;
+  const base = w.deps.upload;
+  const deps = {
+    ...w.deps,
+    upload: async (item, o) => { ids.push(o.cardId); if (ids.length === 1) throw netErr(); return base(item, o); },
+    isNetworkFailure: () => true,
+    waitBeforeRetry: async () => { waits++; },
+  };
+  const res = await runFolderImport(oneFile(), deps);
+  assert.equal(ids.length, 2);
+  assert.equal(ids[0], ids[1]);
+  assert.equal(waits, 1);
+  assert.equal(res.placed, 1);
+  assert.equal(res.failed, 0);
+});
+
+test('two network failures count one failure', async () => {
+  const w = world();
+  let calls = 0;
+  const deps = {
+    ...w.deps,
+    upload: async () => { calls++; throw netErr(); },
+    isNetworkFailure: () => true,
+    waitBeforeRetry: async () => {},
+  };
+  const res = await runFolderImport(oneFile(), deps);
+  assert.equal(calls, 2);
+  assert.equal(res.failed, 1);
+  assert.equal(res.placed, 0);
+  assert.equal(res.firstError, 'Failed to fetch');
+});
+
+test('a failure that is not the network is not retried', async () => {
+  const w = world();
+  let calls = 0;
+  const deps = {
+    ...w.deps,
+    upload: async () => { calls++; throw new Error('bad file'); },
+    isNetworkFailure: () => false,
+    waitBeforeRetry: async () => { throw new Error('should not wait'); },
+  };
+  const res = await runFolderImport(oneFile(), deps);
+  assert.equal(calls, 1);
+  assert.equal(res.failed, 1);
+});
+
+test('an abort during the wait counts as a failure and does not upload again', async () => {
+  const w = world();
+  const ctrl = new AbortController();
+  let calls = 0;
+  const deps = {
+    ...w.deps,
+    signal: ctrl.signal,
+    upload: async () => { calls++; throw netErr(); },
+    isNetworkFailure: () => true,
+    waitBeforeRetry: async () => { ctrl.abort(); throw new Error('aborted'); },
+  };
+  const res = await runFolderImport(oneFile(), deps);
+  assert.equal(calls, 1);
+  assert.equal(res.cancelled, true);
+  assert.equal(res.placed, 0);
+});
+
+test('an import stopped by the cap while a file waits does not upload that file again', async () => {
+  const w = world();
+  const calls = [];
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const deps = {
+    ...w.deps,
+    upload: async (item) => {
+      calls.push(item.file.name);
+      if (item.file.name === 'a.jpg') throw netErr();
+      const e = new Error('Storage is full'); e.code = 402;
+      release();
+      throw e;
+    },
+    isNetworkFailure: (err) => err?.code !== 402,
+    // a.jpg waits until b.jpg has hit the quota and stopped the import.
+    waitBeforeRetry: async () => { await gate; },
+  };
+  const res = await runFolderImport(planFolderImport(dir(null, [], [dir('Pair', [f('a.jpg'), f('b.jpg')])])).nodes, deps);
+  assert.deepEqual(calls.sort(), ['a.jpg', 'b.jpg'], 'a.jpg was not sent a second time');
+  assert.equal(res.stopped?.code, 402);
+  assert.equal(res.placed, 0);
+});

@@ -41,6 +41,7 @@ test('card words, one per state', () => {
   assert.deepEqual(cardTransferWords(it('waiting'), NOW), { tone: 'wait', text: 'Waiting', sub: null, pct: null });
   assert.deepEqual(cardTransferWords(it('finishing'), NOW), { tone: 'busy', text: 'Making a preview…', sub: null, pct: null });
   assert.deepEqual(cardTransferWords(it('failed'), NOW), { tone: 'fail', text: 'Didn’t upload', sub: null, pct: null });
+  assert.deepEqual(cardTransferWords(it('failed', { retryOnline: true }), NOW), { tone: 'wait', text: 'Connection dropped', sub: 'Trying again', pct: null });
   assert.equal(cardTransferWords(it('done'), NOW), null);
   assert.equal(cardTransferWords(null, NOW), null);
 });

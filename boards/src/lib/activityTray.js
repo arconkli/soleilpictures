@@ -55,7 +55,7 @@ function failRow(it) {
     key: it.id, tid: it.id, state: 'fail', name: it.label, thumb: it.thumb || null, mime: it.mime || '',
     pct: null, c: null,
     // A transfer's own error text, else the plain words; the generic failure stores no error.
-    why: it.retryOnline ? tr`Didn’t upload · connection dropped` : (it.error || tr`Didn’t upload`),
+    why: it.retryOnline ? tr`Connection dropped · trying again` : (it.error || tr`Didn’t upload`),
     retry: !!it.actions?.retry,
     button: it.actions?.remove ? { id: 'remove', label: it.version ? tr`Dismiss` : tr`Remove this file` } : { id: 'dismiss-row', label: tr`Dismiss` },
   };

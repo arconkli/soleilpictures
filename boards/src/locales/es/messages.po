@@ -6813,6 +6813,14 @@ msgstr "¿Vas a conectar un asistente de IA?"
 msgid "Connecting…"
 msgstr "Conectando…"
 
+#: src/lib/activityWords.js
+msgid "Connection dropped"
+msgstr "Se perdió la conexión"
+
+#: src/lib/activityTray.js
+msgid "Connection dropped · trying again"
+msgstr "Se perdió la conexión · reintentando"
+
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/SettingsPanel.jsx
 msgid "Connections"
@@ -8398,10 +8406,6 @@ msgstr "No se completó"
 #: src/lib/activityWords.js
 msgid "Didn’t upload"
 msgstr "No se subió"
-
-#: src/lib/activityTray.js
-msgid "Didn’t upload · connection dropped"
-msgstr "No se subió · se perdió la conexión"
 
 #: src/lib/activityTray.js
 msgid "Didn’t upload to {boardName}"
@@ -21897,6 +21901,10 @@ msgstr "Probarlo"
 #: src/components/ImportTray.jsx
 msgid "Try these again"
 msgstr "Probar de nuevo"
+
+#: src/lib/activityWords.js
+msgid "Trying again"
+msgstr "Reintentando"
 
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"

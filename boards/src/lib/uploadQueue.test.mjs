@@ -38,3 +38,48 @@ test('a task that throws rejects its own promise and the queue goes on', async (
   await tick();
   assert.equal(q.running, 0);
 });
+
+// A storage PUT waiting for a slot leaves the line when its upload is
+// cancelled, instead of waiting for someone else's slow PUT to finish.
+test('a signal already aborted rejects at once and the task never runs', async () => {
+  const q = createTaskQueue(1);
+  const ctl = new AbortController();
+  ctl.abort();
+  let ran = false;
+  await assert.rejects(q.run(() => { ran = true; }, { signal: ctl.signal }), /aborted/);
+  assert.equal(ran, false);
+  assert.equal(q.waiting, 0);
+});
+
+test('an abort while waiting leaves the line; the next task still runs', async () => {
+  const q = createTaskQueue(1);
+  let release;
+  const first = q.run(() => new Promise((r) => { release = r; }));
+  const ctl = new AbortController();
+  let ran = false;
+  const cancelled = q.run(() => { ran = true; }, { signal: ctl.signal });
+  const third = q.run(() => 'third');
+  await tick();
+  assert.equal(q.waiting, 2);
+  ctl.abort();
+  await assert.rejects(cancelled, /aborted/);
+  assert.equal(q.waiting, 1);
+  release('first');
+  assert.equal(await first, 'first');
+  assert.equal(await third, 'third');
+  assert.equal(ran, false);
+});
+
+test('an abort after the task started does not touch the queue', async () => {
+  const q = createTaskQueue(1);
+  const ctl = new AbortController();
+  let release;
+  const job = q.run(() => new Promise((r) => { release = r; }), { signal: ctl.signal });
+  await tick();
+  assert.equal(q.running, 1);
+  ctl.abort();
+  release('done');
+  assert.equal(await job, 'done');
+  await tick();
+  assert.equal(q.running, 0);
+});

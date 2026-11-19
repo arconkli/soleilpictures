@@ -18,7 +18,7 @@ function fakeFetch(handler) {
   const calls = [];
   const fn = async (req) => {
     const body = req.body ? new Uint8Array(await req.clone().arrayBuffer()) : null;
-    const call = { method: req.method, url: req.url, headers: req.headers, body, text: body ? new TextDecoder().decode(body) : '' };
+    const call = { method: req.method, cache: req.cache, url: req.url, headers: req.headers, body, text: body ? new TextDecoder().decode(body) : '' };
     calls.push(call);
     return handler(call, calls.length);
   };
@@ -645,4 +645,24 @@ test('routedBucket: multipart ids are tagged on B2 and round-trip', async () => 
   assert.equal(bucket.resumeMultipartUpload('o/v.mp4', 'r2-id').from, 'r2');
   assert.deepEqual(r2.calls.at(-1), ['resume', 'o/v.mp4', 'r2-id']);
   assert.equal(bucket.list('p'), 'list-r2');
+});
+
+test('every storage request is sent with cache no-store, so Cloudflare cannot change the signed method', async () => {
+  const { bucket, fetch } = bucketWith((c) => {
+    if (c.method === 'POST' && c.url.endsWith('?uploads')) return xml(200, '<InitiateMultipartUploadResult><UploadId>u1</UploadId></InitiateMultipartUploadResult>');
+    if (c.method === 'POST') return xml(200, '<CompleteMultipartUploadResult></CompleteMultipartUploadResult>');
+    if (c.method === 'PUT') return new Response('', { status: 200, headers: { etag: '"p1"' } });
+    if (c.method === 'HEAD') return new Response(null, { status: 200, headers: { ...objHeaders(), 'content-length': '1' } });
+    if (c.method === 'DELETE') return new Response(null, { status: 204 });
+    return new Response('x', { status: 200, headers: { ...objHeaders(), 'content-length': '1' } });
+  });
+  await bucket.get('a/b.mp4');
+  await bucket.head('a/b.mp4');
+  await bucket.put('a/b.mp4', new Uint8Array([1]));
+  await bucket.delete('a/b.mp4');
+  const up = await bucket.createMultipartUpload('a/c.mp4');
+  await up.complete([{ partNumber: 1, etag: 'a' }]);
+  const methods = fetch.calls.map((c) => c.method);
+  for (const m of ['GET', 'HEAD', 'PUT', 'DELETE', 'POST']) assert.ok(methods.includes(m), m);
+  for (const c of fetch.calls) assert.equal(c.cache, 'no-store', `${c.method} ${c.url}`);
 });

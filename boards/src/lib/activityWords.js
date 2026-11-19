@@ -36,7 +36,9 @@ export function cardTransferWords(item) {
       return { tone: 'up', text: `${pct}%`, sub: item.etaText || null, pct };
     }
     case 'finishing': return { tone: 'busy', text: tr`Making a preview…`, sub: null, pct: null };
-    case 'failed': return { tone: 'fail', text: tr`Didn’t upload`, sub: null, pct: null };
+    case 'failed':
+      if (item.retryOnline) return { tone: 'wait', text: tr`Connection dropped`, sub: tr`Trying again`, pct: null };
+      return { tone: 'fail', text: tr`Didn’t upload`, sub: null, pct: null };
     default: return null;
   }
 }

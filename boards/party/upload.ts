@@ -368,6 +368,9 @@ export class UploadParty {
   private targets: Stores | null = null;
   private waiter: Waiter | undefined;
   private cfg: Promise<StorageConfig> | null = null;
+  // Answers to /mpu/complete, so a repeat ask gets the first answer back (see
+  // handleMpuComplete). Lives in this room's memory only.
+  private completes = new Map<string, { at: number; p: Promise<{ status: number; body: any }> }>();
 
   stores(env: R2Env): Stores {
     if (!this.targets) this.targets = { r2: r2Target(env) as Store, b2: b2Target(this.room.env) as Store | null };
@@ -1449,25 +1452,70 @@ export class UploadParty {
     const at = this.uploadStore(env, uploadId, origin);
     if (at instanceof Response) return at;
     const r2 = at.r2;
-    const result = await this.completeMultipart(r2, env, key, at.raw, parts);
-    if (!result.ok)
-      return new Response(`Complete failed: ${result.error || ""}`, { status: 502, headers: corsHeaders(origin) });
-    // Part URLs cannot carry a length, so the finished object is held to what
-    // was declared at /mpu/create (0387): R2's own count must fit the upload
-    // intent, or the object is deleted. An object whose size R2 would not
-    // report is deleted too — it cannot be checked.
-    const finalized = result.bytes == null
-      ? null
-      : await supabaseRpc("finalize_upload_intent", { p_key: key, p_bytes: result.bytes }, accessToken);
-    if (finalized !== true) {
-      try { await r2.aws.fetch(r2.url(key), { method: "DELETE" }); } catch (_) { /* swept later */ }
-      const verified = result.bytes != null;
-      return Response.json(
-        { error: verified ? "size_mismatch" : "unverified", reason: verified ? "size_mismatch" : "unverified" },
-        { status: verified ? 413 : 503, headers: corsHeaders(origin) },
+
+    // A client whose answer to this call was lost on a dropped connection
+    // asks again. The store no longer knows the upload (NoSuchUpload) and
+    // finalize_upload_intent succeeds only once, so redoing the work would
+    // lose the whole file. The auth checks above still run for every ask; only
+    // the work below is shared. Memory only: a room that sleeps forgets, which
+    // is acceptable (best effort).
+    const TTL = 15 * 60 * 1000;
+    const MAX = 500;
+    const memo = `${at.raw}\n${key}`;
+    const now = Date.now();
+    let entry = this.completes.get(memo);
+    if (entry && now - entry.at >= TTL) { this.completes.delete(memo); entry = undefined; }
+    if (!entry) {
+      for (const [k, v] of this.completes) if (now - v.at >= TTL) this.completes.delete(k);
+      if (this.completes.size >= MAX) {
+        const oldest = this.completes.keys().next().value;
+        if (oldest !== undefined) this.completes.delete(oldest);
+      }
+      const p = (async (): Promise<{ status: number; body: any }> => {
+        const result = await this.completeMultipart(r2, env, key, at.raw, parts);
+        if (!result.ok)
+          return {
+            status: 502,
+            body: { error: `Complete failed: ${result.error || ""}`, reason: "complete_failed", detail: (result.error || "").slice(0, 300) },
+          };
+        // Part URLs cannot carry a length, so the finished object is held to what
+        // was declared at /mpu/create (0387): R2's own count must fit the upload
+        // intent, or the object is deleted. An object whose size R2 would not
+        // report is deleted too — it cannot be checked.
+        // supabaseRpc answers null (or throws) when the database itself errored (a restart
+        // blip), which says nothing about the size; a finished file must not be
+        // deleted for that, so null is tried again (300 ms, then 900 ms). A
+        // false is the database saying the size really does not fit: final.
+        let finalized: boolean | null = null;
+        if (result.bytes != null) {
+          const waits = [300, 900];
+          for (let attempt = 0; ; attempt++) {
+            finalized = await supabaseRpc("finalize_upload_intent", { p_key: key, p_bytes: result.bytes }, accessToken).catch(() => null);
+            if (finalized !== null || attempt >= waits.length) break;
+            await new Promise((r) => setTimeout(r, waits[attempt]));
+          }
+        }
+        if (finalized !== true) {
+          try { await r2.aws.fetch(r2.url(key), { method: "DELETE" }); } catch (_) { /* swept later */ }
+          const verified = result.bytes != null;
+          return {
+            status: verified ? 413 : 503,
+            body: { error: verified ? "size_mismatch" : "unverified", reason: verified ? "size_mismatch" : "unverified" },
+          };
+        }
+        return { status: 200, body: { key, bytes: result.bytes } };
+      })();
+      entry = { at: now, p };
+      this.completes.set(memo, entry);
+      // A failure may be retried for real, so only a 200 stays.
+      const mine = entry;
+      p.then(
+        (r) => { if (r.status !== 200 && this.completes.get(memo) === mine) this.completes.delete(memo); },
+        () => { if (this.completes.get(memo) === mine) this.completes.delete(memo); },
       );
     }
-    return Response.json({ key, bytes: result.bytes }, { headers: corsHeaders(origin) });
+    const { status, body: answer } = await entry.p;
+    return Response.json(answer, { status, headers: corsHeaders(origin) });
   }
 
   // POST /mpu/abort — discard an in-flight session (user cancel / error).

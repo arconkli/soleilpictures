@@ -8,7 +8,8 @@ export function createTaskQueue(limit = 3) {
   let running = 0;
   const next = () => {
     while (running < limit && waiting.length) {
-      const { task, resolve, reject } = waiting.shift();
+      const { task, resolve, reject, onAbort, signal } = waiting.shift();
+      if (onAbort) signal.removeEventListener('abort', onAbort);
       running += 1;
       Promise.resolve()
         .then(task)
@@ -17,8 +18,24 @@ export function createTaskQueue(limit = 3) {
     }
   };
   return {
-    run(task) {
-      return new Promise((resolve, reject) => { waiting.push({ task, resolve, reject }); next(); });
+    // An optional abort signal lets a caller that gives up while still waiting
+    // for a slot leave the line at once; once the task starts, the queue no
+    // longer listens to it (the task watches its own signal).
+    run(task, { signal } = {}) {
+      return new Promise((resolve, reject) => {
+        if (signal?.aborted) { reject(new Error('aborted')); return; }
+        const entry = { task, resolve, reject, onAbort: null, signal };
+        if (signal) {
+          entry.onAbort = () => {
+            const i = waiting.indexOf(entry);
+            if (i >= 0) waiting.splice(i, 1);
+            reject(new Error('aborted'));
+          };
+          signal.addEventListener('abort', entry.onAbort, { once: true });
+        }
+        waiting.push(entry);
+        next();
+      });
     },
     get running() { return running; },
     get waiting() { return waiting.length; },

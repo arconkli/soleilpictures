@@ -595,7 +595,15 @@ export const CEILINGS = {
   // (comments/) and the plan reminder in the menu (UpgradeChip.jsx).
   // CI-style builds read 809,621 B on main 632c8e86 and 811,595 B with it;
   // the ceiling moves by the difference, 1,974 B, rounded up.
-  appJs: 811_700,
+  // 2026-11-18: +1.2 KB for uploads that ride out a dropped connection: the
+  // patient retries, the shared PUT slots and the per-attempt stop for a big
+  // file's parts (lib/uploads.js, lib/uploadRetry.js, lib/uploadQueue.js), and
+  // a kept upload trying again by itself with "Connection dropped · trying
+  // again" (CanvasSurface.jsx, lib/transferWords.js, lib/activityWords.js).
+  // Builds here read 817,820 B on main a8c13d28 and 819,010 B with it (local
+  // builds read about 6 KB over CI's); the ceiling moves by the difference,
+  // 1,190 B, rounded up.
+  appJs: 812_900,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
