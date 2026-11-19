@@ -75,3 +75,11 @@ export function isNetworkUploadFailure(err, { online = true } = {}) {
   const status = uploadErrorStatus(err);
   return status === 0 || status >= 500;
 }
+
+// How long a kept upload (one that failed on the network and stayed on its
+// card) waits before it tries again by itself; n is how many automatic tries
+// it has had. 20 s, 1 min, 3 min, then every 5 min while the tab is open.
+export function keptRetryDelayMs(n) {
+  const i = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  return [20_000, 60_000, 180_000][i] ?? 300_000;
+}

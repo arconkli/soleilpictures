@@ -6807,6 +6807,14 @@ msgstr "AI 어시스턴트를 연결하나요?"
 msgid "Connecting…"
 msgstr "연결하는 중…"
 
+#: src/lib/activityWords.js
+msgid "Connection dropped"
+msgstr "연결이 끊어졌습니다"
+
+#: src/lib/activityTray.js
+msgid "Connection dropped · trying again"
+msgstr "연결이 끊어졌습니다 · 다시 시도하는 중"
+
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/SettingsPanel.jsx
 msgid "Connections"
@@ -8392,10 +8400,6 @@ msgstr "완료하지 못함"
 #: src/lib/activityWords.js
 msgid "Didn’t upload"
 msgstr "업로드하지 못함"
-
-#: src/lib/activityTray.js
-msgid "Didn’t upload · connection dropped"
-msgstr "업로드하지 못함 · 연결이 끊어졌어요"
 
 #: src/lib/activityTray.js
 msgid "Didn’t upload to {boardName}"
@@ -21891,6 +21895,10 @@ msgstr "써 보기"
 #: src/components/ImportTray.jsx
 msgid "Try these again"
 msgstr "이 항목 다시 시도"
+
+#: src/lib/activityWords.js
+msgid "Trying again"
+msgstr "다시 시도하는 중"
 
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"

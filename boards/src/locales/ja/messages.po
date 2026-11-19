@@ -6807,6 +6807,14 @@ msgstr "AIアシスタントを接続しますか？"
 msgid "Connecting…"
 msgstr "接続中…"
 
+#: src/lib/activityWords.js
+msgid "Connection dropped"
+msgstr "接続が切れました"
+
+#: src/lib/activityTray.js
+msgid "Connection dropped · trying again"
+msgstr "接続が切れました · 再試行中"
+
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/SettingsPanel.jsx
 msgid "Connections"
@@ -8392,10 +8400,6 @@ msgstr "未完了"
 #: src/lib/activityWords.js
 msgid "Didn’t upload"
 msgstr "アップロード失敗"
-
-#: src/lib/activityTray.js
-msgid "Didn’t upload · connection dropped"
-msgstr "アップロードできませんでした・接続が切れました"
 
 #: src/lib/activityTray.js
 msgid "Didn’t upload to {boardName}"
@@ -21891,6 +21895,10 @@ msgstr "試してみる"
 #: src/components/ImportTray.jsx
 msgid "Try these again"
 msgstr "もう一度試す"
+
+#: src/lib/activityWords.js
+msgid "Trying again"
+msgstr "再試行中"
 
 #: src/components/cards/ScheduleCard.jsx
 msgctxt "weekday, short"

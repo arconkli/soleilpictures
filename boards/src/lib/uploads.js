@@ -23,7 +23,10 @@ import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
 import { planParts } from './multipartPlan.js';
-import { presignAndPut, putPartRetrying, retryWait, keepResumeSession } from './uploadRetry.js';
+import {
+  presignAndPut, putPartRetrying, retryWait, retryingCall, keepResumeSession, PUT_TRIES,
+} from './uploadRetry.js';
+import { createTaskQueue } from './uploadQueue.js';
 import { runGated } from './backfillGate.js';
 import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
@@ -107,11 +110,13 @@ async function withRetry(fn, { tries = 3, baseMs = 250 } = {}) {
 }
 
 async function presign({ workspaceId, boardId, file }) {
-  const token = await getAccessToken();
-  if (!token) throw new Error('Not signed in');
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase().slice(0, 8);
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}`;
-  return withRetry(async () => {
+  // Patient, like the PUTs: six tries with the long wait, and the token is
+  // fetched inside the retried function because a long wait can outlive it.
+  return retryingCall(async () => {
+    const token = await getAccessToken();
+    if (!token) throw new Error('Not signed in');
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -151,7 +156,7 @@ async function presign({ workspaceId, boardId, file }) {
       throw new Error(`Presign failed: ${res.status} ${msg}`);
     }
     return res.json();   // { uploadUrl, key }
-  });
+  }, { tries: 6 });
 }
 
 // Presign a deterministic per-board thumbnail PUT URL. Unlike presign() this
@@ -263,6 +268,21 @@ function putWithProgress(url, file, { onProgress } = {}) {
   });
 }
 
+// One pool of slots for every storage PUT in this tab. Storage speaks
+// HTTP/1.1, so the browser opens 6 connections per host and shares them with
+// picture loads; a PUT the browser had queued sent nothing, and watchStall cut
+// it off as stalled after 60 s (2026-11-18: 7 of 9 videos in one folder
+// import). An XHR is now created and sent only once it holds a slot, so
+// watchStall (armed at send) never counts time spent waiting. A file's parts
+// (MPU_CONCURRENCY) and the files themselves (UPLOAD_CONCURRENCY) still queue
+// above this; the slot is held only for the PUT itself, never across a retry
+// wait. The one exception: a single PUT whose URL went stale while it waited
+// for a slot re-presigns while holding it, since re-presigning outside could
+// loop forever on a slow line where the slot wait outlives the URL.
+export const PUT_SLOTS = 4;
+const putSlots = createTaskQueue(PUT_SLOTS);
+const putSlot = (fn) => putSlots.run(fn);
+
 // Presign + PUT a whole file, retrying a dropped connection or a 5xx (see
 // uploadRetry.presignAndPut, MEDIA-10). Returns { uploadUrl, key } — the key
 // of the attempt that landed, which a re-presign may have changed.
@@ -271,6 +291,7 @@ function presignAndPutFile({ workspaceId, boardId, file, onProgress }) {
     presign: () => presign({ workspaceId, boardId, file }),
     put: (url) => putWithProgress(url, file, { onProgress }),
     wait: (attempt) => retryWait(attempt),
+    slot: putSlot,
   });
 }
 
@@ -648,30 +669,22 @@ export async function uploadImage({ file, workspaceId, boardId, cardId = null, u
 
   const dims = await readImageDims(file);
 
-  const { data: row, error: rowErr } = await supabase
-    .from('images')
-    .insert({
-      workspace_id: workspaceId,
-      board_id: boardId || null,
-      card_id: cardId || null,
-      storage_path: key,
-      width: dims.w,
-      height: dims.h,
-      size_bytes: file.size || null,
-      uploaded_by: userId,
-      original_name: originalName || null,
-    })
-    .select('*')
-    .single();
-  if (rowErr) {
-    // The images row is what authorizes /sign-reads to issue a signed URL —
-    // without it the image can NEVER load. Better to fail the drop (caller
-    // removes the optimistic card + toasts) than to leave a permanently-broken
-    // card. The orphaned R2 object has no images row, so the R2 retention
-    // sweep reclaims it (ref_count 0).
-    console.warn('[uploads] images row insert failed', rowErr);
-    throw new Error('Could not finish saving the image — please try again.');
-  }
+  // The images row is what authorizes /sign-reads to issue a signed URL —
+  // without it the image can NEVER load. Better to fail the drop (caller
+  // removes the optimistic card + toasts) than to leave a permanently-broken
+  // card. The orphaned R2 object has no images row, so the R2 retention
+  // sweep reclaims it (ref_count 0).
+  const row = await insertImageRow({
+    workspace_id: workspaceId,
+    board_id: boardId || null,
+    card_id: cardId || null,
+    storage_path: key,
+    width: dims.w,
+    height: dims.h,
+    size_bytes: file.size || null,
+    uploaded_by: userId,
+    original_name: originalName || null,
+  }, { select: true, logTag: 'image', failMessage: 'Could not finish saving the image — please try again.' });
 
   // Generate Tier-0 blur + Tier-1 preview in the background so the card appears
   // immediately. Needs the images row to exist (set_image_variant looks it up).
@@ -951,24 +964,18 @@ export async function uploadAudio({ file, workspaceId, boardId, cardId = null, u
 
   const { key } = await presignAndPutFile({ workspaceId, boardId, file, onProgress });
 
-  const { error: rowErr } = await supabase
-    .from('images')
-    .insert({
-      workspace_id: workspaceId,
-      board_id: boardId || null,
-      card_id: cardId || null,   // lets the abandoned-upload sweep recover it
-      storage_path: key,
-      width: null,
-      height: null,
-      size_bytes: file.size || null,
-      uploaded_by: userId,
-      original_name: originalName || null,
-    });
-  if (rowErr) {
-    // Same as images: no row → sign-reads won't authorize → audio never plays.
-    console.warn('[uploads] audio images row insert failed', rowErr);
-    throw new Error('Could not finish saving the audio — please try again.');
-  }
+  // Same as images: no row → sign-reads won't authorize → audio never plays.
+  await insertImageRow({
+    workspace_id: workspaceId,
+    board_id: boardId || null,
+    card_id: cardId || null,   // lets the abandoned-upload sweep recover it
+    storage_path: key,
+    width: null,
+    height: null,
+    size_bytes: file.size || null,
+    uploaded_by: userId,
+    original_name: originalName || null,
+  }, { logTag: 'audio', failMessage: 'Could not finish saving the audio — please try again.' });
 
   const analysis = await analysisP;
   const cover = await coverP;
@@ -1025,25 +1032,19 @@ export async function uploadPdf({ file, workspaceId, boardId, cardId = null, use
 
   // 1) Upload the original PDF + its authorizing images row.
   const { key } = await presignAndPutFile({ workspaceId, boardId, file, onProgress });
-  const { error: rowErr } = await supabase
-    .from('images')
-    .insert({
-      workspace_id: workspaceId,
-      board_id: boardId || null,
-      card_id: cardId || null,
-      storage_path: key,
-      width: null,
-      height: null,
-      size_bytes: file.size || null,
-      uploaded_by: userId,
-      original_name: originalName || null,
-    });
-  if (rowErr) {
-    // Same contract as images/audio/video: no row → sign-reads won't authorize
-    // → the PDF can never open. Fail the drop rather than leave a broken card.
-    console.warn('[uploads] pdf images row insert failed', rowErr);
-    throw new Error('Could not finish saving the PDF — please try again.');
-  }
+  // Same contract as images/audio/video: no row → sign-reads won't authorize
+  // → the PDF can never open. Fail the drop rather than leave a broken card.
+  await insertImageRow({
+    workspace_id: workspaceId,
+    board_id: boardId || null,
+    card_id: cardId || null,
+    storage_path: key,
+    width: null,
+    height: null,
+    size_bytes: file.size || null,
+    uploaded_by: userId,
+    original_name: originalName || null,
+  }, { logTag: 'pdf', failMessage: 'Could not finish saving the PDF — please try again.' });
 
   // 2) Render page 1 → WebP thumbnail (best-effort) + read the page count.
   let pageCount = null;
@@ -1140,24 +1141,17 @@ export async function uploadVideo({ file, workspaceId, boardId, cardId = null, u
 
   // Insert an `images` row so sign-reads authorizes the key. Without
   // this the video element gets src=undefined and never plays.
-  const { error: rowErr } = await supabase
-    .from('images')
-    .insert({
-      workspace_id: workspaceId,
-      board_id: boardId || null,
-      card_id: cardId || null,   // lets the abandoned-upload sweep recover it
-      storage_path: key,
-      width: meta.w,
-      height: meta.h,
-      size_bytes: file.size || null,
-      uploaded_by: userId,
-      original_name: originalName || null,
-    });
-  if (rowErr) {
-    // Same as images: no row → sign-reads won't authorize → video never plays.
-    console.warn('[uploads] video images row insert failed', rowErr);
-    throw new Error('Could not finish saving the video — please try again.');
-  }
+  await insertImageRow({
+    workspace_id: workspaceId,
+    board_id: boardId || null,
+    card_id: cardId || null,   // lets the abandoned-upload sweep recover it
+    storage_path: key,
+    width: meta.w,
+    height: meta.h,
+    size_bytes: file.size || null,
+    uploaded_by: userId,
+    original_name: originalName || null,
+  }, { logTag: 'video', failMessage: 'Could not finish saving the video — please try again.' });
 
   const poster = await captureAndUploadPoster({ file, workspaceId, boardId, userId });
 
@@ -1195,26 +1189,46 @@ export { planParts };
 
 // POST to an /mpu/<path> party route. Non-2xx throws a typed error carrying the
 // HTTP status (err.code) + the server's reason/used/quota for quota/paywall UX.
-async function mpuPost(path, workspaceId, payload) {
-  const token = await getAccessToken();
-  if (!token) throw new Error('Not signed in');
+//
+// create, sign-parts and complete are tried again, patiently, when no answer
+// came back (fetch threw) or the answer was a 429 or 5xx; any other 4xx is a
+// decision and throws at once. complete is safe to repeat because the upload
+// service answers a repeated finish like the first (party/upload.ts, same
+// change); an older service answers 502 and the upload fails as before. abort
+// is a single try. `retry: false` is for a caller with its own fallback (the
+// re-sign of one part, which just keeps the old URL). Typed errors carry
+// err.mpuStep so keepResumeSession can tell a failed complete from the rest.
+const MPU_RETRIED_STEPS = new Set(['create', 'sign-parts', 'complete']);
+async function mpuPost(path, workspaceId, payload, { signal = null, retry = true } = {}) {
   const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/${encodeURIComponent(workspaceId)}/mpu/${path}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(payload),
+  const once = async () => {
+    // Fetched inside the retry: a long wait can outlive a token.
+    const token = await getAccessToken();
+    if (!token) throw new Error('Not signed in');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      let info = null;
+      try { info = await res.json(); } catch (_) { /* non-JSON body */ }
+      const err = new Error(info?.error || `mpu/${path} failed: ${res.status}`);
+      err.code = res.status;
+      err.reason = info?.reason || null;
+      err.used = info?.used ?? null;
+      err.quota = info?.quota ?? null;
+      err.mpuStep = path;
+      throw err;
+    }
+    return res.json();
+  };
+  if (!retry || !MPU_RETRIED_STEPS.has(path)) return once();
+  return retryingCall(once, {
+    tries: 6,
+    wait: (a) => retryWait(a, { signal }),
+    aborted: () => !!signal?.aborted,
   });
-  if (!res.ok) {
-    let info = null;
-    try { info = await res.json(); } catch (_) { /* non-JSON body */ }
-    const err = new Error(info?.error || `mpu/${path} failed: ${res.status}`);
-    err.code = res.status;
-    err.reason = info?.reason || null;
-    err.used = info?.used ?? null;
-    err.quota = info?.quota ?? null;
-    throw err;
-  }
-  return res.json();
 }
 
 // XHR PUT of one part. Resolves with the part's ETag (needed for Complete). No
@@ -1259,17 +1273,21 @@ function putPartWithProgress(url, blob, { onProgress, signal } = {}) {
   });
 }
 
-// Retry a part PUT on network/5xx; never retry an abort or a 4xx (expired URL /
-// auth won't fix themselves on retry). A part that got no response is retried
-// on a freshly signed URL (`resign`), see uploadRetry.putPartRetrying.
-function putPartWithRetry(url, blob, { onProgress, signal } = {}, resign) {
+// Retry a part PUT on network/429/5xx; never retry an abort or another 4xx
+// (auth won't fix itself on retry; one 403 re-signs). A part that got no
+// response is retried on a freshly signed URL (`resign`), see
+// uploadRetry.putPartRetrying.
+function putPartWithRetry(url, blob, { onProgress, signal, signedAt } = {}, resign) {
   return putPartRetrying({
     url,
     put: (u) => putPartWithProgress(u, blob, { onProgress, signal }),
     resign,
-    wait: (attempt) => new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt))),
+    // A cancelled part waiting for a slot gives up at once.
+    slot: (fn) => putSlots.run(fn, { signal }),
+    wait: (attempt) => retryWait(attempt, { signal }),
     aborted: () => !!signal?.aborted,
-    tries: 4,
+    signedAt,
+    tries: PUT_TRIES,
   });
 }
 
@@ -1314,26 +1332,47 @@ function clearMpuState(fp) { try { localStorage.removeItem(fp); } catch (_) {} }
 // already in R2, so retry hard — a missing row means a permanently unreadable
 // file (and, unlike a single-PUT orphan, a completed multipart object the sweep
 // can't see).
-async function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes = null, originalName = null }) {
-  let lastErr;
-  for (let i = 0; i < 3; i++) {
-    const { error } = await supabase.from('images').insert({
-      workspace_id: workspaceId,
-      board_id: boardId || null,
-      card_id: cardId || null,
-      storage_path: key,
-      width: null,
-      height: null,
-      size_bytes: sizeBytes ?? file.size ?? null,
-      uploaded_by: userId,
-      original_name: originalName || null,
-    });
-    if (!error) return;
-    lastErr = error;
-    await new Promise(r => setTimeout(r, 400 * (i + 1)));
+function insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes = null, originalName = null }) {
+  return insertImageRow({
+    workspace_id: workspaceId,
+    board_id: boardId || null,
+    card_id: cardId || null,
+    storage_path: key,
+    width: null,
+    height: null,
+    size_bytes: sizeBytes ?? file.size ?? null,
+    uploaded_by: userId,
+    original_name: originalName || null,
+  }, { logTag: 'file', failMessage: 'Could not finish saving the file — please try again.' });
+}
+
+// Insert the images row for bytes already in storage, patiently: six tries
+// with the long wait. Only no answer (status 0), 401 (the token is refreshed
+// on the next try), 408, 429 and 5xx are tried again; any other error fails at
+// once. A 23505 (unique storage_path, migration 0092) means an earlier try
+// landed and only its answer was lost, so it counts as saved. Video used to
+// have no retry on this insert at all. With `select` the saved row comes back
+// (read again after a 23505; null if that read fails, which callers tolerate).
+async function insertImageRow(row, { select = false, failMessage, logTag }) {
+  let lastError;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = select
+      ? await supabase.from('images').insert(row).select('*').single()
+      : await supabase.from('images').insert(row);
+    if (!res.error) return select ? res.data : null;
+    lastError = res.error;
+    if (res.error.code === '23505') {
+      if (!select) return null;
+      const back = await supabase.from('images').select('*').eq('storage_path', row.storage_path).maybeSingle();
+      return back.error ? null : back.data;
+    }
+    const s = res.status;
+    const retryable = s === 0 || s === 401 || s === 408 || s === 429 || s >= 500;
+    if (!retryable || attempt === 5) break;
+    await retryWait(attempt);
   }
-  console.warn('[uploads] file images row insert failed', lastErr);
-  throw new Error('Could not finish saving the file — please try again.');
+  console.warn(`[uploads] ${logTag} images row insert failed`, lastError);
+  throw new Error(failMessage);
 }
 
 // Upload any File to R2 via multipart. Returns
@@ -1366,7 +1405,7 @@ async function uploadFileSession({ file, workspaceId, boardId, cardId, userId, o
   if (!session) {
     const created = await mpuPost('create', workspaceId, {
       boardId, fileExt: ext, contentType: file.type || 'application/octet-stream', totalBytes: file.size,
-    });
+    }, { signal });
     session = { key: created.key, uploadId: created.uploadId, partSize: created.partSize, completed: {}, createdAt: Date.now() };
     save(session);
   }
@@ -1388,6 +1427,16 @@ async function uploadFileSession({ file, workspaceId, boardId, cardId, userId, o
 
   const todo = parts.filter(p => completed[p.partNumber] == null);
 
+  // One controller per attempt, linked to the caller's signal. When one part
+  // runs out of tries it aborts the rest: the file's other parts used to keep
+  // uploading with their own long waits, racing the automatic retry on the same
+  // session, doubling traffic on a bad line and overwriting its saved progress.
+  const attemptCtl = new AbortController();
+  const attemptSignal = attemptCtl.signal;
+  const onCallerAbort = () => attemptCtl.abort();
+  if (signal?.aborted) attemptCtl.abort();
+  else signal?.addEventListener('abort', onCallerAbort, { once: true });
+
   let serverBytes = null;
   try {
     for (let i = 0; i < todo.length; i += MPU_SIGN_BATCH) {
@@ -1395,35 +1444,38 @@ async function uploadFileSession({ file, workspaceId, boardId, cardId, userId, o
       const batch = todo.slice(i, i + MPU_SIGN_BATCH);
       const { urls } = await mpuPost('sign-parts', workspaceId, {
         boardId, key, uploadId, partNumbers: batch.map(p => p.partNumber),
-      });
+      }, { signal: attemptSignal });
+      const signedAt = Date.now();
+      // The first failure aborts the others, then is rethrown as is, so
+      // keepResumeSession sees the real cause and not 'aborted'.
       await runPool(batch, MPU_CONCURRENCY, async (p) => {
         const url = urls[p.partNumber];
         if (!url) throw new Error(`Missing signed URL for part ${p.partNumber}`);
         const etag = await putPartWithRetry(url, file.slice(p.start, p.end), {
-          signal,
+          signal: attemptSignal, signedAt,
           onProgress: (loaded) => { loadedByPart[p.partNumber] = loaded; emit(); },
         }, async () => {
-          const fresh = await mpuPost('sign-parts', workspaceId, { boardId, key, uploadId, partNumbers: [p.partNumber] });
+          const fresh = await mpuPost('sign-parts', workspaceId, { boardId, key, uploadId, partNumbers: [p.partNumber] }, { retry: false });
           return fresh?.urls?.[p.partNumber] || null;
         });
         completed[p.partNumber] = etag;
         loadedByPart[p.partNumber] = (p.end - p.start);
         session.completed = completed; save(session);
         emit();
-      });
+      }).catch((e) => { attemptCtl.abort(); throw e; });
     }
 
     const done = await mpuPost('complete', workspaceId, {
       boardId, key, uploadId,
       parts: parts.map(p => ({ partNumber: p.partNumber, etag: completed[p.partNumber] })),
-    });
+    }, { signal: attemptSignal });
     const raw = done?.bytes;
     serverBytes = (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) ? raw : null;
     clear();
   } catch (err) {
-    // Transient (no response at all) → keep local state so a re-drop resumes.
-    // Anything the server answered (auth, quota, a failed complete, a refused
-    // part) or an abort → discard the server session + local state: the
+    // Transient (no response, a 429 or a 5xx) → keep local state so a re-drop
+    // resumes, except after a failed complete. Any other answer (auth, quota,
+    // a refused part) or an abort → discard the server session + local state: the
     // session is dead or already finished, and resuming it only failed again
     // (uploadRetry.keepResumeSession). Always re-throw so the caller rolls
     // back the optimistic card.
@@ -1432,6 +1484,8 @@ async function uploadFileSession({ file, workspaceId, boardId, cardId, userId, o
       clear();
     }
     throw err;
+  } finally {
+    signal?.removeEventListener('abort', onCallerAbort);
   }
 
   await insertFileImageRow({ workspaceId, boardId, cardId, key, file, userId, sizeBytes: serverBytes, originalName });

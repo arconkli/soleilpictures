@@ -137,10 +137,14 @@ underneath. Fold it and it becomes a small chip; on a phone it is a slim bar
 along the bottom that opens into the list. The tab's title carries the count
 too, so you can follow it from another tab.
 
-A file that didn't upload stays in the tray with what went wrong and **Retry**.
-When the connection drops, the tray says **Offline** and how many uploads are
-paused, and the ones the drop stopped try again by themselves when you're back
-online.
+When the connection drops, an upload pauses and carries on from where it
+stopped once you're back online (a big file picks up from the last piece sent).
+The tray says **Offline** and how many uploads are paused. An upload that still
+can't get through stays on the board saying **Connection dropped · trying
+again**, and keeps trying by itself: after 20 seconds, a minute, three minutes,
+then every five minutes while the tab is open. **Retry** tries at once. A file
+that didn't upload for another reason stays in the tray with what went wrong and
+**Retry**.
 
 Downloads, exports and copies show in the same tray while they're prepared: a
 zip of many files counts them as they're gathered and can be cancelled, and a

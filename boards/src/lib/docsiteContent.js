@@ -17739,21 +17739,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A file that didn't upload stays in the tray with what went wrong and "
-    },
-    {
-     "t": "strong",
-     "v": "Retry",
-     "children": [
-      {
-       "t": "text",
-       "v": "Retry"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ". When the connection drops, the tray says "
+     "v": "When the connection drops, an upload pauses and carries on from where it stopped once you're back online (a big file picks up from the last piece sent). The tray says "
     },
     {
      "t": "strong",
@@ -17767,7 +17753,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and how many uploads are paused, and the ones the drop stopped try again by themselves when you're back online."
+     "v": " and how many uploads are paused. An upload that still can't get through stays on the board saying "
+    },
+    {
+     "t": "strong",
+     "v": "Connection dropped · trying again",
+     "children": [
+      {
+       "t": "text",
+       "v": "Connection dropped · trying again"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and keeps trying by itself: after 20 seconds, a minute, three minutes, then every five minutes while the tab is open. "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tries at once. A file that didn't upload for another reason stays in the tray with what went wrong and "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },

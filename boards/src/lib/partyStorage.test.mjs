@@ -6,6 +6,7 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { AwsClient } from 'aws4fetch';
 import {
   RECHECK_MAX, b2Target, clientUploadId, findObject, partyConfigReader, r2Target, recheckKeys,
   storageOverride, targetFor, uploadTarget,
@@ -263,4 +264,22 @@ test('the party reads the switch as the service role, and an override replaces i
     supabaseUrl: 'https://db.test', fetch: async () => { throw new Error('never asked'); },
   });
   assert.deepEqual(await over.get(), { mode: 'canary', workspaces: [WS], fallback: false });
+});
+
+test('party store calls skip the cache; presigned URLs are exactly a plain client\'s', async () => {
+  const t = targets();
+  const seen = [];
+  globalThis.fetch = async (req) => { seen.push(req); return new Response(null, { status: 200 }); };
+  await t.r2.aws.fetch(t.r2.url('k.mp4'), { method: 'HEAD' });
+  await t.b2.aws.fetch(t.b2.url('k.mp4'), { method: 'POST', body: '<x/>' });
+  assert.equal(seen.length, 2);
+  for (const r of seen) assert.equal(r.cache, 'no-store');
+  const opts = { aws: { signQuery: true, datetime: '20261118T000000Z' } };
+  const plainR2 = new AwsClient({ accessKeyId: 'AK', secretAccessKey: 'SK', service: 's3', region: 'auto' });
+  const plainB2 = new AwsClient({ accessKeyId: 'kid', secretAccessKey: 'appkey', service: 's3', region: 'us-east-005' });
+  for (const [mine, plain, url] of [[t.r2, plainR2, t.r2.url('k')], [t.b2, plainB2, t.b2.url('k')]]) {
+    const a = await mine.aws.sign(new Request(url, { method: 'GET' }), opts);
+    const b = await plain.sign(new Request(url, { method: 'GET' }), opts);
+    assert.equal(a.url, b.url);
+  }
 });

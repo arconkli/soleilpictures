@@ -238,7 +238,7 @@ test('rows: order, words and buttons', () => {
   assert.equal(r4.c, 'Waiting');
   assert.deepEqual(r4.button, { id: 'cancel', label: 'Remove this file' });
   assert.equal(r5.button, null, 'no canceller for that board');
-  assert.equal(f1.why, 'Didn’t upload · connection dropped');
+  assert.equal(f1.why, 'Connection dropped · trying again');
   assert.equal(f1.retry, true);
   assert.deepEqual(f1.button, { id: 'remove', label: 'Remove this file' });
   assert.equal(f2.why, 'Over your storage');

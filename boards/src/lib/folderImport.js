@@ -10,6 +10,8 @@
 //   createCluster({ parentBoardId, name }) → id      a boards row (boardsApi.createBoard)
 //   placeTopCard(card) / removeTopCard(id)           the CURRENT board's live doc
 //   upload(item, { boardId, cardId }) → result       the same upload functions a drop uses
+//   isNetworkFailure(err) / waitBeforeRetry(signal)  a file the connection dropped gets one more go
+//                                                    (defaults: isNetworkUploadFailure, retryWait)
 //   writeCluster(boardId, cards)                     a NEW cluster's snapshot, written whole
 //   deleteCluster(id)                                soft delete, for an import that ends empty
 //
@@ -26,6 +28,8 @@
 // landed is written, and the caller makes the one pitch.
 
 import { layoutDrop } from './layoutEngine.js';
+import { isNetworkUploadFailure } from './transferWords.js';
+import { retryWait } from './uploadRetry.js';
 import { cardFromUpload, cardIdFor, measuredSize, cardKindFor } from './cardFromUpload.js';
 
 export const CLUSTER_CARD = Object.freeze({ w: 280, h: 220 });
@@ -101,6 +105,10 @@ export async function runFolderImport(nodes, deps) {
     parentBoardId, at,
     createCluster, deleteCluster, placeTopCard, removeTopCard, upload, writeCluster,
     signal = null, onProgress = () => {}, stopOn = isStopError, rand = Math.random,
+    isNetworkFailure = (err) => isNetworkUploadFailure(err, {
+      online: typeof navigator === 'undefined' || navigator.onLine !== false,
+    }),
+    waitBeforeRetry = (sig) => retryWait(2, { signal: sig }),
   } = deps;
   const total = countFiles(nodes);
   let done = 0;
@@ -133,7 +141,19 @@ export async function runFolderImport(nodes, deps) {
       if (halted()) return;
       const cardId = cardIdFor(item, done + order, rand);
       try {
-        const up = await upload(item, { boardId: id, cardId });
+        let up;
+        try {
+          up = await upload(item, { boardId: id, cardId });
+        } catch (err) {
+          // A dropped connection for a moment shouldn't cost the file: wait for
+          // the network, then go once more with the SAME card id so a
+          // multipart upload picks up its saved parts instead of starting over.
+          if (halted() || !isNetworkFailure(err)) throw err;
+          await waitBeforeRetry(signal);
+          // An import stopped by the cap or quota during the wait must not send one more file.
+          if (halted()) throw err;
+          up = await upload(item, { boardId: id, cardId });
+        }
         uploaded.push({ item, up, id: cardId, order });
         result.placed++;
       } catch (err) {

@@ -12,6 +12,17 @@
 import { AwsClient } from 'aws4fetch';
 import { B2, B2_UPLOAD_TAG, backendForKey, makeConfigReader, readsFallBack } from './storage.js';
 
+// Every party call to the store skips Cloudflare's cache. A Durable Object
+// fetch is a cacheable subrequest: Cloudflare turns a HEAD into a GET (and
+// re-ranges GETs) for cacheable extensions (.mp4, .jpg, .pdf, .zip), and SigV4
+// signed the original method, so B2 answered 403. Only fetch() changes; sign()
+// is untouched, so presigned URLs stay byte-identical.
+class NoStoreClient extends AwsClient {
+  fetch(input, init) {
+    return super.fetch(input, { ...(init || {}), cache: 'no-store' });
+  }
+}
+
 const text = (v) => (typeof v === 'string' ? v.trim() : '');
 const encodeKey = (key) => String(key).split('/').map(encodeURIComponent).join('/');
 
@@ -23,7 +34,7 @@ export function r2Target({ accountId, bucket, accessKeyId, secretAccessKey }) {
   return {
     kind: 'r2',
     bucket,
-    aws: new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto' }),
+    aws: new NoStoreClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto' }),
     url: (key) => `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${key}`,
   };
 }
@@ -40,7 +51,7 @@ export function b2Target(env) {
   return {
     kind: 'b2',
     bucket,
-    aws: new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region }),
+    aws: new NoStoreClient({ accessKeyId, secretAccessKey, service: 's3', region }),
     url: (key) => `${endpoint}/${bucket}/${encodeKey(key)}`,
   };
 }

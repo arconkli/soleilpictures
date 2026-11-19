@@ -207,7 +207,11 @@ export function s3Bucket({
     let lastErr = null;
     for (let i = 0; i < attempts; i++) {
       try {
-        const init = { method, headers: new Headers(headers || {}) };
+        // cache 'no-store': since files moved to B2 this is a cacheable
+        // subrequest, and Cloudflare turns a HEAD into a GET (and re-ranges
+        // GETs) for cacheable extensions such as .mp4/.jpg/.pdf. We signed the
+        // original method, so B2 answered 403. No-store sends it as signed.
+        const init = { method, headers: new Headers(headers || {}), cache: 'no-store' };
         if (body !== undefined) init.body = body;
         const signed = await client.sign(url, init);
         const res = await fetchFn(signed);

@@ -3,7 +3,7 @@
 //   node --test src/lib/transferWords.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { uploadFailedWords, downloadFailedWords, isNetworkUploadFailure } from './transferWords.js';
+import { uploadFailedWords, downloadFailedWords, isNetworkUploadFailure, keptRetryDelayMs } from './transferWords.js';
 import { ZipReadError } from './zipRead.js';
 
 test('machine talk becomes one plain sentence', () => {
@@ -93,4 +93,9 @@ test('isNetworkUploadFailure: only a dropped connection is worth keeping the car
   assert.equal(isNetworkUploadFailure(net('Upload aborted'), { online: false }), false, 'an abort stays an abort offline');
   assert.equal(isNetworkUploadFailure(net('Not allowed to upload'), { online: false }), false, 'a refusal stays a refusal offline');
   assert.equal(isNetworkUploadFailure(net('x', { code: 503 })), true, 'a numeric code is the status');
+});
+
+test('a kept upload retries by itself after 20 s, 1 min, 3 min, then every 5 min', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 50].map(keptRetryDelayMs), [20_000, 60_000, 180_000, 300_000, 300_000, 300_000]);
+  for (const bad of [-1, NaN, undefined, null, 'x']) assert.equal(keptRetryDelayMs(bad), 20_000, String(bad));
 });

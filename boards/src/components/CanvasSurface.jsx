@@ -12,7 +12,7 @@ import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
 import { isZipFile } from '../lib/importZips.js';
-import { uploadFailedWords, downloadFailedWords, isNetworkUploadFailure } from '../lib/transferWords.js';
+import { uploadFailedWords, downloadFailedWords, isNetworkUploadFailure, keptRetryDelayMs } from '../lib/transferWords.js';
 import { startBatch, addTransfer, updateTransfer, removeTransfer, activitySnapshot, subscribeActivity, slotFree, inLimiterUnlessPaused, setCardCanceller, resumeBatch } from '../lib/activity.js';
 import { useTransferCardIds } from '../hooks/useActivity.js';
 import { createPeerUploadsStore, createUploadPublisher } from '../lib/peerUploads.js';
@@ -4751,6 +4751,10 @@ export function CanvasSurface({
   // cluster is open with the server's copy in and the browser online.
   // dispatchIngestOne and doDeleteIds are defined further down, hence the refs.
   const keptUploadsRef = useRef(new Map());
+  // Automatic retries already made per transfer id (the card id changes on
+  // every retry, the transfer's stays), which sets the next wait.
+  const keptAutoTriesRef = useRef(new Map());
+  const retryWhenOpenNowRef = useRef(null);
   const dispatchIngestOneRef = useRef(null);
   const doDeleteIdsRef = useRef(null);
   // The tray's "Cancel this upload" deletes the card (with its Undo toast),
@@ -4824,6 +4828,7 @@ export function CanvasSurface({
   // "Didn’t upload" with Retry and Remove (keepAgain).
   const dropKept = useCallback((id, k) => {
     keptUploadsRef.current.delete(id);
+    keptAutoTriesRef.current.delete(k.tid);
     removeTransfer(k.tid);
     inflightUploadsRef.current.delete(id);
     k.cleanup?.();
@@ -4840,6 +4845,7 @@ export function CanvasSurface({
       return;
     }
     keptUploadsRef.current.delete(id);
+    keptAutoTriesRef.current.delete(k.tid);
     removeTransfer(k.tid);
     inflightUploadsRef.current.delete(id);
     k.cleanup?.();
@@ -4872,7 +4878,21 @@ export function CanvasSurface({
     const online = typeof navigator === 'undefined' || navigator.onLine !== false;
     if (!isNetworkUploadFailure(err, { online })) return false;
     const batch = activitySnapshot().items.find((it) => it.id === tid)?.batch || null;
-    keptUploadsRef.current.set(id, { tid, batch, dropBoardId, retry, cleanup: null, retryWhenOpen: false });
+    const k = { tid, batch, dropBoardId, retry, cleanup: null, retryWhenOpen: false };
+    keptUploadsRef.current.set(id, k);
+    // 2026-11-18, the owner's ask: a dropped connection should not need a
+    // person. Tries again by itself after 20 s, 1 min, 3 min, then every 5 min
+    // while the tab is open. It only marks the entry; retryWhenOpenNow still
+    // waits for the browser to be online, the cluster open with its server
+    // copy in, and the card live. A person's Retry goes at once.
+    const n = keptAutoTriesRef.current.get(tid) || 0;
+    keptAutoTriesRef.current.set(tid, n + 1);
+    const timer = setTimeout(() => {
+      if (keptUploadsRef.current.get(id) !== k) return;
+      k.retryWhenOpen = true;
+      retryWhenOpenNowRef.current?.();
+    }, keptRetryDelayMs(n));
+    k.cleanup = () => clearTimeout(timer);
     updateTransfer(tid, {
       state: 'failed', error: null, retryOnline: true,
       actions: { retry: () => retryKeptByPerson(id), remove: () => removeKeptUpload(id) },
@@ -5237,7 +5257,11 @@ export function CanvasSurface({
     } finally {
       // A kept card keeps its picture until it is retried or removed.
       const k = kept ? keptUploadsRef.current.get(id) : null;
-      if (k) k.cleanup = dropPreview;
+      if (k) {
+        // Chain, don't replace: keepFailedUpload's cleanup clears the retry timer.
+        const prev = k.cleanup;
+        k.cleanup = () => { prev?.(); dropPreview(); };
+      }
       else { inflightUploadsRef.current.delete(id); dropPreview(); }
     }
   }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject, settleUpload, inUploadSlot]);
@@ -6099,6 +6123,9 @@ export function CanvasSurface({
       retryKeptUpload(id);
     }
   }, [docReadyFor, cardIsLive, retryKeptUpload]);
+  retryWhenOpenNowRef.current = retryWhenOpenNow;
+  // The automatic retry timers (keepFailedUpload) stop with the canvas.
+  useEffect(() => () => { for (const k of keptUploadsRef.current.values()) k.cleanup?.(); }, []);
   useEffect(() => { retryWhenOpenNow(); }, [board?.id, boardSynced, everyCard, retryWhenOpenNow]);
   // Back online: every network-failed upload kept, on any cluster, tries
   // again once, as its Retry would — now if its cluster is open, else when it is.
